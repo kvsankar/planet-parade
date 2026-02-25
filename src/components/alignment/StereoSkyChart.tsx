@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
-import { AltAzPosition, SkyBodyId, StarAltAzPosition } from '../../lib/astronomy'
+import { AltAzPosition, SkyBodyId, StarAltAzPosition, EclipticPoint } from '../../lib/astronomy'
 import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
 import { STAR_CATALOG } from '../../data/starCatalog'
+import { CONSTELLATIONS } from '../../data/constellationLines'
 
 interface StereoSkyChartProps {
   positions: AltAzPosition[]
   stars: StarAltAzPosition[]
+  ecliptic: EclipticPoint[]
   title: string
   time: Date | null
   size: number
@@ -61,7 +63,7 @@ function formatTime(d: Date): string {
   return `${h}:${m} UTC`
 }
 
-export default function StereoSkyChart({ positions, stars, title, time, size }: StereoSkyChartProps) {
+export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -84,6 +86,80 @@ export default function StereoSkyChart({ positions, stars, title, time, size }: 
       }
     })
   }, [stars, R])
+
+  const constellationData = useMemo(() => {
+    const starMap = new Map<number, { x: number; y: number; altitude: number }>()
+    for (const s of projectedStars) {
+      starMap.set(s.starIndex, { x: s.x, y: s.y, altitude: s.altitude })
+    }
+    return CONSTELLATIONS.map((c) => {
+      const segments: { x1: number; y1: number; x2: number; y2: number; bothBelow: boolean }[] = []
+      let sumX = 0, sumY = 0, count = 0
+      const seen = new Set<number>()
+      for (const [a, b] of c.lines) {
+        const sa = starMap.get(a)
+        const sb = starMap.get(b)
+        if (!sa || !sb) continue
+        segments.push({
+          x1: sa.x, y1: sa.y,
+          x2: sb.x, y2: sb.y,
+          bothBelow: sa.altitude < 0 && sb.altitude < 0,
+        })
+        if (!seen.has(a)) { sumX += sa.x; sumY += sa.y; count++; seen.add(a) }
+        if (!seen.has(b)) { sumX += sb.x; sumY += sb.y; count++; seen.add(b) }
+      }
+      return {
+        name: c.name,
+        segments,
+        centroid: count > 0 ? { x: sumX / count, y: sumY / count } : null,
+      }
+    })
+  }, [projectedStars])
+
+  const eclipticPathData = useMemo(() => {
+    if (ecliptic.length === 0) return null
+
+    const pts = ecliptic.map((p) => projectAltAz(p.altitude, p.azimuth, R))
+    const parts: string[] = []
+    let prevX = 0, prevY = 0
+
+    for (let i = 0; i < pts.length; i++) {
+      const px = cx + pts[i].x
+      const py = cy + pts[i].y
+      if (i === 0) {
+        parts.push(`M ${px} ${py}`)
+      } else {
+        const dx = px - prevX
+        const dy = py - prevY
+        if (Math.sqrt(dx * dx + dy * dy) > R * 0.5) {
+          parts.push(`M ${px} ${py}`)
+        } else {
+          parts.push(`L ${px} ${py}`)
+        }
+      }
+      prevX = px
+      prevY = py
+    }
+
+    // Close back to first point if no discontinuity
+    const firstX = cx + pts[0].x
+    const firstY = cy + pts[0].y
+    if (Math.sqrt((firstX - prevX) ** 2 + (firstY - prevY) ** 2) < R * 0.5) {
+      parts.push('Z')
+    }
+
+    // Label at highest-altitude point
+    let bestIdx = 0
+    for (let i = 1; i < ecliptic.length; i++) {
+      if (ecliptic[i].altitude > ecliptic[bestIdx].altitude) bestIdx = i
+    }
+
+    return {
+      path: parts.join(' '),
+      labelX: cx + pts[bestIdx].x,
+      labelY: cy + pts[bestIdx].y,
+    }
+  }, [ecliptic, R, cx, cy])
 
   if (size < 50) return null
 
@@ -195,6 +271,57 @@ export default function StereoSkyChart({ positions, stars, title, time, size }: 
 
       {/* Stars + body dots + labels (clipped to circle) */}
       <g clipPath={`url(#clip-${title})`}>
+        {/* Ecliptic curve + label */}
+        {eclipticPathData && (
+          <g>
+            <path
+              d={eclipticPathData.path}
+              stroke="rgba(200, 160, 80, 0.3)"
+              strokeWidth={0.8}
+              strokeDasharray="4 3"
+              fill="none"
+            />
+            <text
+              x={eclipticPathData.labelX}
+              y={eclipticPathData.labelY - 5}
+              textAnchor="middle"
+              fill="#ccaa55"
+              fontSize={7}
+              opacity={0.5}
+            >
+              Ecliptic
+            </text>
+          </g>
+        )}
+        {/* Constellation lines + labels (behind stars) */}
+        {constellationData.map((c) => (
+          <g key={c.name}>
+            {c.segments.map((seg, i) => (
+              <line
+                key={i}
+                x1={cx + seg.x1}
+                y1={cy + seg.y1}
+                x2={cx + seg.x2}
+                y2={cy + seg.y2}
+                stroke="rgba(100, 140, 255, 0.25)"
+                strokeWidth={0.6}
+                opacity={seg.bothBelow ? 0.1 : 1}
+              />
+            ))}
+            {c.centroid && (
+              <text
+                x={cx + c.centroid.x}
+                y={cy + c.centroid.y - 6}
+                textAnchor="middle"
+                fill="#88aaff"
+                fontSize={8}
+                opacity={0.35}
+              >
+                {c.name}
+              </text>
+            )}
+          </g>
+        ))}
         {/* Star layer (behind planets) */}
         {projectedStars.map((s) => {
           const sx = cx + s.x

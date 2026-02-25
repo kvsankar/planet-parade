@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -60,6 +60,11 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
   const eveningStars = useMemo(() =>
     sunsetTime ? getStarAltAzPositions(sunsetTime, observer) : [], [sunsetTime, observer])
 
+  const morningEcliptic = useMemo(() =>
+    sunriseTime ? getEclipticAltAzPositions(sunriseTime, observer) : [], [sunriseTime, observer])
+  const eveningEcliptic = useMemo(() =>
+    sunsetTime ? getEclipticAltAzPositions(sunsetTime, observer) : [], [sunsetTime, observer])
+
   // Chart sizing: fit two charts side by side
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
@@ -74,6 +79,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
           <StereoSkyChart
             positions={morningPositions}
             stars={morningStars}
+            ecliptic={morningEcliptic}
             title="Morning"
             time={sunriseTime}
             size={chartSize}
@@ -81,6 +87,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
           <StereoSkyChart
             positions={eveningPositions}
             stars={eveningStars}
+            ecliptic={eveningEcliptic}
             title="Evening"
             time={sunsetTime}
             size={chartSize}

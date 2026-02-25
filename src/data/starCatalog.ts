@@ -6,9 +6,9 @@ export interface StarCatalogEntry {
   spectral: 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M'
 }
 
-// Brightest stars (visual magnitude ≤ 3.0)
+// Brightest stars (visual magnitude ≤ 3.0) + 5 connector stars for constellation lines
 // Source: Yale Bright Star Catalogue / Hipparcos (J2000 coordinates)
-// 26 named stars + 72 unnamed entries
+// 26 named stars + 72 unnamed entries + 5 connector stars (indices 98–102)
 export const STAR_CATALOG: StarCatalogEntry[] = [
   // --- Named stars ---
   { name: 'Sirius',      ra:  6.7525, dec: -16.7161, mag: -1.46, spectral: 'A' },
@@ -184,4 +184,16 @@ export const STAR_CATALOG: StarCatalogEntry[] = [
   { name: '', ra:  3.7914, dec:  24.1053, mag:  2.87, spectral: 'B' },
   // Epsilon CMa (Adhara)
   { name: '', ra:  6.9771, dec: -28.9722, mag:  1.50, spectral: 'B' },
+
+  // --- Connector stars for constellation lines (indices 98–102) ---
+  // Megrez (Delta UMa) — Big Dipper bowl corner
+  { name: '', ra: 12.2561, dec:  57.0326, mag:  3.31, spectral: 'A' },
+  // Segin (Epsilon Cas) — Cassiopeia W tip
+  { name: '', ra:  1.9065, dec:  63.6700, mag:  3.37, spectral: 'B' },
+  // Algenib (Gamma Peg) — Great Square corner
+  { name: '', ra:  0.2206, dec:  15.1836, mag:  2.83, spectral: 'B' },
+  // Albireo (Beta Cyg) — Cygnus cross foot
+  { name: '', ra: 19.5121, dec:  27.9597, mag:  3.08, spectral: 'K' },
+  // Mirach (Beta And) — Andromeda chain middle
+  { name: '', ra:  1.1622, dec:  35.6206, mag:  2.05, spectral: 'M' },
 ]

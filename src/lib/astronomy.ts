@@ -130,3 +130,38 @@ export function getStarAltAzPositions(date: Date, observer: ObserverLocation): S
     }
   })
 }
+
+// ============ Ecliptic curve ============
+
+export interface EclipticPoint {
+  altitude: number
+  azimuth: number
+}
+
+// J2000 mean obliquity — precomputed trig
+const OBLIQUITY_RAD = 23.4393 * DEG_TO_RAD
+const COS_OBL = Math.cos(OBLIQUITY_RAD)
+const SIN_OBL = Math.sin(OBLIQUITY_RAD)
+
+/** Sample 360 points along the ecliptic and return their alt/az positions */
+export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation): EclipticPoint[] {
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
+  const points: EclipticPoint[] = []
+
+  for (let i = 0; i < 360; i++) {
+    const lon = i * DEG_TO_RAD
+    const cosLon = Math.cos(lon)
+    const sinLon = Math.sin(lon)
+
+    // Ecliptic (λ, β=0) → equatorial J2000 unit vector
+    const vec = new Astronomy.Vector(cosLon, sinLon * COS_OBL, sinLon * SIN_OBL, astroTime)
+    const horVec = Astronomy.RotateVector(rot, vec)
+    const sphere = Astronomy.HorizonFromVector(horVec, 'normal')
+
+    points.push({ altitude: sphere.lat, azimuth: sphere.lon })
+  }
+
+  return points
+}
