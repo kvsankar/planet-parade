@@ -37,11 +37,13 @@ function bodyColor(id: SkyBodyId): string {
   return BODY_META[id as CelestialBodyId]?.color ?? '#888'
 }
 
-function bodyRadius(id: SkyBodyId): number {
-  if (id === 'Sun') return 8
-  if (id === 'Moon') return 7
-  return 5
+/** Unified magnitude → dot radius. Brighter (lower mag) = larger. */
+function magToRadius(mag: number): number {
+  return Math.max(1.0, Math.min(6.0, 3.5 - mag * 0.55))
 }
+
+const SUN_RADIUS = 8
+const MOON_RADIUS = 7
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -49,10 +51,6 @@ function projectAltAz(altitude: number, azimuth: number, R: number): { x: number
   const r = ((90 - altitude) / 90) * R
   const azRad = azimuth * DEG_TO_RAD
   return { x: -r * Math.sin(azRad), y: -r * Math.cos(azRad) }
-}
-
-function starRadius(mag: number): number {
-  return Math.max(0.8, Math.min(2.5, 2.5 - (mag + 1.5) / 3))
 }
 
 const SPECTRAL_COLORS: Record<string, string> = {
@@ -68,7 +66,7 @@ function moonPhasePath(r: number, illum: number, waxing: boolean): string {
   // Lit side semicircle sweep: waxing = right side (sweep 1), waning = left side (sweep 0)
   const semiSweep = waxing ? 1 : 0
   // Terminator sweep depends on gibbous vs crescent and waxing vs waning
-  const termSweep = waxing ? (k >= 0 ? 0 : 1) : (k >= 0 ? 1 : 0)
+  const termSweep = waxing ? (k >= 0 ? 1 : 0) : (k >= 0 ? 0 : 1)
   return `M 0 ${-r} A ${r} ${r} 0 0 ${semiSweep} 0 ${r} A ${rx} ${r} 0 0 ${termSweep} 0 ${-r} Z`
 }
 
@@ -385,7 +383,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
           const sx = cx + s.x
           const sy = cy + s.y
           const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
-          const rad = starRadius(s.mag)
+          const rad = magToRadius(s.mag)
           const isAbove = s.altitude >= 0
           let baseOpacity = isAbove ? 0.85 : 0.3
 
@@ -428,10 +426,11 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
           const px = cx + p.x
           const py = cy + p.y
           const color = bodyColor(p.bodyId)
-          const rad = bodyRadius(p.bodyId)
-          const isAboveHorizon = p.altitude >= 0
           const mag = magnitudes[p.bodyId]
+          const isSun = p.bodyId === 'Sun'
           const isMoon = p.bodyId === 'Moon'
+          const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(mag ?? 2)
+          const isAboveHorizon = p.altitude >= 0
 
           return (
             <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
