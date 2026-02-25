@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useEffect, useCallback, useId } from 'react'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
 import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180 } from '../../lib/alignment'
+import { getBodyVisualMagnitude, SkyBodyId } from '../../lib/astronomy'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -62,7 +63,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   const clipId = useId()
   const [cW, setCW] = useState(400)
   const [cH, setCH] = useState(300)
-  const [showTable, setShowTable] = useState(false)
+  const [showTable, setShowTable] = useState(true)
   const [splitRatio, setSplitRatio] = useState(0.65)
 
   // Quantize date to nearest hour for ephemeris cache efficiency during animation
@@ -238,11 +239,14 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     )
   }
 
-  // Table data sorted by ascending longitude
-  const tableData = useMemo(() =>
-    [...plotData].sort((a, b) => a.absLon - b.absLon),
-    [plotData],
-  )
+  // Table data sorted by ascending longitude, with magnitudes
+  const tableData = useMemo(() => {
+    const sorted = [...plotData].sort((a, b) => a.absLon - b.absLon)
+    return sorted.map((b) => ({
+      ...b,
+      mag: getBodyVisualMagnitude(b.id as SkyBodyId, quantizedDate),
+    }))
+  }, [plotData, quantizedDate])
 
   const dotR = 5
   const sunR = 7
@@ -446,6 +450,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
                 <th>Lon</th>
                 <th>Lat</th>
                 <th>Elong</th>
+                <th>Mag</th>
                 <th>Sky</th>
               </tr>
             </thead>
@@ -460,6 +465,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
                     <td>{b.absLon.toFixed(1)}°</td>
                     <td>{b.lat >= 0 ? '+' : ''}{b.lat.toFixed(1)}°</td>
                     <td>{isSun ? '\u2014' : `${b.elongation >= 0 ? '+' : ''}${b.elongation.toFixed(1)}°`}</td>
+                    <td>{b.mag !== null ? b.mag.toFixed(1) : '\u2014'}</td>
                     <td style={{ color: skyColor }}>{skyLabel}</td>
                   </tr>
                 )

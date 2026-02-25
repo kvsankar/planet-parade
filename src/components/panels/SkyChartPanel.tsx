@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -70,11 +70,24 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
   const eveningMoonIllum = useMemo(() =>
     sunsetTime ? getMoonIllumination(sunsetTime) : 0, [sunsetTime])
 
-  // Chart sizing: fit two charts side by side
+  const morningMagnitudes = useMemo(() => {
+    if (!sunriseTime) return {} as Record<SkyBodyId, number | null>
+    const m = {} as Record<SkyBodyId, number | null>
+    for (const id of SKY_BODIES) m[id] = getBodyVisualMagnitude(id, sunriseTime)
+    return m
+  }, [sunriseTime])
+  const eveningMagnitudes = useMemo(() => {
+    if (!sunsetTime) return {} as Record<SkyBodyId, number | null>
+    const m = {} as Record<SkyBodyId, number | null>
+    for (const id of SKY_BODIES) m[id] = getBodyVisualMagnitude(id, sunsetTime)
+    return m
+  }, [sunsetTime])
+
+  // Chart sizing: fit two charts stacked vertically
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
-    return Math.min(Math.floor((w - 16) / 2), h - 8)
+    return Math.min(w - 8, Math.floor((h - 16) / 2))
   }, [containerSize])
 
   return (
@@ -89,6 +102,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             time={sunriseTime}
             size={chartSize}
             moonIllumination={morningMoonIllum}
+            magnitudes={morningMagnitudes}
           />
           <StereoSkyChart
             positions={eveningPositions}
@@ -98,6 +112,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             time={sunsetTime}
             size={chartSize}
             moonIllumination={eveningMoonIllum}
+            magnitudes={eveningMagnitudes}
           />
         </div>
       )}

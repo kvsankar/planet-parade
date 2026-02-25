@@ -12,28 +12,39 @@ export type PanelId = 'scene' | 'controls' | 'chart' | 'skyview' | 'skychart'
 
 type PanelLayouts = Record<PanelId, PanelLayout>
 
-const STORAGE_KEY = 'solar-panels-layout-v5'
+const STORAGE_KEY = 'solar-panels-layout-v6'
 
 function getDefaults(): PanelLayouts {
   const w = window.innerWidth
   const h = window.innerHeight
   const PAD = 12
   const GAP = 4
-  const leftW = 250
-  const rightW = Math.min(420, Math.floor(w * 0.3))
-  const midX = PAD + leftW + GAP
-  const rightX = w - rightW - PAD
-  const midW = Math.max(300, rightX - midX - GAP)
   const totalH = h - PAD * 2
-  const chartH = Math.floor(totalH * 0.35)
-  const skyH = Math.floor(totalH * 0.30)
-  const skychartH = totalH - chartH - skyH - GAP * 2
+
+  // Column 1: Alignments (left sidebar)
+  const col1W = 250
+  const col1X = PAD
+
+  // Column 4: Sky Charts (right sidebar)
+  const col4W = Math.min(320, Math.floor(w * 0.22))
+  const col4X = w - col4W - PAD
+
+  // Column 3: Alignment Timeline + Sky View (stacked)
+  const col3W = Math.min(420, Math.floor(w * 0.28))
+  const col3X = col4X - col3W - GAP
+  const chartH = Math.floor(totalH * 0.45)
+  const skyviewH = totalH - chartH - GAP
+
+  // Column 2: Solar System (fills remaining space)
+  const col2X = col1X + col1W + GAP
+  const col2W = Math.max(300, col3X - col2X - GAP)
+
   return {
-    controls: { x: PAD, y: PAD, width: leftW, height: totalH, minimized: false },
-    scene: { x: midX, y: PAD, width: midW, height: totalH, minimized: false },
-    chart: { x: rightX, y: PAD, width: rightW, height: chartH, minimized: false },
-    skyview: { x: rightX, y: PAD + chartH + GAP, width: rightW, height: skyH, minimized: false },
-    skychart: { x: rightX, y: PAD + chartH + GAP + skyH + GAP, width: rightW, height: skychartH, minimized: false },
+    controls: { x: col1X, y: PAD, width: col1W, height: totalH, minimized: false },
+    scene:    { x: col2X, y: PAD, width: col2W, height: totalH, minimized: false },
+    chart:    { x: col3X, y: PAD, width: col3W, height: chartH, minimized: false },
+    skyview:  { x: col3X, y: PAD + chartH + GAP, width: col3W, height: skyviewH, minimized: false },
+    skychart: { x: col4X, y: PAD, width: col4W, height: totalH, minimized: false },
   }
 }
 

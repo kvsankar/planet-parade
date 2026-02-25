@@ -13,6 +13,7 @@ interface StereoSkyChartProps {
   time: Date | null
   size: number
   moonIllumination: number
+  magnitudes: Partial<Record<SkyBodyId, number | null>>
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -64,7 +65,7 @@ function formatTime(d: Date): string {
   return `${h}:${m} UTC`
 }
 
-export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination }: StereoSkyChartProps) {
+export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination, magnitudes }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -416,6 +417,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
           const color = bodyColor(p.bodyId)
           const rad = bodyRadius(p.bodyId)
           const isAboveHorizon = p.altitude >= 0
+          const mag = magnitudes[p.bodyId]
 
           return (
             <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
@@ -430,6 +432,18 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
               >
                 {BODY_LABELS[p.bodyId]}
               </text>
+              {mag != null && (
+                <text
+                  x={px}
+                  y={py + rad + 9}
+                  textAnchor="middle"
+                  fill={color}
+                  fontSize={6.5}
+                  opacity={0.7}
+                >
+                  {mag.toFixed(1)}
+                </text>
+              )}
             </g>
           )
         })}

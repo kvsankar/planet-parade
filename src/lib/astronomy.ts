@@ -104,6 +104,16 @@ export function getMoonIllumination(date: Date): number {
   return Astronomy.Illumination(Astronomy.Body.Moon, date).phase_fraction
 }
 
+/** Returns the visual magnitude of a body as seen from Earth, or null on error */
+export function getBodyVisualMagnitude(bodyId: SkyBodyId, date: Date): number | null {
+  const body = SKY_BODY_MAP[bodyId]
+  try {
+    return Astronomy.Illumination(body, date).mag
+  } catch {
+    return null
+  }
+}
+
 // ============ Star positions (batch transform) ============
 
 export interface StarAltAzPosition {
