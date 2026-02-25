@@ -99,7 +99,7 @@ export default function FloatingPanel({
       style={{ zIndex, pointerEvents: 'auto' }}
       bounds="parent"
     >
-      <div className="floating-panel" onPointerDown={handlePointerDown}>
+      <div className="floating-panel" data-tour={id} onPointerDown={handlePointerDown}>
         <div className="panel-drag-handle">
           <span className="panel-drag-title">{title}</span>
           <div className="panel-handle-btns">

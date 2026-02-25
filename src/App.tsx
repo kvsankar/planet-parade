@@ -7,6 +7,7 @@ import ChartPanel from './components/panels/ChartPanel'
 import SkyViewPanel from './components/panels/SkyViewPanel'
 import SkyChartPanel from './components/panels/SkyChartPanel'
 import PlaybackBar from './components/ui/PlaybackBar'
+import HelpButton from './components/ui/HelpButton'
 import DisplayToggles from './components/ui/DisplayToggles'
 import BodySelector from './components/ui/BodySelector'
 import InfoDisplay from './components/ui/InfoDisplay'
@@ -20,6 +21,7 @@ import { useOrbitPaths } from './hooks/useOrbitPaths'
 import { usePanelManager, PanelId } from './hooks/usePanelManager'
 import { useAlignmentState } from './hooks/useAlignmentState'
 import { CelestialBodyId, ObserverLocation } from './types'
+import { useTour } from './hooks/useTour'
 
 export default function App() {
   // --- Simulation Time ---
@@ -108,6 +110,9 @@ export default function App() {
   // --- Panel manager ---
   const panel = usePanelManager()
 
+  // --- Guided tour ---
+  const { startTour } = useTour()
+
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
     setDate: handleSetDate, togglePlay, setSpeed: handleSetSpeed,
@@ -184,9 +189,12 @@ export default function App() {
                 jumpToMinimum={alignment.jumpToMinimum}
               />
 
-              <button className="reset-layout-btn" onClick={panel.resetLayout}>
-                Reset Layout
-              </button>
+              <div className="bottom-right-actions">
+                <button className="reset-layout-btn" onClick={panel.resetLayout}>
+                  Reset Layout
+                </button>
+                <HelpButton onClick={startTour} />
+              </div>
             </div>
           </div>
         </DisplaySettingsContext.Provider>

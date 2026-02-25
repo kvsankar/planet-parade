@@ -108,11 +108,20 @@ html, body, #root {
   border-radius: 2px;
 }
 
-/* Reset layout button */
-.reset-layout-btn {
+/* Bottom-right action buttons */
+.bottom-right-actions {
   position: fixed;
   bottom: 12px;
   right: 12px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 200;
+}
+
+/* Reset layout button */
+.reset-layout-btn {
   pointer-events: auto;
   padding: 5px 12px;
   font-size: 11px;
@@ -124,12 +133,38 @@ html, body, #root {
   cursor: pointer;
   backdrop-filter: blur(8px);
   transition: color 0.15s, border-color 0.15s;
-  z-index: 200;
 }
 
 .reset-layout-btn:hover {
   color: #ddd;
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Help / tour button */
+.help-tour-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 10, 20, 0.85);
+  color: #888;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.help-tour-btn:hover {
+  color: #fff;
+  border-color: #6B93D6;
+  background: rgba(107, 147, 214, 0.2);
 }
 
 /* ====== Controls Panel Inner ====== */
@@ -972,4 +1007,80 @@ select option {
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
+}
+
+/* ====== Driver.js Dark Theme Overrides ====== */
+.driver-popover {
+  background: linear-gradient(135deg, rgba(16, 16, 30, 0.97), rgba(10, 10, 22, 0.97)) !important;
+  border: 1px solid rgba(107, 147, 214, 0.3) !important;
+  border-radius: 10px !important;
+  color: #e0e0e0 !important;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.driver-popover .driver-popover-title {
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.driver-popover .driver-popover-description {
+  color: #b0b0b8 !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.driver-popover .driver-popover-progress-text {
+  color: #888 !important;
+  font-size: 11px !important;
+}
+
+.driver-popover .driver-popover-navigation-btns {
+  gap: 6px;
+}
+
+.driver-popover .driver-popover-prev-btn {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 5px !important;
+  color: #aaa !important;
+  font-size: 11px !important;
+  padding: 4px 12px !important;
+}
+
+.driver-popover .driver-popover-prev-btn:hover {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.driver-popover .driver-popover-next-btn,
+.driver-popover .driver-popover-close-btn-text {
+  background: #6B93D6 !important;
+  border: none !important;
+  border-radius: 5px !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  padding: 4px 12px !important;
+  text-shadow: none !important;
+}
+
+.driver-popover .driver-popover-next-btn:hover,
+.driver-popover .driver-popover-close-btn-text:hover {
+  background: #5a82c5 !important;
+}
+
+.driver-popover-arrow-side-left .driver-popover-arrow,
+.driver-popover-arrow-side-right .driver-popover-arrow,
+.driver-popover-arrow-side-top .driver-popover-arrow,
+.driver-popover-arrow-side-bottom .driver-popover-arrow {
+  border-color: rgba(16, 16, 30, 0.97) !important;
+}
+
+.driver-popover .driver-popover-close-btn {
+  color: #666 !important;
+}
+
+.driver-popover .driver-popover-close-btn:hover {
+  color: #fff !important;
 }
