@@ -450,7 +450,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
                 <th>Lon</th>
                 <th>Lat</th>
                 <th>Elong</th>
-                <th>Mag</th>
+                <th className="col-right">Mag</th>
                 <th>Sky</th>
               </tr>
             </thead>
@@ -465,7 +465,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
                     <td>{b.absLon.toFixed(1)}°</td>
                     <td>{b.lat >= 0 ? '+' : ''}{b.lat.toFixed(1)}°</td>
                     <td>{isSun ? '\u2014' : `${b.elongation >= 0 ? '+' : ''}${b.elongation.toFixed(1)}°`}</td>
-                    <td>{b.mag !== null ? b.mag.toFixed(1) : '\u2014'}</td>
+                    <td className="col-right">{b.mag !== null ? b.mag.toFixed(1) : '\u2014'}</td>
                     <td style={{ color: skyColor }}>{skyLabel}</td>
                   </tr>
                 )

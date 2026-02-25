@@ -771,6 +771,10 @@ select option {
   color: #aaa;
 }
 
+.skyview-table .col-right {
+  text-align: right;
+}
+
 .skyview-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);
 }
