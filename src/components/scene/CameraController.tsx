@@ -7,6 +7,12 @@ import { simulationStore } from '../../hooks/useSimulationStore'
 import { getBodyPosition } from '../../lib/astronomy'
 import { CelestialBodyId } from '../../types'
 
+/** Shared camera angles — written by main scene, read by inset */
+export const cameraAngles = { theta: 0, phi: Math.PI / 2 }
+
+const _spherical = new THREE.Spherical()
+const _offset = new THREE.Vector3()
+
 export default function CameraController() {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null)
   const { selectedBodyId, followMode } = useSelection()
@@ -22,20 +28,29 @@ export default function CameraController() {
     prevSelectedRef.current = selectedBodyId
   }, [selectedBodyId])
 
-  useFrame(() => {
-    if (!controlsRef.current || !selectedBodyId) return
+  useFrame(({ camera }) => {
+    // Write camera angles for the inset to read
+    const controls = controlsRef.current
+    if (controls) {
+      _offset.copy(camera.position).sub(controls.target)
+      _spherical.setFromVector3(_offset)
+      cameraAngles.theta = _spherical.theta
+      cameraAngles.phi = _spherical.phi
+    }
+
+    if (!controls || !selectedBodyId) return
 
     const pos = getBodyPosition(selectedBodyId, simulationStore.date)
     const bodyPos = bodyPosRef.current.set(pos[0], pos[1], pos[2])
 
     if (followMode) {
-      controlsRef.current.target.copy(bodyPos)
-      controlsRef.current.update()
+      controls.target.copy(bodyPos)
+      controls.update()
     } else if (isAnimating.current) {
-      targetRef.current.copy(controlsRef.current.target)
+      targetRef.current.copy(controls.target)
       targetRef.current.lerp(bodyPos, 0.08)
-      controlsRef.current.target.copy(targetRef.current)
-      controlsRef.current.update()
+      controls.target.copy(targetRef.current)
+      controls.update()
 
       if (targetRef.current.distanceTo(bodyPos) < 0.01) {
         isAnimating.current = false

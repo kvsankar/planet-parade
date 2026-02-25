@@ -28,6 +28,7 @@ export default memo(function MinimaTable({ minima, currentDate, onSelect }: Mini
             <tr>
               <th>Date</th>
               <th>Span</th>
+              <th>#</th>
               <th>Group</th>
             </tr>
           </thead>
@@ -40,6 +41,7 @@ export default memo(function MinimaTable({ minima, currentDate, onSelect }: Mini
               >
                 <td>{formatDate(m.date)}</td>
                 <td>{m.separation.toFixed(1)}°</td>
+                <td>{m.planetCount}</td>
                 <td>
                   <span
                     className="kind-badge"

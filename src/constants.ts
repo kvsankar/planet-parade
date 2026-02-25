@@ -8,7 +8,7 @@ export const DATE_MAX = new Date('2075-01-01T00:00:00Z')
 
 export const BODY_LIST: CelestialBodyId[] = [
   'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter',
-  'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Moon',
+  'Saturn', 'Uranus', 'Neptune', 'Pluto',
 ]
 
 export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
@@ -22,7 +22,6 @@ export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
   Uranus:  { id: 'Uranus',  color: '#D1E7E7', orbitalPeriodDays: 30688.5, orbitSamples: 360 },
   Neptune: { id: 'Neptune', color: '#5B5DDF', orbitalPeriodDays: 60182,   orbitSamples: 360 },
   Pluto:   { id: 'Pluto',   color: '#C9B8A4', orbitalPeriodDays: 90560,   orbitSamples: 360 },
-  Moon:    { id: 'Moon',    color: '#AAAAAA', orbitalPeriodDays: 27.32,   orbitSamples: 60 },
 }
 
 export const SPEED_OPTIONS = [1, 5, 10, 30, 100, 365, 1000, 3650]

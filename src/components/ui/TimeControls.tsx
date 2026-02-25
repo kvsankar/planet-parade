@@ -1,9 +1,8 @@
 import { useSimulationTime } from '../../hooks/useSimulationTime'
 import { DATE_MIN, DATE_MAX } from '../../constants'
-import PlaybackControls from './PlaybackControls'
 
 export default function TimeControls() {
-  const { currentDate, isPlaying, speed, setDate, togglePlay, setSpeed } = useSimulationTime()
+  const { currentDate, setDate } = useSimulationTime()
 
   const dateStr = currentDate.toISOString().slice(0, 10)
   const sliderValue = currentDate.getTime()
@@ -29,12 +28,6 @@ export default function TimeControls() {
         value={sliderValue}
         onChange={(e) => setDate(new Date(Number(e.target.value)))}
         className="time-slider"
-      />
-      <PlaybackControls
-        isPlaying={isPlaying}
-        speed={speed}
-        onTogglePlay={togglePlay}
-        onSetSpeed={setSpeed}
       />
     </div>
   )

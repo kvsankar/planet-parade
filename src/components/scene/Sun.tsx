@@ -7,9 +7,14 @@ import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { useSelection } from '../../hooks/useSelection'
 
 const SUN_COLOR = BODY_META.Sun.color
+const MIN_FONT = 8
+const MAX_FONT = 14
+const NEAR_DIST = 5
+const FAR_DIST = 500
 
-export default function Sun() {
+export default function Sun({ scaleFactor = 1 }: { scaleFactor?: number }) {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const labelRef = useRef<HTMLDivElement>(null!)
   const { camera } = useThree()
   const { showLabels } = useDisplaySettings()
   const { selectedBodyId, selectBody } = useSelection()
@@ -18,10 +23,19 @@ export default function Sun() {
     if (!meshRef.current) return
     const dist = camera.position.length()
     const vFov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180
-    const maxPixels = 30
+    const maxPixels = 18
     const radius = (maxPixels / size.height) * dist * Math.tan(vFov / 2) * 2
-    const clamped = Math.max(0.3, Math.min(radius, 5))
+    // Mercury orbit ≈ 3.87 scene units — keep Sun well inside it
+    const clamped = Math.max(0.2, Math.min(radius, 2.0)) * scaleFactor
     meshRef.current.scale.setScalar(clamped)
+
+    // Dynamic label sizing
+    if (labelRef.current) {
+      const t = Math.log(dist / NEAR_DIST) / Math.log(FAR_DIST / NEAR_DIST)
+      const clamped01 = Math.max(0, Math.min(1, t))
+      const fontSize = MAX_FONT - clamped01 * (MAX_FONT - MIN_FONT)
+      labelRef.current.style.fontSize = `${Math.round(fontSize)}px`
+    }
   })
 
   return (
@@ -34,8 +48,8 @@ export default function Sun() {
       <meshBasicMaterial color={SUN_COLOR} />
       <pointLight intensity={2} distance={0} decay={0} />
       {showLabels && (
-        <Html distanceFactor={10} style={{ pointerEvents: 'none' }}>
-          <div style={{
+        <Html style={{ pointerEvents: 'none' }}>
+          <div ref={labelRef} style={{
             color: SUN_COLOR,
             fontSize: '12px',
             fontFamily: 'monospace',

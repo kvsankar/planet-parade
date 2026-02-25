@@ -1,7 +1,14 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import SolarSystemScene from './components/scene/SolarSystemScene'
-import ControlPanel from './components/ui/ControlPanel'
-import AlignmentAnalyzer from './components/alignment/AlignmentAnalyzer'
+import InnerPlanetsInset from './components/scene/InnerPlanetsInset'
+import FloatingPanel from './components/panels/FloatingPanel'
+import AlignmentPanel from './components/panels/AlignmentPanel'
+import ChartPanel from './components/panels/ChartPanel'
+import SkyViewPanel from './components/panels/SkyViewPanel'
+import PlaybackBar from './components/ui/PlaybackBar'
+import DisplayToggles from './components/ui/DisplayToggles'
+import BodySelector from './components/ui/BodySelector'
+import InfoDisplay from './components/ui/InfoDisplay'
 import { SimulationTimeContext } from './hooks/useSimulationTime'
 import { simulationStore } from './hooks/useSimulationStore'
 import { MS_PER_DAY } from './constants'
@@ -9,13 +16,11 @@ import { SelectionContext } from './hooks/useSelection'
 import { DisplaySettingsContext } from './hooks/useDisplaySettings'
 import { usePlanetPositions } from './hooks/usePlanetPositions'
 import { useOrbitPaths } from './hooks/useOrbitPaths'
+import { usePanelManager, PanelId } from './hooks/usePanelManager'
+import { useAlignmentState } from './hooks/useAlignmentState'
 import { CelestialBodyId } from './types'
 
-type TabId = '3d' | 'alignment'
-
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('3d')
-
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [isPlaying, setIsPlaying] = useState(false)
@@ -38,11 +43,9 @@ export default function App() {
     setSpeed(s)
   }, [])
 
-  // --- Independent rAF loop for time advancement (runs on any tab) ---
+  // --- rAF loop (no tabs — both views always visible) ---
   const lastFrameRef = useRef<number | null>(null)
   const throttleRef = useRef(0)
-  const activeTabRef = useRef(activeTab)
-  activeTabRef.current = activeTab
 
   useEffect(() => {
     let rafId: number
@@ -57,15 +60,11 @@ export default function App() {
         }
         lastFrameRef.current = now
 
-        if (activeTabRef.current === 'alignment') {
-          // Alignment tab: update React state every frame for smooth animation
+        // Update React state every frame for smooth chart/slider animation
+        // R3F reads simulationStore directly, this drives the React UI
+        if (now - throttleRef.current > 100) {
+          throttleRef.current = now
           setCurrentDate(simulationStore.date)
-        } else {
-          // 3D tab: throttle React state updates to ~10Hz (R3F reads store directly)
-          if (now - throttleRef.current > 100) {
-            throttleRef.current = now
-            setCurrentDate(simulationStore.date)
-          }
         }
       } else {
         lastFrameRef.current = null
@@ -75,7 +74,7 @@ export default function App() {
 
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
-  }, []) // stable — reads from simulationStore and refs directly
+  }, [])
 
   // --- Selection ---
   const [selectedBodyId, setSelectedBodyId] = useState<CelestialBodyId | null>(null)
@@ -97,6 +96,12 @@ export default function App() {
   const positions = usePlanetPositions(currentDate)
   const orbitPaths = useOrbitPaths(currentDate)
 
+  // --- Alignment state (shared across panels) ---
+  const alignment = useAlignmentState(currentDate, handleSetDate)
+
+  // --- Panel manager ---
+  const panel = usePanelManager()
+
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
     setDate: handleSetDate, togglePlay, setSpeed: handleSetSpeed,
@@ -110,38 +115,67 @@ export default function App() {
     showOrbits, showLabels, toggleOrbits, toggleLabels,
   }), [showOrbits, showLabels, toggleOrbits, toggleLabels])
 
+  // Shared panel props
+  const fp = (id: PanelId) => ({
+    id,
+    layout: panel.layouts[id],
+    zIndex: panel.zIndexMap[id],
+    onDragStop: panel.onDragStop,
+    onResizeStop: panel.onResizeStop,
+    onFocus: panel.onFocus,
+    onMinimize: panel.onMinimize,
+  })
+
   return (
     <SimulationTimeContext.Provider value={simTimeValue}>
       <SelectionContext.Provider value={selectionValue}>
         <DisplaySettingsContext.Provider value={displayValue}>
           <div className="app">
-            <div className="tab-bar">
-              <button
-                className={`tab-btn ${activeTab === '3d' ? 'active' : ''}`}
-                onClick={() => setActiveTab('3d')}
-              >
-                3D View
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'alignment' ? 'active' : ''}`}
-                onClick={() => setActiveTab('alignment')}
-              >
-                Alignment
-              </button>
-            </div>
+            {/* Floating panels layer */}
+            <div className="panels-layer">
+              <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
+                <div className="scene-panel-content">
+                  <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} />
+                  <div className="scene-overlay">
+                    <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+                    <DisplayToggles />
+                    <BodySelector />
+                  </div>
+                  <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} />
+                </div>
+              </FloatingPanel>
 
-            <div className="tab-content" style={{ display: activeTab === '3d' ? 'contents' : 'none' }}>
-              <SolarSystemScene
-                positions={positions}
-                orbitPaths={orbitPaths}
-              />
-              <ControlPanel selectedBodyId={selectedBodyId} positions={positions} />
-            </div>
-            <div className="tab-content" style={{ display: activeTab === 'alignment' ? 'contents' : 'none' }}>
-              <AlignmentAnalyzer
+              <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
+                <AlignmentPanel alignment={alignment} />
+              </FloatingPanel>
+
+              <FloatingPanel {...fp('chart')} title="Chart" minWidth={400} minHeight={160}>
+                <ChartPanel
+                  alignment={alignment}
+                  currentDate={currentDate}
+                  onDateChange={handleSetDate}
+                />
+              </FloatingPanel>
+
+              <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
+                <SkyViewPanel alignment={alignment} currentDate={currentDate} />
+              </FloatingPanel>
+
+              <PlaybackBar
                 currentDate={currentDate}
+                isPlaying={isPlaying}
+                speed={speed}
+                togglePlay={togglePlay}
+                setSpeed={handleSetSpeed}
                 onDateChange={handleSetDate}
+                hasPrev={alignment.hasPrev}
+                hasNext={alignment.hasNext}
+                jumpToMinimum={alignment.jumpToMinimum}
               />
+
+              <button className="reset-layout-btn" onClick={panel.resetLayout}>
+                Reset Layout
+              </button>
             </div>
           </div>
         </DisplaySettingsContext.Provider>

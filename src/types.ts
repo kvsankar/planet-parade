@@ -9,7 +9,6 @@ export type CelestialBodyId =
   | 'Uranus'
   | 'Neptune'
   | 'Pluto'
-  | 'Moon'
 
 export interface BodyMeta {
   id: CelestialBodyId
@@ -46,6 +45,9 @@ export interface AlignmentDataPoint {
   separation: number // degrees — total span
   morningSep: number | null // span of morning planets (west of Sun), null if not all in window
   eveningSep: number | null // span of evening planets (east of Sun), null if not all in window
+  morningCount: number // number of planets west of Sun
+  eveningCount: number // number of planets east of Sun
+  totalCount: number // total number of selected planets
 }
 
 export type AlignmentKind = 'total' | 'morning' | 'evening'
@@ -54,4 +56,5 @@ export interface AlignmentMinimum {
   date: number // ms timestamp
   separation: number // degrees
   kind: AlignmentKind
+  planetCount: number // number of planets in this grouping at this date
 }

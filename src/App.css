@@ -17,73 +17,126 @@ html, body, #root {
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+/* ====== Floating Panel System ====== */
+
+.panels-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.floating-panel {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-/* Tab bar */
-.tab-bar {
-  display: flex;
-  background: rgba(10, 10, 20, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 20;
-  flex-shrink: 0;
-}
-
-.tab-btn {
-  padding: 8px 20px;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #888;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.tab-btn:hover {
-  color: #ccc;
-}
-
-.tab-btn.active {
-  color: #fff;
-  border-bottom-color: #6B93D6;
-}
-
-.app > canvas {
-  display: block;
-  flex: 1;
-}
-
-/* Control Panel */
-.control-panel {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 220px;
-  background: rgba(10, 10, 20, 0.85);
+  background: rgba(10, 10, 20, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 14px;
   backdrop-filter: blur(8px);
-  max-height: calc(100vh - 24px);
-  overflow-y: auto;
-  z-index: 10;
+  overflow: hidden;
 }
 
-.panel-title {
-  font-size: 16px;
+.panel-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.panel-drag-handle:active {
+  cursor: grabbing;
+}
+
+.panel-drag-title {
+  font-size: 10px;
   font-weight: 600;
-  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #999;
+}
+
+.panel-minimize-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.panel-minimize-btn:hover {
   color: #fff;
-  letter-spacing: 0.5px;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 8px;
+  min-height: 0;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+/* Reset layout button */
+.reset-layout-btn {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  pointer-events: auto;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  background: rgba(10, 10, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: color 0.15s, border-color 0.15s;
+  z-index: 200;
+}
+
+.reset-layout-btn:hover {
+  color: #ddd;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ====== Controls Panel Inner ====== */
+.controls-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 /* Sections */
 .control-section {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -95,22 +148,22 @@ html, body, #root {
 
 .control-label {
   display: block;
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #888;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* Date input */
 .date-input {
   width: 100%;
-  padding: 4px 6px;
+  padding: 3px 5px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   color: #e0e0e0;
-  font-size: 12px;
+  font-size: 11px;
   margin-bottom: 6px;
   color-scheme: dark;
 }
@@ -118,8 +171,8 @@ html, body, #root {
 /* Time slider */
 .time-slider {
   width: 100%;
-  height: 4px;
-  margin: 6px 0;
+  height: 3px;
+  margin: 4px 0;
   -webkit-appearance: none;
   appearance: none;
   background: rgba(255, 255, 255, 0.15);
@@ -145,12 +198,12 @@ html, body, #root {
 }
 
 .play-btn {
-  padding: 3px 10px;
+  padding: 2px 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.06);
   color: #e0e0e0;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -163,12 +216,12 @@ html, body, #root {
 
 .speed-select {
   flex: 1;
-  padding: 4px;
+  padding: 3px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   color: #e0e0e0;
-  font-size: 11px;
+  font-size: 10px;
   color-scheme: dark;
 }
 
@@ -182,8 +235,8 @@ select option {
 .toggle-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
   cursor: pointer;
   padding: 2px 0;
 }
@@ -203,12 +256,12 @@ select option {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: transparent;
   border: none;
   border-left: 3px solid transparent;
   color: #ccc;
-  font-size: 12px;
+  font-size: 11px;
   font-family: inherit;
   cursor: pointer;
   border-radius: 2px;
@@ -230,10 +283,10 @@ select option {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
+  padding: 6px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .info-name {
@@ -248,46 +301,11 @@ select option {
   font-family: monospace;
 }
 
-/* Scrollbar */
-.control-panel::-webkit-scrollbar {
-  width: 4px;
-}
-
-.control-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.control-panel::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-}
-
-/* ====== Alignment Analyzer ====== */
-.alignment-analyzer {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  background: #0a0a0f;
-}
-
-.alignment-sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  padding: 14px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-y: auto;
+/* ====== Alignment Panel Inner ====== */
+.alignment-panel-inner {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.alignment-main {
-  flex: 1;
-  padding: 14px 18px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  gap: 10px;
 }
 
 /* Planet picker */
@@ -298,8 +316,8 @@ select option {
 }
 
 .planet-chip {
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 2px 6px;
+  font-size: 10px;
   font-family: inherit;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
@@ -406,12 +424,12 @@ select option {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border: 1px solid;
   border-radius: 4px;
   background: transparent;
   color: #ccc;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
 }
@@ -444,9 +462,9 @@ select option {
 }
 
 .min-planet-chip {
-  min-width: 28px;
-  padding: 2px 6px;
-  font-size: 11px;
+  min-width: 24px;
+  padding: 1px 5px;
+  font-size: 10px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
@@ -465,9 +483,17 @@ select option {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* ====== Chart Panel ====== */
+.chart-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 /* Separation chart */
 .separation-chart {
-  min-height: 220px;
+  min-height: 140px;
+  flex: 1;
 }
 
 .chart-wrapper {
@@ -508,6 +534,102 @@ select option {
   font-style: italic;
 }
 
+/* Slider row inside chart panel — no padding-left needed (panel provides its own) */
+.chart-slider-row {
+  padding: 0 5px 0 40px;
+  margin-top: -2px;
+}
+
+.chart-slider-row .time-slider {
+  width: 100%;
+}
+
+/* Alignment time slider — for use inside chart panel */
+.alignment-time-slider {
+  /* padding handled by .chart-slider-row wrapper */
+}
+
+.alignment-time-slider .time-slider {
+  width: 100%;
+}
+
+/* Series toggle row inside chart panel */
+.chart-series-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 0 5px 0 40px;
+}
+
+/* Controls row: date range + series toggle + prev/next */
+.chart-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 0 5px 0 40px;
+  gap: 8px;
+}
+
+.chart-range-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.chart-date-range {
+  font-size: 9px;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.chart-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Playback + prev/next row inside chart panel */
+.chart-playback-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.alignment-current-date {
+  color: #ddd;
+  font-weight: 600;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.minima-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.minima-nav-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #ccc;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.minima-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.minima-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 /* Minima table */
 .minima-table {
   display: flex;
@@ -516,8 +638,8 @@ select option {
 }
 
 .minima-scroll {
-  max-height: 200px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .minima-scroll::-webkit-scrollbar {
@@ -536,24 +658,24 @@ select option {
 .minima-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .minima-table th {
   text-align: left;
-  padding: 4px 6px;
+  padding: 3px 5px;
   color: #888;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .minima-table td {
-  padding: 4px 6px;
+  padding: 3px 5px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .minima-table tbody tr {
@@ -576,67 +698,10 @@ select option {
   letter-spacing: 0.5px;
 }
 
-/* Alignment time slider — aligned with chart plot area */
-/* Chart margin: 5px left + YAxis 35px = 40px; 5px right */
-.alignment-time-slider {
-  padding-left: 40px;
-  padding-right: 5px;
-  margin-top: -2px;
-}
-
-.alignment-time-slider .time-slider {
-  width: 100%;
-}
-
-/* Playback + prev/next row */
-.alignment-playback-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-left: 40px;
-  margin-top: 4px;
-}
-
-.alignment-current-date {
-  color: #ddd;
-  font-weight: 600;
-  font-size: 12px;
-  font-family: monospace;
-}
-
-.minima-nav {
-  display: flex;
-  gap: 4px;
-}
-
-.minima-nav-btn {
-  padding: 3px 10px;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  color: #ccc;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.minima-nav-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.minima-nav-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-/* Sky view */
+/* ====== Sky View ====== */
 .sky-view {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-height: 0;
-  margin-top: 16px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sky-view-header {
@@ -664,22 +729,22 @@ select option {
 .skyview-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10px;
   font-family: monospace;
   margin-top: 6px;
 }
 
 .skyview-table th {
   text-align: left;
-  padding: 3px 8px;
+  padding: 2px 6px;
   color: #666;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 9px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .skyview-table td {
-  padding: 2px 8px;
+  padding: 2px 6px;
   color: #aaa;
 }
 
@@ -689,20 +754,173 @@ select option {
 
 .sky-svg {
   border-radius: 4px;
-  max-width: 100%;
-  height: auto;
+  display: block;
 }
 
-/* Scrollbar for alignment sidebar */
-.alignment-sidebar::-webkit-scrollbar {
-  width: 4px;
+.sky-view-chart-area {
+  overflow: hidden;
 }
 
-.alignment-sidebar::-webkit-scrollbar-track {
-  background: transparent;
+.sky-view-separator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 8px;
+  cursor: row-resize;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
-.alignment-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
+.sky-view-separator:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sky-view-table-area {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ====== Scene Panel ====== */
+.scene-panel-body {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.scene-panel-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-panel-content canvas {
+  display: block;
+}
+
+.scene-overlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 180px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.scene-overlay > * {
+  pointer-events: auto;
+  background: rgba(10, 10, 20, 0.75);
+  border-radius: 4px;
+  padding: 4px 6px;
+  backdrop-filter: blur(4px);
+}
+
+.scene-overlay .info-display {
+  margin-bottom: 0;
+}
+
+.scene-overlay .control-section {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* ====== Inner Planets Inset ====== */
+.inner-planets-inset {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.inner-planets-inset canvas {
+  display: block;
+}
+
+/* ====== Collapsible Header ====== */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+}
+
+.collapsible-header .chevron {
+  color: #888;
+  font-size: 10px;
+}
+
+/* ====== PlaybackBar ====== */
+.playback-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: rgba(10, 10, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  white-space: nowrap;
+}
+
+.playback-date-input {
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 11px;
+  font-family: monospace;
+  color-scheme: dark;
+}
+
+.playback-bar .play-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.playback-bar .speed-select {
+  flex: none;
+  width: auto;
+  padding: 2px 4px;
+  font-size: 10px;
+}
+
+.playback-bar .minima-nav-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+/* ====== SkyView Cone Toggles ====== */
+.sky-view-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sky-cone-toggles {
+  display: flex;
+  gap: 3px;
 }

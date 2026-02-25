@@ -133,6 +133,9 @@ export function computeAlignmentSeries(
       separation: computeMaxSpan(lons),
       morningSep: morningLons.length >= threshold ? computeMaxSpan(morningLons) : null,
       eveningSep: eveningLons.length >= threshold ? computeMaxSpan(eveningLons) : null,
+      morningCount: morningLons.length,
+      eveningCount: eveningLons.length,
+      totalCount: lons.length,
     })
   }
 
@@ -156,11 +159,17 @@ export function findLocalMinima(
   // Treat null as Infinity so boundaries act like endpoints
   const val = (i: number) => { const v = raw(i); return v == null ? Infinity : v }
   const valid = (i: number) => raw(i) != null
+  const countAt = (i: number) => {
+    const pt = series[i]
+    if (kind === 'morning') return pt.morningCount
+    if (kind === 'evening') return pt.eveningCount
+    return pt.totalCount
+  }
   const minima: AlignmentMinimum[] = []
 
   // Check if the first valid point is a local minimum (series start or null boundary)
   if (valid(0) && val(0) <= val(1) && val(0) <= threshold) {
-    minima.push({ date: series[0].date, separation: val(0), kind })
+    minima.push({ date: series[0].date, separation: val(0), kind, planetCount: countAt(0) })
   }
 
   let i = 1
@@ -173,7 +182,7 @@ export function findLocalMinima(
       const rightHigher = j >= series.length - 1 || val(i) < val(j + 1) // treat series end as wall
       if (leftHigher && rightHigher && val(i) <= threshold) {
         const mid = Math.floor((i + j) / 2)
-        minima.push({ date: series[mid].date, separation: val(mid), kind })
+        minima.push({ date: series[mid].date, separation: val(mid), kind, planetCount: countAt(mid) })
       }
       i = j + 1
     } else {
@@ -183,7 +192,7 @@ export function findLocalMinima(
 
   const last = series.length - 1
   if (valid(last) && val(last) <= val(last - 1) && val(last) <= threshold) {
-    minima.push({ date: series[last].date, separation: val(last), kind })
+    minima.push({ date: series[last].date, separation: val(last), kind, planetCount: countAt(last) })
   }
 
   return minima
