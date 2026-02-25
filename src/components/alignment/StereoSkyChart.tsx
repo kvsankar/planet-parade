@@ -12,6 +12,7 @@ interface StereoSkyChartProps {
   title: string
   time: Date | null
   size: number
+  moonIllumination: number
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -63,7 +64,7 @@ function formatTime(d: Date): string {
   return `${h}:${m} UTC`
 }
 
-export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size }: StereoSkyChartProps) {
+export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -72,6 +73,15 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
   const projected = useMemo(() => {
     return positions.map((p) => ({ ...p, ...projectAltAz(p.altitude, p.azimuth, R) }))
   }, [positions, R])
+
+  // Derive Sun/Moon projected positions from already-memoized `projected`
+  const sunProj = projected.find((p) => p.bodyId === 'Sun') ?? null
+  const moonProj = projected.find((p) => p.bodyId === 'Moon') ?? null
+
+  // Moon glow peak opacity: 0.12 * illumination * clamp01(sin(altitude))
+  const moonGlowOpacity = moonProj && moonProj.altitude > 0 && moonIllumination > 0.1
+    ? 0.12 * moonIllumination * Math.min(1, Math.sin(moonProj.altitude * DEG_TO_RAD))
+    : 0
 
   const projectedStars = useMemo(() => {
     return stars.map((s) => {
@@ -178,15 +188,49 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
         </text>
       )}
 
-      {/* Clip path for bodies */}
+      {/* Clip path and glow gradients */}
       <defs>
         <clipPath id={`clip-${title}`}>
           <circle cx={cx} cy={cy} r={R} />
         </clipPath>
+        {sunProj && (
+          <radialGradient
+            id={`twilight-${title}`}
+            cx={cx + sunProj.x}
+            cy={cy + sunProj.y}
+            r={R * 1.2}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="rgba(255, 170, 60, 0.18)" />
+            <stop offset="100%" stopColor="rgba(255, 170, 60, 0)" />
+          </radialGradient>
+        )}
+        {moonProj && moonGlowOpacity > 0 && (
+          <radialGradient
+            id={`moonlight-${title}`}
+            cx={cx + moonProj.x}
+            cy={cy + moonProj.y}
+            r={R * 0.8}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor={`rgba(180, 200, 230, ${moonGlowOpacity})`} />
+            <stop offset="100%" stopColor="rgba(180, 200, 230, 0)" />
+          </radialGradient>
+        )}
       </defs>
 
       {/* Background */}
       <circle cx={cx} cy={cy} r={R} fill="#0a0e1a" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+
+      {/* Twilight glow overlay */}
+      {sunProj && (
+        <circle cx={cx} cy={cy} r={R} fill={`url(#twilight-${title})`} />
+      )}
+
+      {/* Moonlight glow overlay */}
+      {moonProj && moonGlowOpacity > 0 && (
+        <circle cx={cx} cy={cy} r={R} fill={`url(#moonlight-${title})`} />
+      )}
 
       {/* Altitude grid rings at 30° and 60° */}
       {[30, 60].map((alt) => {
@@ -329,8 +373,27 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
           const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
           const rad = starRadius(s.mag)
           const isAbove = s.altitude >= 0
+          let baseOpacity = isAbove ? 0.85 : 0.3
+
+          // Proximity dimming for faint stars (mag > 2.0)
+          if (s.mag > 2.0) {
+            const glowRadius = R * 0.4
+            if (sunProj) {
+              const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
+              if (dSun < glowRadius) {
+                baseOpacity *= 0.6 + 0.4 * (dSun / glowRadius)
+              }
+            }
+            if (moonProj && moonGlowOpacity > 0) {
+              const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
+              if (dMoon < glowRadius) {
+                baseOpacity *= 1 - moonIllumination * 0.4 * (1 - dMoon / glowRadius)
+              }
+            }
+          }
+
           return (
-            <g key={s.starIndex} opacity={isAbove ? 0.85 : 0.3}>
+            <g key={s.starIndex} opacity={baseOpacity}>
               <circle cx={sx} cy={sy} r={rad} fill={color} />
               {s.name && (
                 <text

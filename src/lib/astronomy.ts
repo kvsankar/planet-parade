@@ -97,6 +97,13 @@ export function findSunset(startDate: Date, observer: ObserverLocation): Date | 
   return result ? result.date : null
 }
 
+// ============ Moon illumination ============
+
+/** Returns the Moon's illuminated fraction (0–1) at the given date */
+export function getMoonIllumination(date: Date): number {
+  return Astronomy.Illumination(Astronomy.Body.Moon, date).phase_fraction
+}
+
 // ============ Star positions (batch transform) ============
 
 export interface StarAltAzPosition {
