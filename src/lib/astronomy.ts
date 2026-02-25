@@ -97,6 +97,37 @@ export function findSunset(startDate: Date, observer: ObserverLocation): Date | 
   return result ? result.date : null
 }
 
+// ============ Sun-horizon longitude ============
+
+/**
+ * For a given instant and latitude, find the longitude where the Sun
+ * sits exactly on the horizon (altitude ≈ 0).
+ *   rising = true  → sunrise terminator (Sun ascending, eastern sky)
+ *   rising = false → sunset  terminator (Sun descending, western sky)
+ * Returns longitude in degrees (−180 … +180).
+ */
+export function sunHorizonLongitude(date: Date, lat: number, rising: boolean): number {
+  const t = Astronomy.MakeTime(date)
+  const eq = Astronomy.Equator(Astronomy.Body.Sun, t, new Astronomy.Observer(lat, 0, 0), true, true)
+
+  const latRad = lat * DEG_TO_RAD
+  const decRad = eq.dec * DEG_TO_RAD
+  const cosHa = -Math.tan(latRad) * Math.tan(decRad)
+
+  // Polar day / polar night — no horizon crossing
+  if (cosHa < -1 || cosHa > 1) return 0
+
+  const haHours = Math.acos(cosHa) * 12 / Math.PI   // radians → hours
+  const ha = rising ? -haHours : haHours              // east / west
+
+  const gst = Astronomy.SiderealTime(t)               // hours
+  let lon = (ha + eq.ra - gst) * 15                    // hours → degrees
+
+  // Normalise to −180 … +180
+  lon = ((lon % 360) + 540) % 360 - 180
+  return lon
+}
+
 // ============ Moon illumination ============
 
 /** Returns the Moon's illuminated fraction (0–1) at the given date */

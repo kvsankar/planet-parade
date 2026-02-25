@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -8,7 +8,8 @@ interface SkyChartPanelProps {
   observer: ObserverLocation
 }
 
-const MS_PER_HOUR = 3_600_000
+const MS_PER_QUARTER_HOUR = 900_000
+const MS_PER_DAY = 86_400_000
 
 export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -31,39 +32,53 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     return () => ro.disconnect()
   }, [measure])
 
-  // Quantize date to nearest hour to avoid recomputing every frame
-  const quantizedMs = useMemo(() => {
-    return Math.round(currentDate.getTime() / MS_PER_HOUR) * MS_PER_HOUR
-  }, [currentDate])
+  // --- Smoothly-animated positions (hourly quantization) ---
+  // Instead of computing positions at daily sunrise/sunset (which jumps once
+  // per day), we slide the observer's longitude so the Sun stays on the
+  // horizon while the rest of the sky rotates continuously.
+  const quantizedHour = Math.round(currentDate.getTime() / MS_PER_QUARTER_HOUR)
+  const quantizedDate = useMemo(() => {
+    return new Date(quantizedHour * MS_PER_QUARTER_HOUR)
+  }, [quantizedHour])
 
-  // Compute day start (UTC midnight)
-  const dayStart = useMemo(() => {
-    const d = new Date(quantizedMs)
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-  }, [quantizedMs])
+  // Virtual observers: same latitude, longitude where Sun is on the horizon
+  const morningObserver = useMemo((): ObserverLocation => {
+    const lon = sunHorizonLongitude(quantizedDate, observer.lat, true)
+    return { lat: observer.lat, lon, height: observer.height }
+  }, [quantizedDate, observer.lat, observer.height])
 
-  // Find sunrise and sunset
-  const sunriseTime = useMemo(() => findSunrise(dayStart, observer), [dayStart, observer])
-  const sunsetTime = useMemo(() => findSunset(dayStart, observer), [dayStart, observer])
+  const eveningObserver = useMemo((): ObserverLocation => {
+    const lon = sunHorizonLongitude(quantizedDate, observer.lat, false)
+    return { lat: observer.lat, lon, height: observer.height }
+  }, [quantizedDate, observer.lat, observer.height])
 
-  // Get alt-az positions
+  // Positions computed at quantizedDate from the virtual observers
   const morningPositions: AltAzPosition[] = useMemo(() => {
-    return sunriseTime ? getAllAltAz(sunriseTime, observer) : []
-  }, [sunriseTime, observer])
+    return getAllAltAz(quantizedDate, morningObserver)
+  }, [quantizedDate, morningObserver])
 
   const eveningPositions: AltAzPosition[] = useMemo(() => {
-    return sunsetTime ? getAllAltAz(sunsetTime, observer) : []
-  }, [sunsetTime, observer])
+    return getAllAltAz(quantizedDate, eveningObserver)
+  }, [quantizedDate, eveningObserver])
 
   const morningStars = useMemo(() =>
-    sunriseTime ? getStarAltAzPositions(sunriseTime, observer) : [], [sunriseTime, observer])
+    getStarAltAzPositions(quantizedDate, morningObserver), [quantizedDate, morningObserver])
   const eveningStars = useMemo(() =>
-    sunsetTime ? getStarAltAzPositions(sunsetTime, observer) : [], [sunsetTime, observer])
+    getStarAltAzPositions(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
 
   const morningEcliptic = useMemo(() =>
-    sunriseTime ? getEclipticAltAzPositions(sunriseTime, observer) : [], [sunriseTime, observer])
+    getEclipticAltAzPositions(quantizedDate, morningObserver), [quantizedDate, morningObserver])
   const eveningEcliptic = useMemo(() =>
-    sunsetTime ? getEclipticAltAzPositions(sunsetTime, observer) : [], [sunsetTime, observer])
+    getEclipticAltAzPositions(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
+
+  // --- Daily quantities (labels, moon phase, magnitudes) ---
+  const dayStart = useMemo(() => {
+    const d = currentDate
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  }, [Math.floor(currentDate.getTime() / MS_PER_DAY)])
+
+  const sunriseTime = useMemo(() => findSunrise(dayStart, observer), [dayStart, observer])
+  const sunsetTime = useMemo(() => findSunset(dayStart, observer), [dayStart, observer])
 
   const morningMoonIllum = useMemo(() =>
     sunriseTime ? getMoonIllumination(sunriseTime) : 0, [sunriseTime])
