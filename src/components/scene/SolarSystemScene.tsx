@@ -8,7 +8,7 @@ import OrbitLine from './OrbitLine'
 import AlignmentCones from './AlignmentCones'
 import CameraController from './CameraController'
 import { BODY_LIST } from '../../constants'
-import { CelestialBodyId } from '../../types'
+import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 
 const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Earth', 'Mars'])
@@ -18,16 +18,17 @@ interface Props {
   positions: Record<CelestialBodyId, [number, number, number]>
   orbitPaths: Record<CelestialBodyId, [number, number, number][]>
   selectedBodies?: CelestialBodyId[]
+  visibleSeries?: Set<AlignmentKind>
 }
 
-function SceneContents({ positions, orbitPaths, selectedBodies = [] }: Props) {
-  const { showOrbits } = useDisplaySettings()
+function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeries }: Props) {
+  const { showOrbits, forceInner } = useDisplaySettings()
   const [showInner, setShowInner] = useState(false) // default camera at 300 → hidden
   const showInnerRef = useRef(false)
 
   useFrame(({ camera }) => {
     const dist = camera.position.length()
-    const shouldShow = dist < INNER_HIDE_DIST
+    const shouldShow = forceInner || dist < INNER_HIDE_DIST
     if (shouldShow !== showInnerRef.current) {
       showInnerRef.current = shouldShow
       setShowInner(shouldShow)
@@ -51,19 +52,19 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [] }: Props) {
           <OrbitLine key={`orbit-${id}`} bodyId={id} points={orbitPaths[id]} />
         ) : null
       ))}
-      {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} />}
+      {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
       <CameraController />
     </>
   )
 }
 
-export default function SolarSystemScene({ positions, orbitPaths, selectedBodies }: Props) {
+export default function SolarSystemScene({ positions, orbitPaths, selectedBodies, visibleSeries }: Props) {
   return (
     <Canvas
       camera={{ position: [0, 300, 0], fov: 45, near: 0.1, far: 2000 }}
       style={{ background: '#0a0a0f' }}
     >
-      <SceneContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} />
+      <SceneContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} visibleSeries={visibleSeries} />
     </Canvas>
   )
 }

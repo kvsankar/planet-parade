@@ -1,8 +1,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback, useId } from 'react'
-import { CelestialBodyId } from '../../types'
-import { BODY_META } from '../../constants'
+import { CelestialBodyId, AlignmentKind } from '../../types'
+import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
 import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180 } from '../../lib/alignment'
-import { SERIES_COLORS } from '../../constants'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -11,6 +10,7 @@ interface SkyViewProps {
   date: Date
   center: SkyViewCenter
   onCenterChange: (c: SkyViewCenter) => void
+  visibleSeries: Set<AlignmentKind>
 }
 
 interface BodyPlotData {
@@ -57,14 +57,11 @@ const MS_PER_HOUR = 3_600_000
 const HEADER_H = 28
 const SEP_H = 26
 
-type ConeKey = 'all' | 'am' | 'pm'
-
-export default function SkyView({ bodies, date, center, onCenterChange }: SkyViewProps) {
+export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries }: SkyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const clipId = useId()
   const [cW, setCW] = useState(400)
   const [cH, setCH] = useState(300)
-  const [visibleCones, setVisibleCones] = useState<Set<ConeKey>>(() => new Set(['all', 'am', 'pm']))
   const [showTable, setShowTable] = useState(false)
   const [splitRatio, setSplitRatio] = useState(0.65)
 
@@ -162,15 +159,6 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
     }
   }, [plotData, refLon])
 
-  const toggleCone = (key: ConeKey) => {
-    setVisibleCones((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
   // Separator: click toggles table, drag resizes split
   const handleSepMouseDown = useCallback((e: React.MouseEvent) => {
     if (!showTable) {
@@ -221,9 +209,9 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
   const height = Math.max(chartH, 120)
   const plotH = Math.max(10, height - MARGIN.top - MARGIN.bottom)
 
-  // Fixed ranges
+  // Latitude range: ±10° for all planets, ±20° if Pluto is selected
   const hasPluto = bodies.includes('Pluto')
-  const halfLat = hasPluto ? 20 : 5
+  const halfLat = hasPluto ? 20 : 10
   const range = { lonMin: -180, lonMax: 180, latMin: -halfLat, latMax: halfLat }
 
   const xSpan = 360
@@ -265,24 +253,8 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
   return (
     <div className="sky-view" ref={containerRef}>
       <div className="sky-view-header">
-        <span className="control-label">Sky View (Ecliptic Lon / Lat)</span>
+        <span className="control-label">Sky View — {formatDate(date)}</span>
         <div className="sky-view-controls">
-          <div className="sky-cone-toggles">
-            {([['all', 'All', SERIES_COLORS.total], ['am', 'AM', SERIES_COLORS.morning], ['pm', 'PM', SERIES_COLORS.evening]] as const).map(([key, label, color]) => (
-              <button
-                key={key}
-                className={`series-chip ${visibleCones.has(key) ? 'active' : ''}`}
-                style={{
-                  borderColor: color,
-                  ...(visibleCones.has(key) ? { background: color + '30' } : {}),
-                }}
-                onClick={() => toggleCone(key)}
-              >
-                <span className="series-chip-dot" style={{ background: color }} />
-                {label}
-              </button>
-            ))}
-          </div>
           <select
             className="sky-center-select"
             value={center}
@@ -324,9 +296,9 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
               strokeDasharray={v === 0 ? '4 3' : undefined} />
           ))}
 
-          {/* Shading bands gated by visibleCones */}
+          {/* Shading bands gated by visibleSeries */}
           <g clipPath={`url(#${clipId})`}>
-            {visibleCones.has('all') && allRects.map((r, i) => {
+            {visibleSeries.has('total') && allRects.map((r, i) => {
               const rx = xOf(r.left)
               const rw = xOf(r.right) - rx
               return (
@@ -334,7 +306,7 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
                   fill={hexToRgba(SERIES_COLORS.total, 0.06)} />
               )
             })}
-            {visibleCones.has('am') && morningRects.map((r, i) => {
+            {visibleSeries.has('morning') && morningRects.map((r, i) => {
               const rx = xOf(r.left)
               const rw = xOf(r.right) - rx
               return (
@@ -348,7 +320,7 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
                 </g>
               )
             })}
-            {visibleCones.has('pm') && eveningRects.map((r, i) => {
+            {visibleSeries.has('evening') && eveningRects.map((r, i) => {
               const rx = xOf(r.left)
               const rw = xOf(r.right) - rx
               return (

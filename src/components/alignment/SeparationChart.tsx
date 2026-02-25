@@ -38,7 +38,7 @@ const ChartInner = memo(function ChartInner({
   visibleSeries,
 }: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleSeries'>) {
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%">
       <LineChart
         data={data}
         margin={{ top: 5, right: 5, bottom: 0, left: 5 }}
@@ -153,7 +153,14 @@ export default function SeparationChart({
             <div
               className="chart-date-indicator"
               style={{ left: `${indicatorPct}%` }}
-            />
+            >
+              <span
+                className="chart-date-label"
+                style={indicatorPct > 75 ? { right: 6, left: 'auto' } : undefined}
+              >
+                {formatDate(currentDate!)}
+              </span>
+            </div>
           </div>
         )}
       </div>

@@ -36,8 +36,10 @@ export interface SelectionState {
 export interface DisplaySettings {
   showOrbits: boolean
   showLabels: boolean
+  forceInner: boolean
   toggleOrbits: () => void
   toggleLabels: () => void
+  toggleForceInner: () => void
 }
 
 export interface AlignmentDataPoint {

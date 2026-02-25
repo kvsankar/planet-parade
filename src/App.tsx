@@ -89,8 +89,10 @@ export default function App() {
   // --- Display Settings ---
   const [showOrbits, setShowOrbits] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
+  const [forceInner, setForceInner] = useState(false)
   const toggleOrbits = useCallback(() => setShowOrbits((o) => !o), [])
   const toggleLabels = useCallback(() => setShowLabels((l) => !l), [])
+  const toggleForceInner = useCallback(() => setForceInner((f) => !f), [])
 
   // --- Computed (throttled React state — for UI only) ---
   const positions = usePlanetPositions(currentDate)
@@ -112,8 +114,9 @@ export default function App() {
   }), [selectedBodyId, followMode, selectBody, toggleFollow])
 
   const displayValue = useMemo(() => ({
-    showOrbits, showLabels, toggleOrbits, toggleLabels,
-  }), [showOrbits, showLabels, toggleOrbits, toggleLabels])
+    showOrbits, showLabels, forceInner,
+    toggleOrbits, toggleLabels, toggleForceInner,
+  }), [showOrbits, showLabels, forceInner, toggleOrbits, toggleLabels, toggleForceInner])
 
   // Shared panel props
   const fp = (id: PanelId) => ({
@@ -135,13 +138,13 @@ export default function App() {
             <div className="panels-layer">
               <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
                 <div className="scene-panel-content">
-                  <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} />
+                  <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
                   <div className="scene-overlay">
                     <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
                     <DisplayToggles />
                     <BodySelector />
                   </div>
-                  <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} />
+                  <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
                 </div>
               </FloatingPanel>
 
@@ -149,7 +152,7 @@ export default function App() {
                 <AlignmentPanel alignment={alignment} />
               </FloatingPanel>
 
-              <FloatingPanel {...fp('chart')} title="Chart" minWidth={400} minHeight={160}>
+              <FloatingPanel {...fp('chart')} title="Alignment Timeline" minWidth={400} minHeight={160}>
                 <ChartPanel
                   alignment={alignment}
                   currentDate={currentDate}
@@ -158,7 +161,7 @@ export default function App() {
               </FloatingPanel>
 
               <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
-                <SkyViewPanel alignment={alignment} currentDate={currentDate} />
+                <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
               </FloatingPanel>
 
               <PlaybackBar

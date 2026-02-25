@@ -101,6 +101,13 @@ export default function ChartPanel({
           <SeriesToggle visible={visibleSeries} onChange={setVisibleSeries} inline />
           <button
             className="minima-nav-btn"
+            onClick={() => onDateChange(new Date())}
+            title="Jump to today"
+          >
+            Today
+          </button>
+          <button
+            className="minima-nav-btn"
             onClick={() => jumpToMinimum('prev')}
             disabled={!hasPrev}
             title="Previous minimum"

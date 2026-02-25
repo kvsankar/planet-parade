@@ -5,7 +5,7 @@ import CelestialBody from './CelestialBody'
 import OrbitLine from './OrbitLine'
 import AlignmentCones from './AlignmentCones'
 import { cameraAngles } from './CameraController'
-import { CelestialBodyId } from '../../types'
+import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 
 const INNER_BODIES: CelestialBodyId[] = ['Mercury', 'Venus', 'Earth', 'Mars']
@@ -17,6 +17,7 @@ interface Props {
   positions: Record<CelestialBodyId, [number, number, number]>
   orbitPaths: Record<CelestialBodyId, [number, number, number][]>
   selectedBodies?: CelestialBodyId[]
+  visibleSeries?: Set<AlignmentKind>
 }
 
 /** Syncs inset camera angles from the main scene's CameraController */
@@ -32,7 +33,7 @@ function InsetCameraSync() {
   return null
 }
 
-function InsetContents({ positions, orbitPaths, selectedBodies = [] }: Props) {
+function InsetContents({ positions, orbitPaths, selectedBodies = [], visibleSeries }: Props) {
   const { showOrbits } = useDisplaySettings()
 
   return (
@@ -48,19 +49,19 @@ function InsetContents({ positions, orbitPaths, selectedBodies = [] }: Props) {
           <OrbitLine key={`orbit-${id}`} bodyId={id} points={orbitPaths[id]} />
         ) : null
       ))}
-      {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} />}
+      {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
     </>
   )
 }
 
-export default function InnerPlanetsInset({ positions, orbitPaths, selectedBodies }: Props) {
+export default function InnerPlanetsInset({ positions, orbitPaths, selectedBodies, visibleSeries }: Props) {
   return (
     <div className="inner-planets-inset">
       <Canvas
         camera={{ position: [0, 45, 0], fov: 45, near: 0.1, far: 200 }}
         style={{ background: 'rgba(5, 5, 15, 0.85)' }}
       >
-        <InsetContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} />
+        <InsetContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} visibleSeries={visibleSeries} />
       </Canvas>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { CelestialBodyId } from '../../types'
+import { CelestialBodyId, AlignmentKind } from '../../types'
 import { SERIES_COLORS } from '../../constants'
 import { getGeocentricEclipticCoords, computeSpanArc, wrap180 } from '../../lib/alignment'
 import { getBodyPosition } from '../../lib/astronomy'
@@ -12,6 +12,7 @@ const MS_PER_HOUR = 3_600_000
 
 interface Props {
   selectedBodies: CelestialBodyId[]
+  visibleSeries?: Set<AlignmentKind>
 }
 
 /** Build a flat sector (pie slice) in the XZ plane from ecliptic longitude arc */
@@ -94,7 +95,9 @@ const emptyGeo = () => {
   return g
 }
 
-export default function AlignmentCones({ selectedBodies }: Props) {
+const DEFAULT_VISIBLE = new Set<AlignmentKind>(['total', 'morning', 'evening'])
+
+export default function AlignmentCones({ selectedBodies, visibleSeries = DEFAULT_VISIBLE }: Props) {
   const groupRef = useRef<THREE.Group>(null!)
   const allMeshRef = useRef<THREE.Mesh>(null!)
   const amMeshRef = useRef<THREE.Mesh>(null!)
@@ -190,12 +193,12 @@ export default function AlignmentCones({ selectedBodies }: Props) {
 
   return (
     <group ref={groupRef}>
-      <mesh ref={allMeshRef} material={allMat} />
-      <mesh ref={amMeshRef} material={amMat} />
-      <mesh ref={pmMeshRef} material={pmMat} />
-      <lineSegments ref={allEdgeRef} material={allLineMat} />
-      <lineSegments ref={amEdgeRef} material={amLineMat} />
-      <lineSegments ref={pmEdgeRef} material={pmLineMat} />
+      <mesh ref={allMeshRef} material={allMat} visible={visibleSeries.has('total')} />
+      <mesh ref={amMeshRef} material={amMat} visible={visibleSeries.has('morning')} />
+      <mesh ref={pmMeshRef} material={pmMat} visible={visibleSeries.has('evening')} />
+      <lineSegments ref={allEdgeRef} material={allLineMat} visible={visibleSeries.has('total')} />
+      <lineSegments ref={amEdgeRef} material={amLineMat} visible={visibleSeries.has('morning')} />
+      <lineSegments ref={pmEdgeRef} material={pmLineMat} visible={visibleSeries.has('evening')} />
     </group>
   )
 }
