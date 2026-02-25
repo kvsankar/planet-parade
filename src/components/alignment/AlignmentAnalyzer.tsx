@@ -120,7 +120,6 @@ export default function AlignmentAnalyzer({ currentDate, onDateChange }: Alignme
       <div className="alignment-main">
         <SeparationChart
           data={series}
-          minima={allMinima}
           currentDate={currentDateMs}
           onDateClick={handleDateSelect}
           visibleSeries={visibleSeries}
@@ -133,6 +132,13 @@ export default function AlignmentAnalyzer({ currentDate, onDateChange }: Alignme
         />
         <div className="alignment-playback-row">
           <span className="alignment-current-date">{formatDate(currentDate)}</span>
+          <button
+            className="minima-nav-btn"
+            onClick={() => onDateChange(new Date())}
+            title="Jump to today"
+          >
+            Today
+          </button>
           <PlaybackControls
             isPlaying={isPlaying}
             speed={speed}
@@ -157,6 +163,7 @@ export default function AlignmentAnalyzer({ currentDate, onDateChange }: Alignme
               Next ▶
             </button>
           </div>
+          <SeriesToggle visible={visibleSeries} onChange={setVisibleSeries} inline />
         </div>
         <SkyView
           bodies={selectedBodies}

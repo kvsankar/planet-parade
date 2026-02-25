@@ -1,9 +1,11 @@
+import { memo } from 'react'
 import { AlignmentKind } from '../../types'
 import { SERIES_COLORS } from '../../constants'
 
 interface SeriesToggleProps {
   visible: Set<AlignmentKind>
   onChange: (v: Set<AlignmentKind>) => void
+  inline?: boolean
 }
 
 const SERIES_OPTIONS: { kind: AlignmentKind; label: string }[] = [
@@ -12,7 +14,7 @@ const SERIES_OPTIONS: { kind: AlignmentKind; label: string }[] = [
   { kind: 'evening', label: 'PM' },
 ]
 
-export default function SeriesToggle({ visible, onChange }: SeriesToggleProps) {
+export default memo(function SeriesToggle({ visible, onChange, inline }: SeriesToggleProps) {
   const toggle = (kind: AlignmentKind) => {
     const next = new Set(visible)
     if (next.has(kind)) {
@@ -21,6 +23,27 @@ export default function SeriesToggle({ visible, onChange }: SeriesToggleProps) {
       next.add(kind)
     }
     onChange(next)
+  }
+
+  if (inline) {
+    return (
+      <div className="series-toggle-chips">
+        {SERIES_OPTIONS.map(({ kind, label }) => (
+          <button
+            key={kind}
+            className={`series-chip ${visible.has(kind) ? 'active' : ''}`}
+            style={{
+              borderColor: SERIES_COLORS[kind],
+              ...(visible.has(kind) ? { background: SERIES_COLORS[kind] + '30' } : {}),
+            }}
+            onClick={() => toggle(kind)}
+          >
+            <span className="series-chip-dot" style={{ background: SERIES_COLORS[kind] }} />
+            {label}
+          </button>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -44,4 +67,4 @@ export default function SeriesToggle({ visible, onChange }: SeriesToggleProps) {
       </div>
     </div>
   )
-}
+})

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { MS_PER_DAY } from '../../constants'
 
 interface AlignmentTimeSliderProps {
@@ -7,7 +8,7 @@ interface AlignmentTimeSliderProps {
   onDateChange: (d: Date) => void
 }
 
-export default function AlignmentTimeSlider({
+export default memo(function AlignmentTimeSlider({
   startDate,
   durationDays,
   currentDate,
@@ -31,4 +32,4 @@ export default function AlignmentTimeSlider({
       />
     </div>
   )
-}
+})

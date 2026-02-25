@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { CelestialBodyId } from '../../types'
 import { ANALYZABLE_BODIES, BODY_META } from '../../constants'
 
@@ -6,7 +7,7 @@ interface PlanetPickerProps {
   onChange: (bodies: CelestialBodyId[]) => void
 }
 
-export default function PlanetPicker({ selected, onChange }: PlanetPickerProps) {
+export default memo(function PlanetPicker({ selected, onChange }: PlanetPickerProps) {
   const toggle = (id: CelestialBodyId) => {
     if (selected.includes(id)) {
       onChange(selected.filter((b) => b !== id))
@@ -35,4 +36,4 @@ export default function PlanetPicker({ selected, onChange }: PlanetPickerProps) 
       </div>
     </div>
   )
-}
+})

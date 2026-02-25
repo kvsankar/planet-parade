@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { SPEED_OPTIONS } from '../../constants'
 
 interface PlaybackControlsProps {
@@ -7,7 +8,7 @@ interface PlaybackControlsProps {
   onSetSpeed: (s: number) => void
 }
 
-export default function PlaybackControls({
+export default memo(function PlaybackControls({
   isPlaying,
   speed,
   onTogglePlay,
@@ -29,4 +30,4 @@ export default function PlaybackControls({
       </select>
     </div>
   )
-}
+})

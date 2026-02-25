@@ -148,7 +148,7 @@ export function findLocalMinima(
   series: AlignmentDataPoint[],
   key: 'separation' | 'morningSep' | 'eveningSep' = 'separation',
   kind: AlignmentKind = 'total',
-  threshold: number = 180,
+  threshold: number = 360,
 ): AlignmentMinimum[] {
   if (series.length < 3) return []
 
@@ -159,7 +159,7 @@ export function findLocalMinima(
   const minima: AlignmentMinimum[] = []
 
   // Check if the first valid point is a local minimum (series start or null boundary)
-  if (valid(0) && val(0) > 0 && val(0) <= val(1) && val(0) <= threshold) {
+  if (valid(0) && val(0) <= val(1) && val(0) <= threshold) {
     minima.push({ date: series[0].date, separation: val(0), kind })
   }
 
@@ -171,7 +171,7 @@ export function findLocalMinima(
       while (j < series.length - 1 && valid(j + 1) && val(j + 1) === val(i)) j++
       const leftHigher = val(i) < val(i - 1) // true if left is null (Infinity) or genuinely higher
       const rightHigher = j >= series.length - 1 || val(i) < val(j + 1) // treat series end as wall
-      if (leftHigher && rightHigher && val(i) > 0 && val(i) <= threshold) {
+      if (leftHigher && rightHigher && val(i) <= threshold) {
         const mid = Math.floor((i + j) / 2)
         minima.push({ date: series[mid].date, separation: val(mid), kind })
       }
@@ -182,7 +182,7 @@ export function findLocalMinima(
   }
 
   const last = series.length - 1
-  if (valid(last) && val(last) > 0 && val(last) <= val(last - 1) && val(last) <= threshold) {
+  if (valid(last) && val(last) <= val(last - 1) && val(last) <= threshold) {
     minima.push({ date: series[last].date, separation: val(last), kind })
   }
 

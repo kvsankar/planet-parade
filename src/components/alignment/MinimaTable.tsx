@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { AlignmentMinimum, AlignmentKind } from '../../types'
 import { SERIES_COLORS, formatDate } from '../../constants'
 
@@ -13,7 +14,7 @@ const KIND_LABELS: Record<AlignmentKind, string> = {
   evening: 'PM',
 }
 
-export default function MinimaTable({ minima, currentDate, onSelect }: MinimaTableProps) {
+export default memo(function MinimaTable({ minima, currentDate, onSelect }: MinimaTableProps) {
   if (minima.length === 0) {
     return <div className="chart-empty">No close alignments found.</div>
   }
@@ -54,4 +55,4 @@ export default function MinimaTable({ minima, currentDate, onSelect }: MinimaTab
       </div>
     </div>
   )
-}
+})

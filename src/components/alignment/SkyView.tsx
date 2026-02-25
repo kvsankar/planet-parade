@@ -53,10 +53,18 @@ interface SpanInfo {
 const LON_TICKS: number[] = []
 for (let v = -180; v <= 180; v += 30) LON_TICKS.push(v)
 
+const MS_PER_HOUR = 3_600_000
+
 export default function SkyView({ bodies, date, center, onCenterChange }: SkyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const clipId = useId()
   const [width, setWidth] = useState(600)
+
+  // Quantize date to nearest hour for ephemeris cache efficiency during animation
+  const quantizedDate = useMemo(() => {
+    const ms = date.getTime()
+    return new Date(Math.round(ms / MS_PER_HOUR) * MS_PER_HOUR)
+  }, [Math.round(date.getTime() / MS_PER_HOUR)])
 
   useEffect(() => {
     const el = containerRef.current
@@ -70,8 +78,8 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
   }, [])
 
   const sunLon = useMemo(() => {
-    return getGeocentricEclipticCoords('Sun', date).lon
-  }, [date])
+    return getGeocentricEclipticCoords('Sun', quantizedDate).lon
+  }, [quantizedDate])
 
   const refLon = center === 'sun' ? sunLon : 0
 
@@ -80,18 +88,18 @@ export default function SkyView({ bodies, date, center, onCenterChange }: SkyVie
     if (bodies.length === 0) return []
 
     const items = bodies.map((id) => {
-      const ecl = getGeocentricEclipticCoords(id, date)
+      const ecl = getGeocentricEclipticCoords(id, quantizedDate)
       return { id, absLon: ecl.lon, lat: ecl.lat, color: BODY_META[id].color, elongation: wrap180(ecl.lon - sunLon) }
     })
 
-    const sunEcl = getGeocentricEclipticCoords('Sun', date)
+    const sunEcl = getGeocentricEclipticCoords('Sun', quantizedDate)
     items.push({ id: 'Sun' as CelestialBodyId, absLon: sunEcl.lon, lat: sunEcl.lat, color: BODY_META.Sun.color, elongation: 0 })
 
     return items.map((c) => ({
       ...c,
       plotLon: wrap180(c.absLon - refLon),
     }))
-  }, [bodies, date, refLon, sunLon])
+  }, [bodies, quantizedDate, refLon, sunLon])
 
   // Split planets into morning/evening once, compute spans and shading rects together
   const { spanInfos, morningRects, eveningRects } = useMemo(() => {

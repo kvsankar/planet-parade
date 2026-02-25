@@ -145,13 +145,12 @@ html, body, #root {
 }
 
 .play-btn {
-  width: 30px;
-  height: 28px;
+  padding: 3px 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.06);
   color: #e0e0e0;
-  font-size: 14px;
+  font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -469,6 +468,30 @@ select option {
 /* Separation chart */
 .separation-chart {
   min-height: 220px;
+}
+
+.chart-wrapper {
+  position: relative;
+}
+
+/* Thin track aligned with the Recharts plot area */
+/* Chart margin: 5px left + YAxis 35px = 40px; 5px right */
+.chart-date-track {
+  position: absolute;
+  top: 5px;   /* chart margin-top */
+  bottom: 0;
+  left: 40px;
+  right: 5px;
+  pointer-events: none;
+}
+
+.chart-date-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(253, 184, 19, 0.6);
+  transform: translateX(-0.5px);
 }
 
 .chart-empty {
