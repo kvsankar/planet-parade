@@ -447,9 +447,9 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
             <thead>
               <tr>
                 <th>Body</th>
-                <th>Lon</th>
-                <th>Lat</th>
-                <th>Elong</th>
+                <th className="col-right">Lon</th>
+                <th className="col-right">Lat</th>
+                <th className="col-right">Elong</th>
                 <th className="col-right">Mag</th>
                 <th>Sky</th>
               </tr>
@@ -462,9 +462,9 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
                 return (
                   <tr key={b.id}>
                     <td style={{ color: b.color }}>{b.id}</td>
-                    <td>{b.absLon.toFixed(1)}°</td>
-                    <td>{b.lat >= 0 ? '+' : ''}{b.lat.toFixed(1)}°</td>
-                    <td>{isSun ? '\u2014' : `${b.elongation >= 0 ? '+' : ''}${b.elongation.toFixed(1)}°`}</td>
+                    <td className="col-right">{b.absLon.toFixed(1)}°</td>
+                    <td className="col-right">{b.lat >= 0 ? '+' : ''}{b.lat.toFixed(1)}°</td>
+                    <td className="col-right">{isSun ? '\u2014' : `${b.elongation >= 0 ? '+' : ''}${b.elongation.toFixed(1)}°`}</td>
                     <td className="col-right">{b.mag !== null ? b.mag.toFixed(1) : '\u2014'}</td>
                     <td style={{ color: skyColor }}>{skyLabel}</td>
                   </tr>
