@@ -104,6 +104,11 @@ export function getMoonIllumination(date: Date): number {
   return Astronomy.Illumination(Astronomy.Body.Moon, date).phase_fraction
 }
 
+/** Returns true if the Moon is waxing (phase angle 0–180°) */
+export function isMoonWaxing(date: Date): boolean {
+  return Astronomy.MoonPhase(date) < 180
+}
+
 /** Returns the visual magnitude of a body as seen from Earth, or null on error */
 export function getBodyVisualMagnitude(bodyId: SkyBodyId, date: Date): number | null {
   const body = SKY_BODY_MAP[bodyId]

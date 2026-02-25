@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -69,6 +69,10 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     sunriseTime ? getMoonIllumination(sunriseTime) : 0, [sunriseTime])
   const eveningMoonIllum = useMemo(() =>
     sunsetTime ? getMoonIllumination(sunsetTime) : 0, [sunsetTime])
+  const morningMoonWaxing = useMemo(() =>
+    sunriseTime ? isMoonWaxing(sunriseTime) : true, [sunriseTime])
+  const eveningMoonWaxing = useMemo(() =>
+    sunsetTime ? isMoonWaxing(sunsetTime) : true, [sunsetTime])
 
   const morningMagnitudes = useMemo(() => {
     if (!sunriseTime) return {} as Record<SkyBodyId, number | null>
@@ -105,6 +109,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             time={sunriseTime}
             size={chartSize}
             moonIllumination={morningMoonIllum}
+            moonWaxing={morningMoonWaxing}
             magnitudes={morningMagnitudes}
           />
           <StereoSkyChart
@@ -115,6 +120,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             time={sunsetTime}
             size={chartSize}
             moonIllumination={eveningMoonIllum}
+            moonWaxing={eveningMoonWaxing}
             magnitudes={eveningMagnitudes}
           />
         </div>

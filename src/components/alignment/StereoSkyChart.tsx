@@ -13,6 +13,7 @@ interface StereoSkyChartProps {
   time: Date | null
   size: number
   moonIllumination: number
+  moonWaxing: boolean
   magnitudes: Partial<Record<SkyBodyId, number | null>>
 }
 
@@ -37,9 +38,9 @@ function bodyColor(id: SkyBodyId): string {
 }
 
 function bodyRadius(id: SkyBodyId): number {
-  if (id === 'Sun') return 6
-  if (id === 'Moon') return 5
-  return 3.5
+  if (id === 'Sun') return 8
+  if (id === 'Moon') return 7
+  return 5
 }
 
 const DEG_TO_RAD = Math.PI / 180
@@ -59,13 +60,25 @@ const SPECTRAL_COLORS: Record<string, string> = {
   G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
 }
 
+/** SVG path for the lit portion of the Moon, centered at (0,0) */
+function moonPhasePath(r: number, illum: number, waxing: boolean): string {
+  // k ranges from -1 (new) to +1 (full)
+  const k = 2 * illum - 1
+  const rx = Math.abs(k) * r
+  // Lit side semicircle sweep: waxing = right side (sweep 1), waning = left side (sweep 0)
+  const semiSweep = waxing ? 1 : 0
+  // Terminator sweep depends on gibbous vs crescent and waxing vs waning
+  const termSweep = waxing ? (k >= 0 ? 0 : 1) : (k >= 0 ? 1 : 0)
+  return `M 0 ${-r} A ${r} ${r} 0 0 ${semiSweep} 0 ${r} A ${rx} ${r} 0 0 ${termSweep} 0 ${-r} Z`
+}
+
 function formatTime(d: Date): string {
   const h = d.getUTCHours().toString().padStart(2, '0')
   const m = d.getUTCMinutes().toString().padStart(2, '0')
   return `${h}:${m} UTC`
 }
 
-export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination, magnitudes }: StereoSkyChartProps) {
+export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination, moonWaxing, magnitudes }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -418,16 +431,29 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
           const rad = bodyRadius(p.bodyId)
           const isAboveHorizon = p.altitude >= 0
           const mag = magnitudes[p.bodyId]
+          const isMoon = p.bodyId === 'Moon'
 
           return (
             <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
-              <circle cx={px} cy={py} r={rad} fill={color} />
+              {isMoon ? (
+                <>
+                  <circle cx={px} cy={py} r={rad} fill="#1a1a2e" />
+                  <path
+                    d={moonPhasePath(rad, moonIllumination, moonWaxing)}
+                    transform={`translate(${px},${py})`}
+                    fill={MOON_COLOR}
+                  />
+                  <circle cx={px} cy={py} r={rad} fill="none" stroke="rgba(200,200,200,0.4)" strokeWidth={0.5} />
+                </>
+              ) : (
+                <circle cx={px} cy={py} r={rad} fill={color} />
+              )}
               <text
                 x={px}
-                y={py - rad - 3}
+                y={py - rad - 4}
                 textAnchor="middle"
                 fill={color}
-                fontSize={8}
+                fontSize={9}
                 fontWeight={500}
               >
                 {BODY_LABELS[p.bodyId]}
@@ -435,10 +461,10 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
               {mag != null && (
                 <text
                   x={px}
-                  y={py + rad + 9}
+                  y={py + rad + 10}
                   textAnchor="middle"
                   fill={color}
-                  fontSize={6.5}
+                  fontSize={7.5}
                   opacity={0.7}
                 >
                   {mag.toFixed(1)}
