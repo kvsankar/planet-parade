@@ -8,11 +8,11 @@ export interface PanelLayout {
   minimized: boolean
 }
 
-export type PanelId = 'scene' | 'controls' | 'chart' | 'skyview'
+export type PanelId = 'scene' | 'controls' | 'chart' | 'skyview' | 'skychart'
 
 type PanelLayouts = Record<PanelId, PanelLayout>
 
-const STORAGE_KEY = 'solar-panels-layout-v4'
+const STORAGE_KEY = 'solar-panels-layout-v5'
 
 function getDefaults(): PanelLayouts {
   const w = window.innerWidth
@@ -25,13 +25,15 @@ function getDefaults(): PanelLayouts {
   const rightX = w - rightW - PAD
   const midW = Math.max(300, rightX - midX - GAP)
   const totalH = h - PAD * 2
-  const chartH = Math.floor(totalH * 0.4)
-  const skyH = totalH - chartH - GAP
+  const chartH = Math.floor(totalH * 0.35)
+  const skyH = Math.floor(totalH * 0.30)
+  const skychartH = totalH - chartH - skyH - GAP * 2
   return {
     controls: { x: PAD, y: PAD, width: leftW, height: totalH, minimized: false },
     scene: { x: midX, y: PAD, width: midW, height: totalH, minimized: false },
     chart: { x: rightX, y: PAD, width: rightW, height: chartH, minimized: false },
     skyview: { x: rightX, y: PAD + chartH + GAP, width: rightW, height: skyH, minimized: false },
+    skychart: { x: rightX, y: PAD + chartH + GAP + skyH + GAP, width: rightW, height: skychartH, minimized: false },
   }
 }
 
@@ -41,7 +43,7 @@ function loadFromStorage(): PanelLayouts | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as PanelLayouts
     // Validate structure
-    const ids: PanelId[] = ['scene', 'controls', 'chart', 'skyview']
+    const ids: PanelId[] = ['scene', 'controls', 'chart', 'skyview', 'skychart']
     for (const id of ids) {
       if (!parsed[id] || typeof parsed[id].x !== 'number') return null
     }
@@ -61,7 +63,7 @@ function saveToStorage(layouts: PanelLayouts) {
 
 export function usePanelManager() {
   const [layouts, setLayouts] = useState<PanelLayouts>(() => loadFromStorage() ?? getDefaults())
-  const [zOrder, setZOrder] = useState<PanelId[]>(['scene', 'controls', 'chart', 'skyview'])
+  const [zOrder, setZOrder] = useState<PanelId[]>(['scene', 'controls', 'chart', 'skyview', 'skychart'])
 
   // Debounced save
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

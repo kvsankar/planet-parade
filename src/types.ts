@@ -52,6 +52,12 @@ export interface AlignmentDataPoint {
   totalCount: number // total number of selected planets
 }
 
+export interface ObserverLocation {
+  lat: number    // degrees
+  lon: number    // degrees
+  height: number // meters
+}
+
 export type AlignmentKind = 'total' | 'morning' | 'evening'
 
 export interface AlignmentMinimum {

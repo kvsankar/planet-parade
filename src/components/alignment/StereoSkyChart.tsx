@@ -1,0 +1,249 @@
+import { useMemo } from 'react'
+import { AltAzPosition, SkyBodyId, StarAltAzPosition } from '../../lib/astronomy'
+import { BODY_META } from '../../constants'
+import { CelestialBodyId } from '../../types'
+import { STAR_CATALOG } from '../../data/starCatalog'
+
+interface StereoSkyChartProps {
+  positions: AltAzPosition[]
+  stars: StarAltAzPosition[]
+  title: string
+  time: Date | null
+  size: number
+}
+
+const MOON_COLOR = '#C8C8C8'
+
+const BODY_LABELS: Record<SkyBodyId, string> = {
+  Sun: 'Sun',
+  Moon: 'Moon',
+  Mercury: 'Mer',
+  Venus: 'Ven',
+  Mars: 'Mar',
+  Jupiter: 'Jup',
+  Saturn: 'Sat',
+  Uranus: 'Ura',
+  Neptune: 'Nep',
+  Pluto: 'Plu',
+}
+
+function bodyColor(id: SkyBodyId): string {
+  if (id === 'Moon') return MOON_COLOR
+  return BODY_META[id as CelestialBodyId]?.color ?? '#888'
+}
+
+function bodyRadius(id: SkyBodyId): number {
+  if (id === 'Sun') return 6
+  if (id === 'Moon') return 5
+  return 3.5
+}
+
+const DEG_TO_RAD = Math.PI / 180
+
+function projectAltAz(altitude: number, azimuth: number, R: number): { x: number; y: number } {
+  const r = ((90 - altitude) / 90) * R
+  const azRad = azimuth * DEG_TO_RAD
+  return { x: -r * Math.sin(azRad), y: -r * Math.cos(azRad) }
+}
+
+function starRadius(mag: number): number {
+  return Math.max(0.8, Math.min(2.5, 2.5 - (mag + 1.5) / 3))
+}
+
+const SPECTRAL_COLORS: Record<string, string> = {
+  O: '#9db4ff', B: '#aabfff', A: '#cad8ff', F: '#f8f7ff',
+  G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
+}
+
+function formatTime(d: Date): string {
+  const h = d.getUTCHours().toString().padStart(2, '0')
+  const m = d.getUTCMinutes().toString().padStart(2, '0')
+  return `${h}:${m} UTC`
+}
+
+export default function StereoSkyChart({ positions, stars, title, time, size }: StereoSkyChartProps) {
+  const MARGIN = 28
+  const R = (size - MARGIN * 2) / 2
+  const cx = size / 2
+  const cy = size / 2 + 18 // shift down to clear title + time text
+
+  const projected = useMemo(() => {
+    return positions.map((p) => ({ ...p, ...projectAltAz(p.altitude, p.azimuth, R) }))
+  }, [positions, R])
+
+  const projectedStars = useMemo(() => {
+    return stars.map((s) => {
+      const cat = STAR_CATALOG[s.starIndex]
+      return {
+        ...projectAltAz(s.altitude, s.azimuth, R),
+        starIndex: s.starIndex,
+        altitude: s.altitude,
+        name: cat.name,
+        mag: cat.mag,
+        spectral: cat.spectral,
+      }
+    })
+  }, [stars, R])
+
+  if (size < 50) return null
+
+  const gridColor = 'rgba(255,255,255,0.12)'
+  const textColor = '#666'
+
+  return (
+    <svg width={size} height={size + 36} style={{ display: 'block' }}>
+      {/* Title + time */}
+      <text x={cx} y={14} textAnchor="middle" fill="#aaa" fontSize={12} fontWeight={600}>
+        {title}
+      </text>
+      {time && (
+        <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
+          {formatTime(time)}
+        </text>
+      )}
+
+      {/* Clip path for bodies */}
+      <defs>
+        <clipPath id={`clip-${title}`}>
+          <circle cx={cx} cy={cy} r={R} />
+        </clipPath>
+      </defs>
+
+      {/* Background */}
+      <circle cx={cx} cy={cy} r={R} fill="#0a0e1a" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+
+      {/* Altitude grid rings at 30° and 60° */}
+      {[30, 60].map((alt) => {
+        const ringR = ((90 - alt) / 90) * R
+        return (
+          <circle
+            key={alt}
+            cx={cx}
+            cy={cy}
+            r={ringR}
+            fill="none"
+            stroke={gridColor}
+            strokeWidth={0.5}
+            strokeDasharray="4 3"
+          />
+        )
+      })}
+
+      {/* 8 azimuth lines every 45° */}
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((az) => {
+        const azRad = az * DEG_TO_RAD
+        const ex = cx + -R * Math.sin(azRad)
+        const ey = cy + -R * Math.cos(azRad)
+        return (
+          <line
+            key={az}
+            x1={cx}
+            y1={cy}
+            x2={ex}
+            y2={ey}
+            stroke={gridColor}
+            strokeWidth={0.5}
+          />
+        )
+      })}
+
+      {/* Cardinal labels N/E/S/W */}
+      {([
+        ['N', 0],
+        ['E', 90],
+        ['S', 180],
+        ['W', 270],
+      ] as [string, number][]).map(([label, az]) => {
+        const azRad = az * DEG_TO_RAD
+        const labelR = R + 12
+        const lx = cx + -labelR * Math.sin(azRad)
+        const ly = cy + -labelR * Math.cos(azRad)
+        return (
+          <text
+            key={label}
+            x={lx}
+            y={ly}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="#888"
+            fontSize={10}
+            fontWeight={600}
+          >
+            {label}
+          </text>
+        )
+      })}
+
+      {/* Altitude labels along north axis */}
+      {[30, 60].map((alt) => {
+        const labelR = ((90 - alt) / 90) * R
+        return (
+          <text
+            key={alt}
+            x={cx + 4}
+            y={cy - labelR + 3}
+            fill={textColor}
+            fontSize={8}
+          >
+            {alt}°
+          </text>
+        )
+      })}
+
+      {/* Zenith dot */}
+      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
+
+      {/* Stars + body dots + labels (clipped to circle) */}
+      <g clipPath={`url(#clip-${title})`}>
+        {/* Star layer (behind planets) */}
+        {projectedStars.map((s) => {
+          const sx = cx + s.x
+          const sy = cy + s.y
+          const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
+          const rad = starRadius(s.mag)
+          const isAbove = s.altitude >= 0
+          return (
+            <g key={s.starIndex} opacity={isAbove ? 0.85 : 0.3}>
+              <circle cx={sx} cy={sy} r={rad} fill={color} />
+              {s.name && (
+                <text
+                  x={sx + rad + 2}
+                  y={sy + 2.5}
+                  fill={color}
+                  fontSize={7}
+                  opacity={0.7}
+                >
+                  {s.name}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        {/* Planet layer (on top of stars) */}
+        {projected.map((p) => {
+          const px = cx + p.x
+          const py = cy + p.y
+          const color = bodyColor(p.bodyId)
+          const rad = bodyRadius(p.bodyId)
+          const isAboveHorizon = p.altitude >= 0
+
+          return (
+            <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
+              <circle cx={px} cy={py} r={rad} fill={color} />
+              <text
+                x={px}
+                y={py - rad - 3}
+                textAnchor="middle"
+                fill={color}
+                fontSize={8}
+                fontWeight={500}
+              >
+                {BODY_LABELS[p.bodyId]}
+              </text>
+            </g>
+          )
+        })}
+      </g>
+    </svg>
+  )
+}

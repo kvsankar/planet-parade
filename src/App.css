@@ -947,3 +947,19 @@ select option {
   display: flex;
   gap: 3px;
 }
+
+/* ====== Sky Chart Panel ====== */
+.skychart-panel {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skychart-pair {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: flex-start;
+}

@@ -5,6 +5,7 @@ import FloatingPanel from './components/panels/FloatingPanel'
 import AlignmentPanel from './components/panels/AlignmentPanel'
 import ChartPanel from './components/panels/ChartPanel'
 import SkyViewPanel from './components/panels/SkyViewPanel'
+import SkyChartPanel from './components/panels/SkyChartPanel'
 import PlaybackBar from './components/ui/PlaybackBar'
 import DisplayToggles from './components/ui/DisplayToggles'
 import BodySelector from './components/ui/BodySelector'
@@ -18,7 +19,7 @@ import { usePlanetPositions } from './hooks/usePlanetPositions'
 import { useOrbitPaths } from './hooks/useOrbitPaths'
 import { usePanelManager, PanelId } from './hooks/usePanelManager'
 import { useAlignmentState } from './hooks/useAlignmentState'
-import { CelestialBodyId } from './types'
+import { CelestialBodyId, ObserverLocation } from './types'
 
 export default function App() {
   // --- Simulation Time ---
@@ -101,6 +102,9 @@ export default function App() {
   // --- Alignment state (shared across panels) ---
   const alignment = useAlignmentState(currentDate, handleSetDate)
 
+  // --- Observer (fixed for Stage 1) ---
+  const observer = useMemo<ObserverLocation>(() => ({ lat: 0, lon: 0, height: 0 }), [])
+
   // --- Panel manager ---
   const panel = usePanelManager()
 
@@ -162,6 +166,10 @@ export default function App() {
 
               <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
                 <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
+              </FloatingPanel>
+
+              <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>
+                <SkyChartPanel currentDate={currentDate} observer={observer} />
               </FloatingPanel>
 
               <PlaybackBar
