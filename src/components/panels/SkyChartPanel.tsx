@@ -83,17 +83,20 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     return m
   }, [sunsetTime])
 
-  // Chart sizing: fit two charts stacked vertically
+  // Layout: side-by-side when wide, stacked when tall
+  const horizontal = containerSize.w > containerSize.h
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
-    return Math.min(w - 8, Math.floor((h - 16) / 2))
-  }, [containerSize])
+    return horizontal
+      ? Math.min(Math.floor((w - 16) / 2), h - 8)
+      : Math.min(w - 8, Math.floor((h - 16) / 2))
+  }, [containerSize, horizontal])
 
   return (
     <div className="skychart-panel" ref={containerRef}>
       {chartSize > 50 && (
-        <div className="skychart-pair">
+        <div className={horizontal ? 'skychart-pair skychart-pair-h' : 'skychart-pair'}>
           <StereoSkyChart
             positions={morningPositions}
             stars={morningStars}
