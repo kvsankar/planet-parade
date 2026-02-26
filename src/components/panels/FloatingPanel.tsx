@@ -1,4 +1,4 @@
-import { useCallback, useState, ReactNode } from 'react'
+import { useCallback, ReactNode } from 'react'
 import { Rnd } from 'react-rnd'
 import { PanelId, PanelLayout } from '../../hooks/usePanelManager'
 
@@ -14,6 +14,7 @@ interface FloatingPanelProps {
   onResizeStop: (id: PanelId, w: number, h: number, x: number, y: number) => void
   onFocus: (id: PanelId) => void
   onMinimize: (id: PanelId) => void
+  onMaximize: (id: PanelId) => void
   children: ReactNode
 }
 
@@ -29,6 +30,7 @@ export default function FloatingPanel({
   onResizeStop,
   onFocus,
   onMinimize,
+  onMaximize,
   children,
 }: FloatingPanelProps) {
   const handleDragStop = useCallback(
@@ -65,14 +67,14 @@ export default function FloatingPanel({
     [id, onMinimize],
   )
 
-  const [maximized, setMaximized] = useState(false)
+  const maximized = layout.maximized
 
   const handleMaximize = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      setMaximized((m) => !m)
+      onMaximize(id)
     },
-    [],
+    [id, onMaximize],
   )
 
   const PAD = 8

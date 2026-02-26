@@ -136,6 +136,7 @@ export default function App() {
     onResizeStop: panel.onResizeStop,
     onFocus: panel.onFocus,
     onMinimize: panel.onMinimize,
+    onMaximize: panel.onMaximize,
   })
 
   return (

@@ -109,12 +109,13 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
 
   // Layout: side-by-side when wide, stacked when tall
   const horizontal = containerSize.w > containerSize.h
+  const SVG_OVERHEAD = 36 // title + time text above the chart circle
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
     return horizontal
-      ? Math.min(Math.floor((w - 16) / 2), h - 8)
-      : Math.min(w - 8, Math.floor((h - 16) / 2))
+      ? Math.min(Math.floor((w - 16) / 2), h - 8 - SVG_OVERHEAD)
+      : Math.min(w - 8, Math.floor((h - 16) / 2) - SVG_OVERHEAD)
   }, [containerSize, horizontal])
 
   return (

@@ -6,13 +6,14 @@ export interface PanelLayout {
   width: number
   height: number
   minimized: boolean
+  maximized: boolean
 }
 
 export type PanelId = 'scene' | 'controls' | 'chart' | 'skyview' | 'skychart'
 
 type PanelLayouts = Record<PanelId, PanelLayout>
 
-const STORAGE_KEY = 'solar-panels-layout-v6'
+const STORAGE_KEY = 'solar-panels-layout-v8'
 
 function getDefaults(): PanelLayouts {
   const w = window.innerWidth
@@ -26,11 +27,11 @@ function getDefaults(): PanelLayouts {
   const col1X = PAD
 
   // Column 4: Sky Charts (right sidebar)
-  const col4W = Math.min(320, Math.floor(w * 0.22))
+  const col4W = Math.min(400, Math.floor(w * 0.26))
   const col4X = w - col4W - PAD
 
   // Column 3: Alignment Timeline + Sky View (stacked)
-  const col3W = Math.min(420, Math.floor(w * 0.28))
+  const col3W = Math.min(500, Math.floor(w * 0.34))
   const col3X = col4X - col3W - GAP
   const chartH = Math.floor(totalH * 0.45)
   const skyviewH = totalH - chartH - GAP
@@ -40,11 +41,11 @@ function getDefaults(): PanelLayouts {
   const col2W = Math.max(300, col3X - col2X - GAP)
 
   return {
-    controls: { x: col1X, y: PAD, width: col1W, height: totalH, minimized: false },
-    scene:    { x: col2X, y: PAD, width: col2W, height: totalH, minimized: false },
-    chart:    { x: col3X, y: PAD, width: col3W, height: chartH, minimized: false },
-    skyview:  { x: col3X, y: PAD + chartH + GAP, width: col3W, height: skyviewH, minimized: false },
-    skychart: { x: col4X, y: PAD, width: col4W, height: totalH, minimized: false },
+    controls: { x: col1X, y: PAD, width: col1W, height: totalH, minimized: false, maximized: false },
+    scene:    { x: col2X, y: PAD, width: col2W, height: totalH, minimized: false, maximized: false },
+    chart:    { x: col3X, y: PAD, width: col3W, height: chartH, minimized: false, maximized: false },
+    skyview:  { x: col3X, y: PAD + chartH + GAP, width: col3W, height: skyviewH, minimized: false, maximized: false },
+    skychart: { x: col4X, y: PAD, width: col4W, height: totalH, minimized: false, maximized: false },
   }
 }
 
@@ -111,6 +112,13 @@ export function usePanelManager() {
     }))
   }, [])
 
+  const onMaximize = useCallback((id: PanelId) => {
+    setLayouts((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], maximized: !prev[id].maximized },
+    }))
+  }, [])
+
   const resetLayout = useCallback(() => {
     const defaults = getDefaults()
     setLayouts(defaults)
@@ -123,5 +131,5 @@ export function usePanelManager() {
     zIndexMap[id] = 100 + i
   })
 
-  return { layouts, zIndexMap, onDragStop, onResizeStop, onFocus, onMinimize, resetLayout }
+  return { layouts, zIndexMap, onDragStop, onResizeStop, onFocus, onMinimize, onMaximize, resetLayout }
 }
