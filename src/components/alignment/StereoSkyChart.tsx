@@ -204,16 +204,12 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
   }, [milkyWay, R, cx, cy])
 
   // --- Label overlap avoidance ---
-  // For each planet, compute a label offset (lx, ly) relative to the dot center.
-  // If two planets are closer than LABEL_CLOSE_PX, extend a line between them
-  // and push each label to the tip on its side of the line.
   const LABEL_CLOSE_PX = 24
-  const LABEL_EXT = 8 // how far the label tip sits from the dot center
+  const LABEL_EXT = 8
 
   const labelOffsets = useMemo(() => {
     const offsets = new Map<SkyBodyId, { lx: number; ly: number }>()
 
-    // Accumulate repulsion vectors per body
     for (const p of projected) {
       let rx = 0, ry = 0
       let nearbyCount = 0
@@ -227,7 +223,6 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
         if (dist < LABEL_CLOSE_PX) {
           nearbyCount++
           if (dist < 0.5) {
-            // Coincident — push by bodyId order
             ry += p.bodyId < q.bodyId ? -1 : 1
           } else {
             const strength = 1 - dist / LABEL_CLOSE_PX
@@ -242,11 +237,9 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
         if (len > 0.01) {
           offsets.set(p.bodyId, { lx: (rx / len) * LABEL_EXT, ly: (ry / len) * LABEL_EXT })
         } else {
-          // Degenerate — default just above
           offsets.set(p.bodyId, { lx: 0, ly: -6 })
         }
       } else {
-        // Isolated — default just above
         offsets.set(p.bodyId, { lx: 0, ly: -6 })
       }
     }
@@ -260,320 +253,324 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
   const textColor = '#666'
 
   return (
-    <svg width={size} height={size + 36} style={{ display: 'block' }}>
-      {/* Title + time */}
-      <text x={cx} y={14} textAnchor="middle" fill="#aaa" fontSize={12} fontWeight={600}>
-        {title}
-      </text>
-      {time && (
-        <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
-          {formatTime(time)}
+    <svg
+      width={size}
+      height={size + 36}
+      style={{ display: 'block' }}
+    >
+        {/* Title + time */}
+        <text x={cx} y={14} textAnchor="middle" fill="#aaa" fontSize={12} fontWeight={600}>
+          {title}
         </text>
-      )}
-
-      {/* Clip path and glow gradients */}
-      <defs>
-        <clipPath id={`clip-${title}`}>
-          <circle cx={cx} cy={cy} r={R} />
-        </clipPath>
-        {sunProj && (
-          <radialGradient
-            id={`twilight-${title}`}
-            cx={cx + sunProj.x}
-            cy={cy + sunProj.y}
-            r={R * 1.2}
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="rgba(255, 170, 60, 0.18)" />
-            <stop offset="100%" stopColor="rgba(255, 170, 60, 0)" />
-          </radialGradient>
-        )}
-        {moonProj && moonGlowOpacity > 0 && (
-          <radialGradient
-            id={`moonlight-${title}`}
-            cx={cx + moonProj.x}
-            cy={cy + moonProj.y}
-            r={R * 0.8}
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor={`rgba(180, 200, 230, ${moonGlowOpacity})`} />
-            <stop offset="100%" stopColor="rgba(180, 200, 230, 0)" />
-          </radialGradient>
-        )}
-      </defs>
-
-      {/* Background */}
-      <circle cx={cx} cy={cy} r={R} fill="#0a0e1a" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
-
-      {/* Twilight glow overlay */}
-      {sunProj && (
-        <circle cx={cx} cy={cy} r={R} fill={`url(#twilight-${title})`} />
-      )}
-
-      {/* Moonlight glow overlay */}
-      {moonProj && moonGlowOpacity > 0 && (
-        <circle cx={cx} cy={cy} r={R} fill={`url(#moonlight-${title})`} />
-      )}
-
-      {/* Altitude grid rings at 30° and 60° */}
-      {[30, 60].map((alt) => {
-        const ringR = ((90 - alt) / 90) * R
-        return (
-          <circle
-            key={alt}
-            cx={cx}
-            cy={cy}
-            r={ringR}
-            fill="none"
-            stroke={gridColor}
-            strokeWidth={0.5}
-            strokeDasharray="4 3"
-          />
-        )
-      })}
-
-      {/* 8 azimuth lines every 45° */}
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((az) => {
-        const azRad = az * DEG_TO_RAD
-        const ex = cx + -R * Math.sin(azRad)
-        const ey = cy + -R * Math.cos(azRad)
-        return (
-          <line
-            key={az}
-            x1={cx}
-            y1={cy}
-            x2={ex}
-            y2={ey}
-            stroke={gridColor}
-            strokeWidth={0.5}
-          />
-        )
-      })}
-
-      {/* Cardinal labels N/E/S/W */}
-      {([
-        ['N', 0],
-        ['E', 90],
-        ['S', 180],
-        ['W', 270],
-      ] as [string, number][]).map(([label, az]) => {
-        const azRad = az * DEG_TO_RAD
-        const labelR = R + 12
-        const lx = cx + -labelR * Math.sin(azRad)
-        const ly = cy + -labelR * Math.cos(azRad)
-        return (
-          <text
-            key={label}
-            x={lx}
-            y={ly}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="#888"
-            fontSize={10}
-            fontWeight={600}
-          >
-            {label}
+        {time && (
+          <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
+            {formatTime(time)}
           </text>
-        )
-      })}
-
-      {/* Altitude labels along north axis */}
-      {[30, 60].map((alt) => {
-        const labelR = ((90 - alt) / 90) * R
-        return (
-          <text
-            key={alt}
-            x={cx + 4}
-            y={cy - labelR + 3}
-            fill={textColor}
-            fontSize={8}
-          >
-            {alt}°
-          </text>
-        )
-      })}
-
-      {/* Zenith dot */}
-      <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
-
-      {/* Stars + body dots + labels (clipped to circle) */}
-      <g clipPath={`url(#clip-${title})`}>
-        {/* Milky Way polygon layers (deepest background) */}
-        {milkyWayPaths.map((layer) =>
-          layer.path ? (
-            <path
-              key={layer.id}
-              d={layer.path}
-              fill="#8899bb"
-              fillRule="evenodd"
-              opacity={MW_OPACITIES[layer.id] ?? 0.03}
-            />
-          ) : null
         )}
-        {/* Ecliptic curve + label */}
-        {eclipticPathData && (
-          <g>
-            <path
-              d={eclipticPathData.path}
-              stroke="rgba(200, 160, 80, 0.3)"
-              strokeWidth={0.8}
-              strokeDasharray="4 3"
-              fill="none"
-            />
-            <text
-              x={eclipticPathData.labelX}
-              y={eclipticPathData.labelY - 5}
-              textAnchor="middle"
-              fill="#ccaa55"
-              fontSize={7}
-              opacity={0.5}
+
+        {/* Clip path and glow gradients */}
+        <defs>
+          <clipPath id={`clip-${title}`}>
+            <circle cx={cx} cy={cy} r={R} />
+          </clipPath>
+          {sunProj && (
+            <radialGradient
+              id={`twilight-${title}`}
+              cx={cx + sunProj.x}
+              cy={cy + sunProj.y}
+              r={R * 1.2}
+              gradientUnits="userSpaceOnUse"
             >
-              Ecliptic
-            </text>
-          </g>
+              <stop offset="0%" stopColor="rgba(255, 170, 60, 0.18)" />
+              <stop offset="100%" stopColor="rgba(255, 170, 60, 0)" />
+            </radialGradient>
+          )}
+          {moonProj && moonGlowOpacity > 0 && (
+            <radialGradient
+              id={`moonlight-${title}`}
+              cx={cx + moonProj.x}
+              cy={cy + moonProj.y}
+              r={R * 0.8}
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor={`rgba(180, 200, 230, ${moonGlowOpacity})`} />
+              <stop offset="100%" stopColor="rgba(180, 200, 230, 0)" />
+            </radialGradient>
+          )}
+        </defs>
+
+        {/* Background */}
+        <circle cx={cx} cy={cy} r={R} fill="#0a0e1a" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+
+        {/* Twilight glow overlay */}
+        {sunProj && (
+          <circle cx={cx} cy={cy} r={R} fill={`url(#twilight-${title})`} />
         )}
-        {/* Constellation lines + labels (behind stars) */}
-        {constellationData.map((c) => (
-          <g key={c.name}>
-            {c.segments.map((seg, i) => (
-              <line
-                key={i}
-                x1={cx + seg.x1}
-                y1={cy + seg.y1}
-                x2={cx + seg.x2}
-                y2={cy + seg.y2}
-                stroke="rgba(100, 140, 255, 0.25)"
-                strokeWidth={0.6}
-                opacity={seg.bothBelow ? 0.1 : 1}
-              />
-            ))}
-            {c.centroid && (
-              <text
-                x={cx + c.centroid.x}
-                y={cy + c.centroid.y - 6}
-                textAnchor="middle"
-                fill="#88aaff"
-                fontSize={8}
-                opacity={0.35}
-              >
-                {c.name}
-              </text>
-            )}
-          </g>
-        ))}
-        {/* Star layer (behind planets) */}
-        {projectedStars.map((s) => {
-          const sx = cx + s.x
-          const sy = cy + s.y
-          const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
-          const rad = magToRadius(s.mag)
-          const isAbove = s.altitude >= 0
-          let baseOpacity = isAbove ? 0.85 : 0.3
 
-          // Proximity dimming for faint stars (mag > 2.0)
-          if (s.mag > 2.0) {
-            const glowRadius = R * 0.4
-            if (sunProj) {
-              const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
-              if (dSun < glowRadius) {
-                baseOpacity *= 0.6 + 0.4 * (dSun / glowRadius)
-              }
-            }
-            if (moonProj && moonGlowOpacity > 0) {
-              const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
-              if (dMoon < glowRadius) {
-                baseOpacity *= 1 - moonIllumination * 0.4 * (1 - dMoon / glowRadius)
-              }
-            }
-          }
+        {/* Moonlight glow overlay */}
+        {moonProj && moonGlowOpacity > 0 && (
+          <circle cx={cx} cy={cy} r={R} fill={`url(#moonlight-${title})`} />
+        )}
 
+        {/* Altitude grid rings at 30° and 60° */}
+        {[30, 60].map((alt) => {
+          const ringR = ((90 - alt) / 90) * R
           return (
-            <g key={s.starIndex} opacity={baseOpacity}>
-              <circle cx={sx} cy={sy} r={rad} fill={color} />
-              {s.name && (
+            <circle
+              key={alt}
+              cx={cx}
+              cy={cy}
+              r={ringR}
+              fill="none"
+              stroke={gridColor}
+              strokeWidth={0.5}
+              strokeDasharray="4 3"
+            />
+          )
+        })}
+
+        {/* 8 azimuth lines every 45° */}
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((az) => {
+          const azRad = az * DEG_TO_RAD
+          const ex = cx + -R * Math.sin(azRad)
+          const ey = cy + -R * Math.cos(azRad)
+          return (
+            <line
+              key={az}
+              x1={cx}
+              y1={cy}
+              x2={ex}
+              y2={ey}
+              stroke={gridColor}
+              strokeWidth={0.5}
+            />
+          )
+        })}
+
+        {/* Cardinal labels N/E/S/W */}
+        {([
+          ['N', 0],
+          ['E', 90],
+          ['S', 180],
+          ['W', 270],
+        ] as [string, number][]).map(([label, az]) => {
+          const azRad = az * DEG_TO_RAD
+          const labelR = R + 12
+          const lx = cx + -labelR * Math.sin(azRad)
+          const ly = cy + -labelR * Math.cos(azRad)
+          return (
+            <text
+              key={label}
+              x={lx}
+              y={ly}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#888"
+              fontSize={10}
+              fontWeight={600}
+            >
+              {label}
+            </text>
+          )
+        })}
+
+        {/* Altitude labels along north axis */}
+        {[30, 60].map((alt) => {
+          const labelR = ((90 - alt) / 90) * R
+          return (
+            <text
+              key={alt}
+              x={cx + 4}
+              y={cy - labelR + 3}
+              fill={textColor}
+              fontSize={8}
+            >
+              {alt}°
+            </text>
+          )
+        })}
+
+        {/* Zenith dot */}
+        <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
+
+        {/* Stars + body dots + labels (clipped to circle) */}
+        <g clipPath={`url(#clip-${title})`}>
+          {/* Milky Way polygon layers (deepest background) */}
+          {milkyWayPaths.map((layer) =>
+            layer.path ? (
+              <path
+                key={layer.id}
+                d={layer.path}
+                fill="#8899bb"
+                fillRule="evenodd"
+                opacity={MW_OPACITIES[layer.id] ?? 0.03}
+              />
+            ) : null
+          )}
+          {/* Ecliptic curve + label */}
+          {eclipticPathData && (
+            <g>
+              <path
+                d={eclipticPathData.path}
+                stroke="rgba(200, 160, 80, 0.3)"
+                strokeWidth={0.8}
+                strokeDasharray="4 3"
+                fill="none"
+              />
+              <text
+                x={eclipticPathData.labelX}
+                y={eclipticPathData.labelY - 5}
+                textAnchor="middle"
+                fill="#ccaa55"
+                fontSize={7}
+                opacity={0.5}
+              >
+                Ecliptic
+              </text>
+            </g>
+          )}
+          {/* Constellation lines + labels (behind stars) */}
+          {constellationData.map((c) => (
+            <g key={c.name}>
+              {c.segments.map((seg, i) => (
+                <line
+                  key={i}
+                  x1={cx + seg.x1}
+                  y1={cy + seg.y1}
+                  x2={cx + seg.x2}
+                  y2={cy + seg.y2}
+                  stroke="rgba(100, 140, 255, 0.25)"
+                  strokeWidth={0.6}
+                  opacity={seg.bothBelow ? 0.1 : 1}
+                />
+              ))}
+              {c.centroid && (
                 <text
-                  x={sx + rad + 2}
-                  y={sy + 2.5}
-                  fill={color}
-                  fontSize={7}
-                  opacity={0.7}
+                  x={cx + c.centroid.x}
+                  y={cy + c.centroid.y - 6}
+                  textAnchor="middle"
+                  fill="#88aaff"
+                  fontSize={8}
+                  opacity={0.35}
                 >
-                  {s.name}
+                  {c.name}
                 </text>
               )}
             </g>
-          )
-        })}
-        {/* Planet layer (on top of stars) */}
-        {projected.map((p) => {
-          const px = cx + p.x
-          const py = cy + p.y
-          const color = bodyColor(p.bodyId)
-          const mag = magnitudes[p.bodyId]
-          const isSun = p.bodyId === 'Sun'
-          const isMoon = p.bodyId === 'Moon'
-          const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(mag ?? 2)
-          const isAboveHorizon = p.altitude >= 0
+          ))}
+          {/* Star layer (behind planets) */}
+          {projectedStars.map((s) => {
+            const sx = cx + s.x
+            const sy = cy + s.y
+            const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
+            const rad = magToRadius(s.mag)
+            const isAbove = s.altitude >= 0
+            let baseOpacity = isAbove ? 0.85 : 0.3
 
-          return (
-            <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
-              {isMoon ? (
-                <>
-                  <circle cx={px} cy={py} r={rad} fill="#1a1a2e" />
-                  <path
-                    d={moonPhasePath(rad, moonIllumination, moonWaxing)}
-                    transform={`translate(${px},${py})`}
-                    fill={MOON_COLOR}
-                  />
-                  <circle cx={px} cy={py} r={rad} fill="none" stroke="rgba(200,200,200,0.4)" strokeWidth={0.5} />
-                </>
-              ) : (
-                <circle cx={px} cy={py} r={rad} fill={color} />
-              )}
-              {(() => {
-                const off = labelOffsets.get(p.bodyId) ?? { lx: 0, ly: -6 }
-                // Push label outward by the dot radius so it clears large bodies (Moon, Sun)
-                const offLen = Math.sqrt(off.lx * off.lx + off.ly * off.ly)
-                const radPush = offLen > 0.1 ? rad + 2 : rad + 2
-                const nx = offLen > 0.1 ? off.lx / offLen : 0
-                const ny = offLen > 0.1 ? off.ly / offLen : -1
-                // Determine text anchor based on horizontal direction of offset
-                const anchor = off.lx > 5 ? 'start' : off.lx < -5 ? 'end' : 'middle'
-                const labelX = px + off.lx + nx * radPush
-                const labelY = py + off.ly + ny * radPush
-                return (
+            // Proximity dimming for faint stars (mag > 2.0)
+            if (s.mag > 2.0) {
+              const glowRadius = R * 0.4
+              if (sunProj) {
+                const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
+                if (dSun < glowRadius) {
+                  baseOpacity *= 0.6 + 0.4 * (dSun / glowRadius)
+                }
+              }
+              if (moonProj && moonGlowOpacity > 0) {
+                const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
+                if (dMoon < glowRadius) {
+                  baseOpacity *= 1 - moonIllumination * 0.4 * (1 - dMoon / glowRadius)
+                }
+              }
+            }
+
+            return (
+              <g key={s.starIndex} opacity={baseOpacity}>
+                <circle cx={sx} cy={sy} r={rad} fill={color} />
+                {s.name && (
+                  <text
+                    x={sx + rad + 2}
+                    y={sy + 2.5}
+                    fill={color}
+                    fontSize={7}
+                    opacity={0.7}
+                  >
+                    {s.name}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+          {/* Planet layer (on top of stars) */}
+          {projected.map((p) => {
+            const px = cx + p.x
+            const py = cy + p.y
+            const color = bodyColor(p.bodyId)
+            const mag = magnitudes[p.bodyId]
+            const isSun = p.bodyId === 'Sun'
+            const isMoon = p.bodyId === 'Moon'
+            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(mag ?? 2)
+            const isAboveHorizon = p.altitude >= 0
+
+            return (
+              <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
+                {isMoon ? (
                   <>
-                    <text
-                      x={labelX}
-                      y={labelY}
-                      textAnchor={anchor}
-                      dominantBaseline={off.ly > 5 ? 'hanging' : off.ly < -5 ? 'auto' : 'central'}
-                      fill={color}
-                      fontSize={9}
-                      fontWeight={500}
-                    >
-                      {BODY_LABELS[p.bodyId]}
-                    </text>
-                    {mag != null && (
+                    <circle cx={px} cy={py} r={rad} fill="#1a1a2e" />
+                    <path
+                      d={moonPhasePath(rad, moonIllumination, moonWaxing)}
+                      transform={`translate(${px},${py})`}
+                      fill={MOON_COLOR}
+                    />
+                    <circle cx={px} cy={py} r={rad} fill="none" stroke="rgba(200,200,200,0.4)" strokeWidth={0.5} />
+                  </>
+                ) : (
+                  <circle cx={px} cy={py} r={rad} fill={color} />
+                )}
+                {(() => {
+                  const off = labelOffsets.get(p.bodyId) ?? { lx: 0, ly: -6 }
+                  // Push label outward by the dot radius so it clears large bodies (Moon, Sun)
+                  const offLen = Math.sqrt(off.lx * off.lx + off.ly * off.ly)
+                  const radPush = offLen > 0.1 ? rad + 2 : rad + 2
+                  const nx = offLen > 0.1 ? off.lx / offLen : 0
+                  const ny = offLen > 0.1 ? off.ly / offLen : -1
+                  // Determine text anchor based on horizontal direction of offset
+                  const anchor = off.lx > 5 ? 'start' : off.lx < -5 ? 'end' : 'middle'
+                  const labelX = px + off.lx + nx * radPush
+                  const labelY = py + off.ly + ny * radPush
+                  return (
+                    <>
                       <text
                         x={labelX}
-                        y={labelY + (off.ly >= 0 ? 10 : -9)}
+                        y={labelY}
                         textAnchor={anchor}
                         dominantBaseline={off.ly > 5 ? 'hanging' : off.ly < -5 ? 'auto' : 'central'}
                         fill={color}
-                        fontSize={7.5}
-                        opacity={0.7}
+                        fontSize={9}
+                        fontWeight={500}
                       >
-                        {mag.toFixed(1)}
+                        {BODY_LABELS[p.bodyId]}
                       </text>
-                    )}
-                  </>
-                )
-              })()}
-            </g>
-          )
-        })}
-      </g>
+                      {mag != null && (
+                        <text
+                          x={labelX}
+                          y={labelY + (off.ly >= 0 ? 10 : -9)}
+                          textAnchor={anchor}
+                          dominantBaseline={off.ly > 5 ? 'hanging' : off.ly < -5 ? 'auto' : 'central'}
+                          fill={color}
+                          fontSize={7.5}
+                          opacity={0.7}
+                        >
+                          {mag.toFixed(1)}
+                        </text>
+                      )}
+                    </>
+                  )
+                })()}
+              </g>
+            )
+          })}
+        </g>
     </svg>
   )
 }

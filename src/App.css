@@ -541,10 +541,21 @@ select option {
   min-height: 0;
 }
 
+.chart-zoom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chart-zoom-header .control-label {
+  margin-bottom: 0;
+}
+
 .chart-wrapper {
   position: relative;
   flex: 1;
   min-height: 0;
+  touch-action: none;
 }
 
 /* Thin track aligned with the Recharts plot area */
@@ -829,6 +840,7 @@ select option {
 
 .sky-view-chart-area {
   overflow: hidden;
+  touch-action: none;
 }
 
 .sky-view-separator {
@@ -995,6 +1007,36 @@ select option {
   gap: 3px;
 }
 
+.sky-zoom-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.sky-zoom-btn {
+  min-width: 28px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sky-zoom-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sky-pannable {
+  cursor: grab;
+}
+
+.sky-pannable:active {
+  cursor: grabbing;
+}
+
 /* ====== Sky Chart Panel ====== */
 .skychart-panel {
   height: 100%;
@@ -1002,6 +1044,8 @@ select option {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  touch-action: none;
 }
 
 .skychart-pair {
@@ -1015,6 +1059,13 @@ select option {
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
+}
+
+.skychart-zoom {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  z-index: 1;
 }
 
 /* ====== Driver.js Dark Theme Overrides ====== */
@@ -1091,4 +1142,352 @@ select option {
 
 .driver-popover .driver-popover-close-btn:hover {
   color: #fff !important;
+}
+
+/* ====== Mobile Layout (< 768px) ====== */
+@media (max-width: 767.98px) {
+
+  /* --- Scene: fixed full-screen base layer --- */
+  .mobile-scene {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .mobile-scene canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* --- Panel sheet overlay --- */
+  .mobile-sheet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 50px);
+    z-index: 250;
+    background: rgba(10, 10, 20, 0.96);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-sheet-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+
+  .mobile-sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 12px;
+    min-height: 0;
+  }
+
+  /* --- Bottom tab bar --- */
+  .mobile-tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    padding-bottom: env(safe-area-inset-bottom);
+    display: flex;
+    background: rgba(10, 10, 20, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 300;
+  }
+
+  .mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 50px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+    transition: color 0.15s;
+  }
+
+  .mobile-tab.active {
+    color: #6B93D6;
+  }
+
+  .mobile-tab-icon {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .mobile-tab-label {
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  /* --- Reposition existing elements --- */
+  .playback-bar {
+    bottom: 58px;
+    gap: 6px;
+    padding: 4px 10px;
+  }
+
+  /* Hide nav buttons (Today, ±1, ±5) on mobile — keep date, play, speed */
+  .playback-bar .minima-nav-btn {
+    display: none;
+  }
+
+  /* Compact playback controls */
+  .playback-bar .playback-date-input {
+    font-size: 11px;
+    padding: 3px 5px;
+    min-height: 28px;
+  }
+
+  .playback-bar .play-btn {
+    min-height: 28px;
+    min-width: 28px;
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .playback-bar .speed-select {
+    min-height: 28px;
+    font-size: 11px;
+    padding: 3px 5px;
+  }
+
+  .inner-planets-inset {
+    width: 120px;
+    height: 120px;
+    bottom: 110px;
+  }
+
+  .bottom-right-actions {
+    display: none;
+  }
+
+  /* --- Scene overlay on mobile — compact menu --- */
+  .mobile-scene .scene-overlay {
+    top: 8px;
+    left: 8px;
+    max-width: 200px;
+  }
+
+  .mobile-menu-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: rgba(10, 10, 20, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ccc;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    pointer-events: auto;
+  }
+
+  .mobile-menu-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .mobile-menu-dropdown {
+    pointer-events: auto;
+    background: rgba(10, 10, 20, 0.92);
+    border-radius: 8px;
+    padding: 8px 10px;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* --- Touch-friendly overrides (for panel sheet content) --- */
+
+  /* PlaybackBar controls stay compact (handled above).
+     These targets apply to controls inside panel sheets. */
+  .mobile-sheet .play-btn {
+    min-height: 32px;
+    min-width: 32px;
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  .mobile-sheet .minima-nav-btn {
+    min-height: 32px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .mobile-sheet .playback-date-input {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+
+  .mobile-sheet .speed-select {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+
+  .planet-chip {
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .body-btn {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .date-input {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .duration-mode-tab {
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .series-chip {
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .toggle-row {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 2px 0;
+    gap: 6px;
+  }
+
+  .toggle-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+
+  .minima-table th,
+  .minima-table td {
+    min-height: 28px;
+    font-size: 11px;
+    padding: 5px 6px;
+  }
+
+  .skyview-table th,
+  .skyview-table td {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  /* Control labels */
+  .control-label {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  /* Chart panel on mobile — remove desktop Y-axis padding, fit controls */
+  .chart-panel-inner {
+    min-height: 300px;
+  }
+
+  .separation-chart {
+    min-height: 200px;
+  }
+
+  .chart-controls-row {
+    padding: 4px 8px;
+    gap: 4px 6px;
+    flex-wrap: wrap;
+  }
+
+  .chart-slider-row {
+    padding: 0 8px;
+  }
+
+  .chart-series-row {
+    padding: 0 8px;
+  }
+
+  /* Compact series chips + nav inside chart controls */
+  .chart-controls-row .series-chip {
+    min-height: 28px;
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .chart-controls-row .minima-nav-btn {
+    min-height: 28px;
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  /* Sky chart on mobile */
+  .skychart-panel {
+    min-height: 300px;
+  }
+
+  /* Min planet chips */
+  .min-planet-chip {
+    min-height: 30px;
+    min-width: 30px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Duration inputs */
+  .duration-input {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  .duration-unit-select {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  /* Sky center select */
+  .sky-center-select {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  /* Sky zoom buttons — touch-friendly */
+  .sky-zoom-btn {
+    min-width: 30px;
+    min-height: 30px;
+    font-size: 14px;
+  }
+
 }

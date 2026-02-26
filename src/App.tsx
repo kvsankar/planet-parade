@@ -11,6 +11,7 @@ import HelpButton from './components/ui/HelpButton'
 import DisplayToggles from './components/ui/DisplayToggles'
 import BodySelector from './components/ui/BodySelector'
 import InfoDisplay from './components/ui/InfoDisplay'
+import MobileTabBar, { MobileTab } from './components/ui/MobileTabBar'
 import { SimulationTimeContext } from './hooks/useSimulationTime'
 import { simulationStore } from './hooks/useSimulationStore'
 import { MS_PER_DAY } from './constants'
@@ -22,8 +23,22 @@ import { usePanelManager, PanelId } from './hooks/usePanelManager'
 import { useAlignmentState } from './hooks/useAlignmentState'
 import { CelestialBodyId, ObserverLocation } from './types'
 import { useTour } from './hooks/useTour'
+import { useIsMobile } from './hooks/useIsMobile'
+
+const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
+  scene: 'Solar System',
+  align: 'Alignments',
+  timeline: 'Alignment Timeline',
+  sky: 'Sky View',
+  charts: 'Sky Charts',
+}
 
 export default function App() {
+  // --- Mobile ---
+  const isMobile = useIsMobile()
+  const [mobileTab, setMobileTab] = useState<MobileTab>('scene')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [isPlaying, setIsPlaying] = useState(false)
@@ -139,62 +154,122 @@ export default function App() {
     onMaximize: panel.onMaximize,
   })
 
+  const mobileLayout = (
+    <div className="app">
+      {/* Scene — always mounted to preserve WebGL state */}
+      <div className="mobile-scene">
+        <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+        <div className="scene-overlay">
+          <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-label="Settings"
+          >
+            ☰
+          </button>
+          {mobileMenuOpen && (
+            <div className="mobile-menu-dropdown">
+              <DisplayToggles />
+              <BodySelector />
+            </div>
+          )}
+        </div>
+        <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+      </div>
+
+      {/* Active panel sheet (overlays scene) */}
+      {mobileTab !== 'scene' && (
+        <div className="mobile-sheet">
+          <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
+          <div className="mobile-sheet-body">
+            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} />}
+            {mobileTab === 'timeline' && (
+              <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
+            )}
+            {mobileTab === 'sky' && (
+              <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
+            )}
+            {mobileTab === 'charts' && (
+              <SkyChartPanel currentDate={currentDate} observer={observer} />
+            )}
+          </div>
+        </div>
+      )}
+
+      <PlaybackBar
+        currentDate={currentDate}
+        isPlaying={isPlaying}
+        speed={speed}
+        togglePlay={togglePlay}
+        setSpeed={handleSetSpeed}
+        onDateChange={handleSetDate}
+      />
+
+      <MobileTabBar activeTab={mobileTab} onTabChange={setMobileTab} />
+    </div>
+  )
+
+  const desktopLayout = (
+    <div className="app">
+      {/* Floating panels layer */}
+      <div className="panels-layer">
+        <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
+          <div className="scene-panel-content">
+            <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+            <div className="scene-overlay">
+              <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+              <DisplayToggles />
+              <BodySelector />
+            </div>
+            <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+          </div>
+        </FloatingPanel>
+
+        <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
+          <AlignmentPanel alignment={alignment} />
+        </FloatingPanel>
+
+        <FloatingPanel {...fp('chart')} title="Alignment Timeline" minWidth={400} minHeight={160}>
+          <ChartPanel
+            alignment={alignment}
+            currentDate={currentDate}
+            onDateChange={handleSetDate}
+          />
+        </FloatingPanel>
+
+        <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
+          <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
+        </FloatingPanel>
+
+        <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>
+          <SkyChartPanel currentDate={currentDate} observer={observer} />
+        </FloatingPanel>
+
+        <PlaybackBar
+          currentDate={currentDate}
+          isPlaying={isPlaying}
+          speed={speed}
+          togglePlay={togglePlay}
+          setSpeed={handleSetSpeed}
+          onDateChange={handleSetDate}
+        />
+
+        <div className="bottom-right-actions">
+          <button className="reset-layout-btn" onClick={panel.resetLayout}>
+            Reset Layout
+          </button>
+          <HelpButton onClick={startTour} />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <SimulationTimeContext.Provider value={simTimeValue}>
       <SelectionContext.Provider value={selectionValue}>
         <DisplaySettingsContext.Provider value={displayValue}>
-          <div className="app">
-            {/* Floating panels layer */}
-            <div className="panels-layer">
-              <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
-                <div className="scene-panel-content">
-                  <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
-                  <div className="scene-overlay">
-                    <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
-                    <DisplayToggles />
-                    <BodySelector />
-                  </div>
-                  <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
-                </div>
-              </FloatingPanel>
-
-              <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
-                <AlignmentPanel alignment={alignment} />
-              </FloatingPanel>
-
-              <FloatingPanel {...fp('chart')} title="Alignment Timeline" minWidth={400} minHeight={160}>
-                <ChartPanel
-                  alignment={alignment}
-                  currentDate={currentDate}
-                  onDateChange={handleSetDate}
-                />
-              </FloatingPanel>
-
-              <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
-                <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
-              </FloatingPanel>
-
-              <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>
-                <SkyChartPanel currentDate={currentDate} observer={observer} />
-              </FloatingPanel>
-
-              <PlaybackBar
-                currentDate={currentDate}
-                isPlaying={isPlaying}
-                speed={speed}
-                togglePlay={togglePlay}
-                setSpeed={handleSetSpeed}
-                onDateChange={handleSetDate}
-              />
-
-              <div className="bottom-right-actions">
-                <button className="reset-layout-btn" onClick={panel.resetLayout}>
-                  Reset Layout
-                </button>
-                <HelpButton onClick={startTour} />
-              </div>
-            </div>
-          </div>
+          {isMobile ? mobileLayout : desktopLayout}
         </DisplaySettingsContext.Provider>
       </SelectionContext.Provider>
     </SimulationTimeContext.Provider>

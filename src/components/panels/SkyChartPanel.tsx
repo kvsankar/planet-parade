@@ -32,6 +32,22 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     return () => ro.disconnect()
   }, [measure])
 
+  // --- Zoom / pan ---
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const zoomRef = useRef(zoomLevel)
+  zoomRef.current = zoomLevel
+  const panRef = useRef(pan)
+  panRef.current = pan
+  const pairSizeRef = useRef({ w: 0, h: 0 })
+  const containerSizeRef = useRef(containerSize)
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null)
+  const dragRef = useRef<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null)
+
+  const zoomIn = () => setZoomLevel((z) => Math.min(z * 2, 16))
+  const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1))
+  const zoomReset = () => { setZoomLevel(1); setPan({ x: 0, y: 0 }) }
+
   // --- Smoothly-animated positions (hourly quantization) ---
   // Instead of computing positions at daily sunrise/sunset (which jumps once
   // per day), we slide the observer's longitude so the Sun stays on the
@@ -118,35 +134,146 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
       : Math.min(w - 8, Math.floor((h - 16) / 2) - SVG_OVERHEAD)
   }, [containerSize, horizontal])
 
+  // Zoomed chart size: circle grows, but labels/dots/strokes stay at original pixel sizes
+  const zoomedSize = Math.round(chartSize * zoomLevel)
+
+  // Pair natural dimensions at current zoom for pan clamping
+  const pairW = horizontal ? zoomedSize * 2 + 4 : zoomedSize
+  const pairH = horizontal ? zoomedSize + 36 : (zoomedSize + 36) * 2 + 4
+  pairSizeRef.current = { w: pairW, h: pairH }
+  containerSizeRef.current = containerSize
+
+  const maxPanX = Math.max(0, (pairW - containerSize.w) / 2)
+  const maxPanY = Math.max(0, (pairH - containerSize.h) / 2)
+  const cpx = Math.max(-maxPanX, Math.min(maxPanX, pan.x))
+  const cpy = Math.max(-maxPanY, Math.min(maxPanY, pan.y))
+
+  // Gesture handling: wheel zoom, pinch zoom, drag-to-pan
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const applyPan = (rawX: number, rawY: number) => {
+      panRef.current = { x: rawX, y: rawY }
+      setPan({ x: rawX, y: rawY })
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const factor = e.deltaY > 0 ? 0.92 : 1.08
+      setZoomLevel((z) => Math.max(1, Math.min(16, z * factor)))
+    }
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return
+      dragRef.current = { startX: e.clientX, startY: e.clientY, startPan: { ...panRef.current } }
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!dragRef.current) return
+        const dx = ev.clientX - dragRef.current.startX
+        const dy = ev.clientY - dragRef.current.startY
+        applyPan(dragRef.current.startPan.x + dx, dragRef.current.startPan.y + dy)
+      }
+
+      const onMouseUp = () => {
+        dragRef.current = null
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        dragRef.current = null
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        pinchRef.current = { startDist: dist, startZoom: zoomRef.current }
+      } else if (e.touches.length === 1) {
+        dragRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startPan: { ...panRef.current } }
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const scale = dist / pinchRef.current.startDist
+        setZoomLevel(Math.max(1, Math.min(16, pinchRef.current.startZoom * scale)))
+      } else if (e.touches.length === 1 && dragRef.current && !pinchRef.current) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - dragRef.current.startX
+        const dy = e.touches[0].clientY - dragRef.current.startY
+        applyPan(dragRef.current.startPan.x + dx, dragRef.current.startPan.y + dy)
+      }
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = null
+      if (e.touches.length === 0) dragRef.current = null
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('mousedown', onMouseDown)
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('mousedown', onMouseDown)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
   return (
-    <div className="skychart-panel" ref={containerRef}>
+    <div className={`skychart-panel${zoomLevel > 1 ? ' sky-pannable' : ''}`} ref={containerRef}>
       {chartSize > 50 && (
-        <div className={horizontal ? 'skychart-pair skychart-pair-h' : 'skychart-pair'}>
-          <StereoSkyChart
-            positions={morningPositions}
-            stars={morningStars}
-            ecliptic={morningEcliptic}
-            milkyWay={morningMilkyWay}
-            title="Morning"
-            time={sunriseTime}
-            size={chartSize}
-            moonIllumination={morningMoonIllum}
-            moonWaxing={morningMoonWaxing}
-            magnitudes={morningMagnitudes}
-          />
-          <StereoSkyChart
-            positions={eveningPositions}
-            stars={eveningStars}
-            ecliptic={eveningEcliptic}
-            milkyWay={eveningMilkyWay}
-            title="Evening"
-            time={sunsetTime}
-            size={chartSize}
-            moonIllumination={eveningMoonIllum}
-            moonWaxing={eveningMoonWaxing}
-            magnitudes={eveningMagnitudes}
-          />
-        </div>
+        <>
+          <div
+            className={horizontal ? 'skychart-pair skychart-pair-h' : 'skychart-pair'}
+            style={zoomLevel > 1 ? { transform: `translate(${cpx}px, ${cpy}px)` } : undefined}
+          >
+            <StereoSkyChart
+              positions={morningPositions}
+              stars={morningStars}
+              ecliptic={morningEcliptic}
+              milkyWay={morningMilkyWay}
+              title="Morning"
+              time={sunriseTime}
+              size={zoomedSize}
+              moonIllumination={morningMoonIllum}
+              moonWaxing={morningMoonWaxing}
+              magnitudes={morningMagnitudes}
+            />
+            <StereoSkyChart
+              positions={eveningPositions}
+              stars={eveningStars}
+              ecliptic={eveningEcliptic}
+              milkyWay={eveningMilkyWay}
+              title="Evening"
+              time={sunsetTime}
+              size={zoomedSize}
+              moonIllumination={eveningMoonIllum}
+              moonWaxing={eveningMoonWaxing}
+              magnitudes={eveningMagnitudes}
+            />
+          </div>
+          <div className="skychart-zoom sky-zoom-controls">
+            <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
+            <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>
+              {zoomLevel <= 1 ? '1\u00d7' : `${zoomLevel % 1 === 0 ? zoomLevel : zoomLevel.toFixed(1)}\u00d7`}
+            </button>
+            <button className="sky-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 16}>+</button>
+          </div>
+        </>
       )}
     </div>
   )
