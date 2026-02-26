@@ -47,7 +47,7 @@ jobs:
       - name: Deploy to Hostgator via rsync
         run: |
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SFTP_PORT }} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -p ${{ secrets.SFTP_PORT }} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
             ./dist/ \
             ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:${{ secrets.SFTP_REMOTE_PATH }}
         timeout-minutes: 10
