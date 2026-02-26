@@ -6,9 +6,9 @@ export interface StarCatalogEntry {
   spectral: 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M'
 }
 
-// Brightest stars (visual magnitude ≤ 3.0) + 5 connector stars for constellation lines
+// Brightest stars (visual magnitude ≤ ~4.0) for constellation stick figures
 // Source: Yale Bright Star Catalogue / Hipparcos (J2000 coordinates)
-// 26 named stars + 72 unnamed entries + 5 connector stars (indices 98–102)
+// 192 total: 26 named + 72 bright + 5 connectors (98–102) + 89 constellation stars (103–191)
 export const STAR_CATALOG: StarCatalogEntry[] = [
   // --- Named stars ---
   { name: 'Sirius',      ra:  6.7525, dec: -16.7161, mag: -1.46, spectral: 'A' },
@@ -196,4 +196,208 @@ export const STAR_CATALOG: StarCatalogEntry[] = [
   { name: '', ra: 19.5121, dec:  27.9597, mag:  3.08, spectral: 'K' },
   // Mirach (Beta And) — Andromeda chain middle
   { name: '', ra:  1.1622, dec:  35.6206, mag:  2.05, spectral: 'M' },
+
+  // --- Additional stars for expanded constellations (indices 103+) ---
+
+  // 103 — Taurus
+  { name: 'Elnath',       ra:  5.4382, dec:  28.6075, mag:  1.65, spectral: 'B' },  // Beta Tau
+  // 104
+  { name: '',             ra:  5.6274, dec:  21.1425, mag:  3.01, spectral: 'B' },  // Zeta Tau (south horn)
+  // 105
+  { name: '',             ra:  4.4769, dec:  19.1806, mag:  3.53, spectral: 'K' },  // Ain (Epsilon Tau)
+  // 106
+  { name: '',             ra:  4.4764, dec:  15.8708, mag:  3.40, spectral: 'A' },  // Theta2 Tau
+  // 107
+  { name: '',             ra:  4.3300, dec:  15.6278, mag:  3.65, spectral: 'K' },  // Gamma Tau
+
+  // 108–112 — Virgo
+  { name: 'Vindemiatrix', ra: 13.0363, dec:  10.9591, mag:  2.83, spectral: 'G' },  // Epsilon Vir
+  // 109
+  { name: '',             ra: 12.6944, dec:  -1.4495, mag:  2.74, spectral: 'F' },  // Porrima (Gamma Vir)
+  // 110
+  { name: '',             ra: 12.9267, dec:   3.3975, mag:  3.38, spectral: 'M' },  // Minelauva (Delta Vir)
+  // 111
+  { name: '',             ra: 12.3318, dec:  -0.6668, mag:  3.89, spectral: 'A' },  // Zaniah (Eta Vir)
+  // 112
+  { name: '',             ra: 13.5782, dec:  -0.5958, mag:  3.38, spectral: 'A' },  // Heze (Zeta Vir)
+
+  // 113–117 — Aquarius
+  { name: 'Sadalsuud',    ra: 21.5260, dec:  -5.5712, mag:  2.89, spectral: 'G' },  // Beta Aqr
+  // 114
+  { name: 'Sadalmelik',   ra: 22.0964, dec:  -0.3199, mag:  2.94, spectral: 'G' },  // Alpha Aqr
+  // 115
+  { name: '',             ra: 22.9108, dec: -15.8208, mag:  3.28, spectral: 'A' },  // Skat (Delta Aqr)
+  // 116
+  { name: '',             ra: 22.3609, dec:  -1.3874, mag:  3.84, spectral: 'A' },  // Sadachbia (Gamma Aqr)
+  // 117
+  { name: '',             ra: 22.8769, dec:  -7.5797, mag:  3.74, spectral: 'M' },  // Lambda Aqr
+
+  // 118–122 — Pisces
+  { name: '',             ra:  1.5247, dec:  15.3458, mag:  3.62, spectral: 'G' },  // Eta Psc
+  // 119
+  { name: '',             ra: 23.2860, dec:   3.2823, mag:  3.70, spectral: 'G' },  // Gamma Psc
+  // 120
+  { name: '',             ra: 23.9885, dec:   6.8636, mag:  4.03, spectral: 'F' },  // Omega Psc
+  // 121
+  { name: '',             ra:  2.0341, dec:   2.7637, mag:  3.82, spectral: 'A' },  // Alrescha (Alpha Psc)
+  // 122
+  { name: '',             ra: 23.6658, dec:   5.6274, mag:  4.13, spectral: 'F' },  // Iota Psc
+
+  // 123 — Libra
+  { name: '',             ra: 14.8480, dec: -16.0418, mag:  2.75, spectral: 'A' },  // Zubenelgenubi (Alpha2 Lib)
+
+  // 124–125 — Corona Borealis
+  { name: '',             ra: 15.4638, dec:  29.1055, mag:  3.68, spectral: 'A' },  // Nusakan (Beta CrB)
+  // 125
+  { name: '',             ra: 15.7122, dec:  26.2956, mag:  3.84, spectral: 'A' },  // Gamma CrB
+
+  // 126–132 — Draco
+  { name: '',             ra: 14.0726, dec:  64.3460, mag:  3.65, spectral: 'A' },  // Thuban (Alpha Dra)
+  // 127
+  { name: '',             ra: 17.5072, dec:  52.3014, mag:  2.79, spectral: 'G' },  // Rastaban (Beta Dra)
+  // 128
+  { name: '',             ra: 16.3999, dec:  61.5141, mag:  2.73, spectral: 'G' },  // Eta Dra (Athebyne)
+  // 129
+  { name: '',             ra: 19.2092, dec:  67.6613, mag:  3.07, spectral: 'G' },  // Altais (Delta Dra)
+  // 130
+  { name: '',             ra: 17.1464, dec:  65.7146, mag:  3.17, spectral: 'B' },  // Aldhibah (Zeta Dra)
+  // 131
+  { name: '',             ra: 15.4155, dec:  58.9660, mag:  3.29, spectral: 'K' },  // Edasich (Iota Dra)
+  // 132
+  { name: '',             ra: 17.8920, dec:  56.8725, mag:  3.75, spectral: 'K' },  // Grumium (Xi Dra)
+
+  // 133–137 — Ophiuchus
+  { name: '',             ra: 16.2391, dec:  -3.6940, mag:  2.75, spectral: 'M' },  // Yed Prior (Delta Oph)
+  // 134
+  { name: '',             ra: 16.3053, dec:  -4.6926, mag:  3.24, spectral: 'G' },  // Yed Posterior (Epsilon Oph)
+  // 135
+  { name: '',             ra: 16.6193, dec: -10.5670, mag:  2.57, spectral: 'O' },  // Han (Zeta Oph)
+  // 136
+  { name: '',             ra: 16.9612, dec:   9.3751, mag:  3.19, spectral: 'K' },  // Kappa Oph
+  // 137
+  { name: '',             ra: 17.9838, dec:  -9.7734, mag:  3.34, spectral: 'K' },  // Sinistra (Nu Oph)
+
+  // 138–139 — Aquila
+  { name: 'Tarazed',      ra: 19.7710, dec:  10.6133, mag:  2.71, spectral: 'K' },  // Gamma Aql
+  // 139
+  { name: '',             ra: 19.9219, dec:   6.4079, mag:  3.87, spectral: 'G' },  // Alshain (Beta Aql)
+
+  // 140–143 — Lyra
+  { name: '',             ra: 18.8347, dec:  33.3627, mag:  3.45, spectral: 'B' },  // Sheliak (Beta Lyr)
+  // 141
+  { name: '',             ra: 18.9824, dec:  32.6896, mag:  3.25, spectral: 'B' },  // Sulafat (Gamma Lyr)
+  // 142
+  { name: '',             ra: 18.9084, dec:  36.8986, mag:  4.22, spectral: 'M' },  // Delta2 Lyr
+  // 143
+  { name: '',             ra: 18.7460, dec:  37.6050, mag:  4.36, spectral: 'A' },  // Zeta1 Lyr
+
+  // 144 — Canis Minor
+  { name: '',             ra:  7.4525, dec:   8.2894, mag:  2.89, spectral: 'B' },  // Gomeisa (Beta CMi)
+
+  // 145–146 — Ursa Minor
+  { name: 'Kochab',       ra: 14.8451, dec:  74.1555, mag:  2.08, spectral: 'K' },  // Beta UMi
+  // 146
+  { name: '',             ra: 15.3455, dec:  71.8340, mag:  3.05, spectral: 'A' },  // Pherkad (Gamma UMi)
+
+  // 147–150 — Corvus
+  { name: '',             ra: 12.2635, dec: -17.5420, mag:  2.59, spectral: 'B' },  // Gienah (Gamma Crv)
+  // 148
+  { name: '',             ra: 12.5731, dec: -23.3968, mag:  2.65, spectral: 'G' },  // Kraz (Beta Crv)
+  // 149
+  { name: '',             ra: 12.4975, dec: -16.5153, mag:  2.95, spectral: 'A' },  // Algorab (Delta Crv)
+  // 150
+  { name: '',             ra: 12.1688, dec: -22.6198, mag:  3.02, spectral: 'K' },  // Minkar (Epsilon Crv)
+
+  // 151–153 — Crater
+  { name: '',             ra: 11.3222, dec: -14.7786, mag:  3.56, spectral: 'K' },  // Labrum (Delta Crt)
+  // 152
+  { name: '',             ra: 10.9961, dec: -18.2989, mag:  4.08, spectral: 'K' },  // Alkes (Alpha Crt)
+  // 153
+  { name: '',             ra: 11.4144, dec: -17.6839, mag:  4.08, spectral: 'A' },  // Gamma Crt
+
+  // 154–159 — Hydra
+  { name: '',             ra: 10.8271, dec: -16.1941, mag:  3.11, spectral: 'K' },  // Nu Hya
+  // 155
+  { name: '',             ra: 13.3154, dec: -23.1715, mag:  3.00, spectral: 'G' },  // Gamma Hya
+  // 156
+  { name: '',             ra:  8.9233, dec:   5.9455, mag:  3.11, spectral: 'G' },  // Zeta Hya (head)
+  // 157
+  { name: '',             ra:  8.7796, dec:   6.4189, mag:  3.38, spectral: 'G' },  // Epsilon Hya (head)
+  // 158
+  { name: '',             ra:  8.6275, dec:   5.7039, mag:  4.14, spectral: 'A' },  // Delta Hya (head)
+  // 159
+  { name: '',             ra:  9.2394, dec:   2.3142, mag:  3.88, spectral: 'B' },  // Theta Hya
+
+  // 160–162 — Triangulum
+  { name: '',             ra:  1.8847, dec:  29.5794, mag:  3.41, spectral: 'F' },  // Mothallah (Alpha Tri)
+  // 161
+  { name: '',             ra:  2.1590, dec:  34.9874, mag:  3.00, spectral: 'A' },  // Beta Tri
+  // 162
+  { name: '',             ra:  2.2886, dec:  33.8473, mag:  4.01, spectral: 'A' },  // Gamma Tri
+
+  // 163–166 — Cancer
+  { name: '',             ra:  8.2753, dec:   9.1857, mag:  3.53, spectral: 'K' },  // Tarf (Beta Cnc)
+  // 164
+  { name: '',             ra:  8.7447, dec:  18.1549, mag:  3.94, spectral: 'K' },  // Asellus Australis (Delta Cnc)
+  // 165
+  { name: '',             ra:  8.9748, dec:  11.8578, mag:  4.25, spectral: 'A' },  // Acubens (Alpha Cnc)
+  // 166
+  { name: '',             ra:  8.7781, dec:  28.7600, mag:  4.02, spectral: 'G' },  // Iota Cnc
+
+  // 167–172 — Leo (expanded)
+  { name: 'Zosma',        ra: 11.2351, dec:  20.5240, mag:  2.56, spectral: 'A' },  // Delta Leo
+  // 168
+  { name: '',             ra: 11.2373, dec:  15.4296, mag:  3.33, spectral: 'A' },  // Chertan (Theta Leo)
+  // 169
+  { name: '',             ra:  9.7642, dec:  23.7743, mag:  2.98, spectral: 'G' },  // Ras Elased (Epsilon Leo)
+  // 170
+  { name: '',             ra: 10.2782, dec:  23.4173, mag:  3.44, spectral: 'F' },  // Adhafera (Zeta Leo)
+  // 171
+  { name: '',             ra:  9.8794, dec:  26.0071, mag:  3.88, spectral: 'K' },  // Rasalas (Mu Leo)
+  // 172
+  { name: '',             ra: 10.1222, dec:  16.7627, mag:  3.48, spectral: 'A' },  // Eta Leo
+
+  // 173–175 — Scorpius (claws / head)
+  { name: '',             ra: 15.9809, dec: -26.1141, mag:  2.89, spectral: 'B' },  // Pi Sco (Fang)
+  // 174
+  { name: '',             ra: 16.3531, dec: -25.5928, mag:  2.88, spectral: 'B' },  // Sigma Sco (Alniyat)
+  // 175
+  { name: '',             ra: 16.5981, dec: -28.2161, mag:  2.82, spectral: 'B' },  // Tau Sco
+
+  // 176–177 — Cygnus (cross arms)
+  { name: '',             ra: 20.7701, dec:  33.9694, mag:  2.48, spectral: 'K' },  // Epsilon Cyg (Aljanah)
+  // 177
+  { name: '',             ra: 19.7496, dec:  45.1308, mag:  2.87, spectral: 'B' },  // Delta Cyg (Fawaris)
+
+  // 178–181 — Bootes (kite)
+  { name: '',             ra: 15.0325, dec:  40.3907, mag:  3.49, spectral: 'G' },  // Nekkar (Beta Boo)
+  // 179
+  { name: '',             ra: 14.5347, dec:  38.3079, mag:  3.03, spectral: 'A' },  // Seginus (Gamma Boo)
+  // 180
+  { name: '',             ra: 14.5305, dec:  30.3714, mag:  3.59, spectral: 'K' },  // Rho Boo
+  // 181
+  { name: '',             ra: 15.2584, dec:  33.3151, mag:  3.46, spectral: 'G' },  // Princeps (Delta Boo)
+
+  // 182–184 — Auriga (pentagon)
+  { name: '',             ra:  5.9954, dec:  37.2128, mag:  2.62, spectral: 'A' },  // Mahasim (Theta Aur)
+  // 183
+  { name: '',             ra:  4.9499, dec:  33.1661, mag:  2.69, spectral: 'K' },  // Hassaleh (Iota Aur)
+  // 184
+  { name: '',             ra:  5.0328, dec:  43.8233, mag:  2.99, spectral: 'F' },  // Almaaz (Epsilon Aur)
+
+  // 185–188 — Gemini (expanded)
+  { name: '',             ra:  6.3827, dec:  22.5139, mag:  2.87, spectral: 'M' },  // Tejat (Mu Gem)
+  // 186
+  { name: '',             ra:  6.2479, dec:  22.5068, mag:  3.31, spectral: 'M' },  // Propus (Eta Gem)
+  // 187
+  { name: '',             ra:  6.7548, dec:  12.8961, mag:  3.35, spectral: 'F' },  // Alzirr (Xi Gem)
+  // 188
+  { name: '',             ra:  7.3354, dec:  21.9823, mag:  3.53, spectral: 'F' },  // Wasat (Delta Gem)
+
+  // 189–191 — Perseus (expanded)
+  { name: '',             ra:  3.9022, dec:  31.8836, mag:  2.84, spectral: 'B' },  // Atik (Zeta Per)
+  // 190
+  { name: '',             ra:  3.9642, dec:  40.0103, mag:  2.88, spectral: 'B' },  // Epsilon Per
+  // 191
+  { name: '',             ra:  3.7154, dec:  47.7877, mag:  3.01, spectral: 'B' },  // Delta Per
 ]
