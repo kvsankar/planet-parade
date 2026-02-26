@@ -1,9 +1,9 @@
 export type MobileTab = 'scene' | 'align' | 'timeline' | 'sky' | 'charts'
 
 const tabs: { id: MobileTab; label: string; icon: string }[] = [
-  { id: 'scene', label: 'Scene', icon: '🪐' },
   { id: 'align', label: 'Align', icon: '⊕' },
   { id: 'timeline', label: 'Timeline', icon: '📈' },
+  { id: 'scene', label: 'Scene', icon: '🪐' },
   { id: 'sky', label: 'Sky', icon: '🌌' },
   { id: 'charts', label: 'Charts', icon: '◎' },
 ]

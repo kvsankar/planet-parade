@@ -36,7 +36,7 @@ const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
 export default function App() {
   // --- Mobile ---
   const isMobile = useIsMobile()
-  const [mobileTab, setMobileTab] = useState<MobileTab>('scene')
+  const [mobileTab, setMobileTab] = useState<MobileTab>('align')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // --- Simulation Time ---
