@@ -2,6 +2,7 @@ import * as Astronomy from 'astronomy-engine'
 import { CelestialBodyId, ObserverLocation } from '../types'
 import { eqjToScene } from './coordinateConversion'
 import { STAR_CATALOG } from '../data/starCatalog'
+import mwData from '../data/mw.json'
 
 const BODY_MAP: Record<string, Astronomy.Body> = {
   Mercury: Astronomy.Body.Mercury,
@@ -184,12 +185,14 @@ export function getStarAltAzPositions(date: Date, observer: ObserverLocation): S
   })
 }
 
-// ============ Ecliptic curve ============
+// ============ Shared alt/az point type ============
 
-export interface EclipticPoint {
+export interface AltAzPoint {
   altitude: number
   azimuth: number
 }
+
+// ============ Ecliptic curve ============
 
 // J2000 mean obliquity — precomputed trig
 const OBLIQUITY_RAD = 23.4393 * DEG_TO_RAD
@@ -197,11 +200,11 @@ const COS_OBL = Math.cos(OBLIQUITY_RAD)
 const SIN_OBL = Math.sin(OBLIQUITY_RAD)
 
 /** Sample 360 points along the ecliptic and return their alt/az positions */
-export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation): EclipticPoint[] {
+export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation): AltAzPoint[] {
   const obs = makeObserver(observer)
   const astroTime = Astronomy.MakeTime(date)
   const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
-  const points: EclipticPoint[] = []
+  const points: AltAzPoint[] = []
 
   for (let i = 0; i < 360; i++) {
     const lon = i * DEG_TO_RAD
@@ -217,4 +220,51 @@ export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation
   }
 
   return points
+}
+
+// ============ Milky Way polygons (d3-celestial data) ============
+
+// Minimal GeoJSON types for mw.json
+interface MWFeature {
+  id: string
+  geometry: { coordinates: number[][][][] }
+}
+
+// Pre-compute J2000 unit vectors for each ring of each layer (once at module load)
+// mw.json coords are [RA_deg, Dec_deg] with RA in [-180, 180]
+const MW_LAYERS = (mwData as { features: MWFeature[] }).features.map((feature) => ({
+  id: feature.id,
+  rings: feature.geometry.coordinates[0].map((ring) =>
+    ring.map((coord) => {
+      const raDeg = coord[0], decDeg = coord[1]
+      const raRad = raDeg * DEG_TO_RAD
+      const decRad = decDeg * DEG_TO_RAD
+      const cosDec = Math.cos(decRad)
+      return [cosDec * Math.cos(raRad), cosDec * Math.sin(raRad), Math.sin(decRad)] as const
+    })
+  ),
+}))
+
+export interface MilkyWayLayer {
+  id: string
+  rings: AltAzPoint[][]
+}
+
+/** Transform pre-computed Milky Way polygon data to alt/az for the given date and observer */
+export function getMilkyWayPolygons(date: Date, observer: ObserverLocation): MilkyWayLayer[] {
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
+
+  return MW_LAYERS.map((layer) => ({
+    id: layer.id,
+    rings: layer.rings.map((ring) =>
+      ring.map(([x, y, z]) => {
+        const vec = new Astronomy.Vector(x, y, z, astroTime)
+        const horVec = Astronomy.RotateVector(rot, vec)
+        const sphere = Astronomy.HorizonFromVector(horVec, 'normal')
+        return { altitude: sphere.lat, azimuth: sphere.lon }
+      })
+    ),
+  }))
 }

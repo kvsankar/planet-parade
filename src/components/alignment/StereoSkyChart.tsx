@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { AltAzPosition, SkyBodyId, StarAltAzPosition, EclipticPoint } from '../../lib/astronomy'
+import { AltAzPosition, SkyBodyId, StarAltAzPosition, AltAzPoint, MilkyWayLayer } from '../../lib/astronomy'
 import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
 import { STAR_CATALOG } from '../../data/starCatalog'
@@ -8,7 +8,8 @@ import { CONSTELLATIONS } from '../../data/constellationLines'
 interface StereoSkyChartProps {
   positions: AltAzPosition[]
   stars: StarAltAzPosition[]
-  ecliptic: EclipticPoint[]
+  ecliptic: AltAzPoint[]
+  milkyWay: MilkyWayLayer[]
   title: string
   time: Date | null
   size: number
@@ -53,6 +54,8 @@ function projectAltAz(altitude: number, azimuth: number, R: number): { x: number
   return { x: -r * Math.sin(azRad), y: -r * Math.cos(azRad) }
 }
 
+const MW_OPACITIES: Record<string, number> = { ol1: 0.02, ol2: 0.03, ol3: 0.04, ol4: 0.05, ol5: 0.06 }
+
 const SPECTRAL_COLORS: Record<string, string> = {
   O: '#9db4ff', B: '#aabfff', A: '#cad8ff', F: '#f8f7ff',
   G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
@@ -76,7 +79,41 @@ function formatTime(d: Date): string {
   return `${h}:${m} UTC`
 }
 
-export default function StereoSkyChart({ positions, stars, ecliptic, title, time, size, moonIllumination, moonWaxing, magnitudes }: StereoSkyChartProps) {
+function dist2d(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+/** Build an SVG sub-path for a projected point sequence, splitting at large gaps */
+function buildGapSplitPath(
+  pts: { x: number; y: number }[],
+  cx: number,
+  cy: number,
+  gapThreshold: number,
+  close: boolean,
+): string {
+  if (pts.length < 2) return ''
+  const parts: string[] = []
+
+  for (let i = 0; i < pts.length; i++) {
+    const px = cx + pts[i].x
+    const py = cy + pts[i].y
+    if (i === 0 || dist2d(pts[i - 1], pts[i]) > gapThreshold) {
+      parts.push(`M ${px} ${py}`)
+    } else {
+      parts.push(`L ${px} ${py}`)
+    }
+  }
+
+  if (close && pts.length > 2 && dist2d(pts[pts.length - 1], pts[0]) <= gapThreshold) {
+    parts.push('Z')
+  }
+
+  return parts.join(' ')
+}
+
+export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, title, time, size, moonIllumination, moonWaxing, magnitudes }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -142,33 +179,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
     if (ecliptic.length === 0) return null
 
     const pts = ecliptic.map((p) => projectAltAz(p.altitude, p.azimuth, R))
-    const parts: string[] = []
-    let prevX = 0, prevY = 0
-
-    for (let i = 0; i < pts.length; i++) {
-      const px = cx + pts[i].x
-      const py = cy + pts[i].y
-      if (i === 0) {
-        parts.push(`M ${px} ${py}`)
-      } else {
-        const dx = px - prevX
-        const dy = py - prevY
-        if (Math.sqrt(dx * dx + dy * dy) > R * 0.5) {
-          parts.push(`M ${px} ${py}`)
-        } else {
-          parts.push(`L ${px} ${py}`)
-        }
-      }
-      prevX = px
-      prevY = py
-    }
-
-    // Close back to first point if no discontinuity
-    const firstX = cx + pts[0].x
-    const firstY = cy + pts[0].y
-    if (Math.sqrt((firstX - prevX) ** 2 + (firstY - prevY) ** 2) < R * 0.5) {
-      parts.push('Z')
-    }
+    const path = buildGapSplitPath(pts, cx, cy, R * 0.5, true)
 
     // Label at highest-altitude point
     let bestIdx = 0
@@ -176,12 +187,21 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
       if (ecliptic[i].altitude > ecliptic[bestIdx].altitude) bestIdx = i
     }
 
-    return {
-      path: parts.join(' '),
-      labelX: cx + pts[bestIdx].x,
-      labelY: cy + pts[bestIdx].y,
-    }
+    return { path, labelX: cx + pts[bestIdx].x, labelY: cy + pts[bestIdx].y }
   }, [ecliptic, R, cx, cy])
+
+  const milkyWayPaths = useMemo(() => {
+    const GAP = R * 0.5
+    return milkyWay.map((layer) => {
+      const ringPaths: string[] = []
+      for (const ring of layer.rings) {
+        const pts = ring.map((p) => projectAltAz(p.altitude, p.azimuth, R))
+        const rp = buildGapSplitPath(pts, cx, cy, GAP, true)
+        if (rp) ringPaths.push(rp)
+      }
+      return { id: layer.id, path: ringPaths.join(' ') }
+    })
+  }, [milkyWay, R, cx, cy])
 
   // --- Label overlap avoidance ---
   // For each planet, compute a label offset (lx, ly) relative to the dot center.
@@ -378,6 +398,18 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
 
       {/* Stars + body dots + labels (clipped to circle) */}
       <g clipPath={`url(#clip-${title})`}>
+        {/* Milky Way polygon layers (deepest background) */}
+        {milkyWayPaths.map((layer) =>
+          layer.path ? (
+            <path
+              key={layer.id}
+              d={layer.path}
+              fill="#8899bb"
+              fillRule="evenodd"
+              opacity={MW_OPACITIES[layer.id] ?? 0.03}
+            />
+          ) : null
+        )}
         {/* Ecliptic curve + label */}
         {eclipticPathData && (
           <g>

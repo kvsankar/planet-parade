@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMilkyWayPolygons, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -71,6 +71,11 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
   const eveningEcliptic = useMemo(() =>
     getEclipticAltAzPositions(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
 
+  const morningMilkyWay = useMemo(() =>
+    getMilkyWayPolygons(quantizedDate, morningObserver), [quantizedDate, morningObserver])
+  const eveningMilkyWay = useMemo(() =>
+    getMilkyWayPolygons(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
+
   // --- Daily quantities (labels, moon phase, magnitudes) ---
   const dayStart = useMemo(() => {
     const d = currentDate
@@ -120,6 +125,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             positions={morningPositions}
             stars={morningStars}
             ecliptic={morningEcliptic}
+            milkyWay={morningMilkyWay}
             title="Morning"
             time={sunriseTime}
             size={chartSize}
@@ -131,6 +137,7 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
             positions={eveningPositions}
             stars={eveningStars}
             ecliptic={eveningEcliptic}
+            milkyWay={eveningMilkyWay}
             title="Evening"
             time={sunsetTime}
             size={chartSize}
