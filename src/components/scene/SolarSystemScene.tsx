@@ -11,7 +11,7 @@ import { BODY_LIST } from '../../constants'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 
-const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Earth', 'Mars'])
+const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Mars'])
 const INNER_HIDE_DIST = 150 // scene units — hide inner planets when camera is farther than this
 
 interface Props {
@@ -59,9 +59,21 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
 }
 
 export default function SolarSystemScene({ positions, orbitPaths, selectedBodies, visibleSeries }: Props) {
+  const [initialCameraY] = useState(() => {
+    const HALF_FOV = (45 / 2) * Math.PI / 180
+    let maxDist = 0
+    for (const id of (selectedBodies ?? [])) {
+      const pos = positions[id]
+      if (pos) {
+        maxDist = Math.max(maxDist, Math.sqrt(pos[0] ** 2 + pos[2] ** 2))
+      }
+    }
+    return Math.min(1000, Math.max(50, maxDist * 1.3 / Math.tan(HALF_FOV)))
+  })
+
   return (
     <Canvas
-      camera={{ position: [0, 300, 0], fov: 45, near: 0.1, far: 2000 }}
+      camera={{ position: [0, initialCameraY, 0], fov: 45, near: 0.1, far: 2000 }}
       style={{ background: '#0a0a0f' }}
     >
       <SceneContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} visibleSeries={visibleSeries} />
