@@ -184,9 +184,6 @@ export default function App() {
                 togglePlay={togglePlay}
                 setSpeed={handleSetSpeed}
                 onDateChange={handleSetDate}
-                hasPrev={alignment.hasPrev}
-                hasNext={alignment.hasNext}
-                jumpToMinimum={alignment.jumpToMinimum}
               />
 
               <div className="bottom-right-actions">

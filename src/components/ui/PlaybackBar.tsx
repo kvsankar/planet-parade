@@ -8,9 +8,12 @@ interface PlaybackBarProps {
   togglePlay: () => void
   setSpeed: (s: number) => void
   onDateChange: (d: Date) => void
-  hasPrev: boolean
-  hasNext: boolean
-  jumpToMinimum: (direction: 'prev' | 'next') => void
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d
 }
 
 export default memo(function PlaybackBar({
@@ -20,9 +23,6 @@ export default memo(function PlaybackBar({
   togglePlay,
   setSpeed,
   onDateChange,
-  hasPrev,
-  hasNext,
-  jumpToMinimum,
 }: PlaybackBarProps) {
   return (
     <div className="playback-bar">
@@ -44,8 +44,20 @@ export default memo(function PlaybackBar({
       >
         Today
       </button>
+      <button className="minima-nav-btn" onClick={() => onDateChange(addDays(currentDate, -5))} title="Back 5 days">
+        &#9664;&#9664; 5
+      </button>
+      <button className="minima-nav-btn" onClick={() => onDateChange(addDays(currentDate, -1))} title="Back 1 day">
+        &#9664; 1
+      </button>
       <button onClick={togglePlay} className="play-btn">
         {isPlaying ? '\u23F8' : '\u25B6'}
+      </button>
+      <button className="minima-nav-btn" onClick={() => onDateChange(addDays(currentDate, 1))} title="Forward 1 day">
+        1 &#9654;
+      </button>
+      <button className="minima-nav-btn" onClick={() => onDateChange(addDays(currentDate, 5))} title="Forward 5 days">
+        5 &#9654;&#9654;
       </button>
       <select
         value={speed}
@@ -56,22 +68,6 @@ export default memo(function PlaybackBar({
           <option key={s} value={s}>{s} d/s</option>
         ))}
       </select>
-      <button
-        className="minima-nav-btn"
-        onClick={() => jumpToMinimum('prev')}
-        disabled={!hasPrev}
-        title="Previous minimum"
-      >
-        &#9664; Prev
-      </button>
-      <button
-        className="minima-nav-btn"
-        onClick={() => jumpToMinimum('next')}
-        disabled={!hasNext}
-        title="Next minimum"
-      >
-        Next &#9654;
-      </button>
     </div>
   )
 })
