@@ -183,6 +183,57 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
     }
   }, [ecliptic, R, cx, cy])
 
+  // --- Label overlap avoidance ---
+  // For each planet, compute a label offset (lx, ly) relative to the dot center.
+  // If two planets are closer than LABEL_CLOSE_PX, extend a line between them
+  // and push each label to the tip on its side of the line.
+  const LABEL_CLOSE_PX = 24
+  const LABEL_EXT = 8 // how far the label tip sits from the dot center
+
+  const labelOffsets = useMemo(() => {
+    const offsets = new Map<SkyBodyId, { lx: number; ly: number }>()
+
+    // Accumulate repulsion vectors per body
+    for (const p of projected) {
+      let rx = 0, ry = 0
+      let nearbyCount = 0
+
+      for (const q of projected) {
+        if (q.bodyId === p.bodyId) continue
+        const ddx = p.x - q.x
+        const ddy = p.y - q.y
+        const dist = Math.sqrt(ddx * ddx + ddy * ddy)
+
+        if (dist < LABEL_CLOSE_PX) {
+          nearbyCount++
+          if (dist < 0.5) {
+            // Coincident — push by bodyId order
+            ry += p.bodyId < q.bodyId ? -1 : 1
+          } else {
+            const strength = 1 - dist / LABEL_CLOSE_PX
+            rx += (ddx / dist) * strength
+            ry += (ddy / dist) * strength
+          }
+        }
+      }
+
+      if (nearbyCount > 0) {
+        const len = Math.sqrt(rx * rx + ry * ry)
+        if (len > 0.01) {
+          offsets.set(p.bodyId, { lx: (rx / len) * LABEL_EXT, ly: (ry / len) * LABEL_EXT })
+        } else {
+          // Degenerate — default just above
+          offsets.set(p.bodyId, { lx: 0, ly: -6 })
+        }
+      } else {
+        // Isolated — default just above
+        offsets.set(p.bodyId, { lx: 0, ly: -6 })
+      }
+    }
+
+    return offsets
+  }, [projected])
+
   if (size < 50) return null
 
   const gridColor = 'rgba(255,255,255,0.12)'
@@ -447,28 +498,46 @@ export default function StereoSkyChart({ positions, stars, ecliptic, title, time
               ) : (
                 <circle cx={px} cy={py} r={rad} fill={color} />
               )}
-              <text
-                x={px}
-                y={py - rad - 4}
-                textAnchor="middle"
-                fill={color}
-                fontSize={9}
-                fontWeight={500}
-              >
-                {BODY_LABELS[p.bodyId]}
-              </text>
-              {mag != null && (
-                <text
-                  x={px}
-                  y={py + rad + 10}
-                  textAnchor="middle"
-                  fill={color}
-                  fontSize={7.5}
-                  opacity={0.7}
-                >
-                  {mag.toFixed(1)}
-                </text>
-              )}
+              {(() => {
+                const off = labelOffsets.get(p.bodyId) ?? { lx: 0, ly: -6 }
+                // Push label outward by the dot radius so it clears large bodies (Moon, Sun)
+                const offLen = Math.sqrt(off.lx * off.lx + off.ly * off.ly)
+                const radPush = offLen > 0.1 ? rad + 2 : rad + 2
+                const nx = offLen > 0.1 ? off.lx / offLen : 0
+                const ny = offLen > 0.1 ? off.ly / offLen : -1
+                // Determine text anchor based on horizontal direction of offset
+                const anchor = off.lx > 5 ? 'start' : off.lx < -5 ? 'end' : 'middle'
+                const labelX = px + off.lx + nx * radPush
+                const labelY = py + off.ly + ny * radPush
+                return (
+                  <>
+                    <text
+                      x={labelX}
+                      y={labelY}
+                      textAnchor={anchor}
+                      dominantBaseline={off.ly > 5 ? 'hanging' : off.ly < -5 ? 'auto' : 'central'}
+                      fill={color}
+                      fontSize={9}
+                      fontWeight={500}
+                    >
+                      {BODY_LABELS[p.bodyId]}
+                    </text>
+                    {mag != null && (
+                      <text
+                        x={labelX}
+                        y={labelY + (off.ly >= 0 ? 10 : -9)}
+                        textAnchor={anchor}
+                        dominantBaseline={off.ly > 5 ? 'hanging' : off.ly < -5 ? 'auto' : 'central'}
+                        fill={color}
+                        fontSize={7.5}
+                        opacity={0.7}
+                      >
+                        {mag.toFixed(1)}
+                      </text>
+                    )}
+                  </>
+                )
+              })()}
             </g>
           )
         })}

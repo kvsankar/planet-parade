@@ -1,16 +1,18 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { BODY_META } from '../../constants'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { useSelection } from '../../hooks/useSelection'
+import { useLabelRegistry, getLabelPriority } from '../../hooks/useLabelOverlap'
 
 const SUN_COLOR = BODY_META.Sun.color
 const MIN_FONT = 8
 const MAX_FONT = 14
 const NEAR_DIST = 5
 const FAR_DIST = 500
+const _projected = new THREE.Vector3()
 
 export default function Sun({ scaleFactor = 1 }: { scaleFactor?: number }) {
   const meshRef = useRef<THREE.Mesh>(null!)
@@ -18,6 +20,7 @@ export default function Sun({ scaleFactor = 1 }: { scaleFactor?: number }) {
   const { camera } = useThree()
   const { showLabels } = useDisplaySettings()
   const { selectedBodyId, selectBody } = useSelection()
+  const registry = useLabelRegistry()
 
   useFrame(({ size }) => {
     if (!meshRef.current) return
@@ -35,8 +38,25 @@ export default function Sun({ scaleFactor = 1 }: { scaleFactor?: number }) {
       const clamped01 = Math.max(0, Math.min(1, t))
       const fontSize = MAX_FONT - clamped01 * (MAX_FONT - MIN_FONT)
       labelRef.current.style.fontSize = `${Math.round(fontSize)}px`
+
+      // Label overlap avoidance
+      _projected.set(0, 0, 0).project(camera)
+      const roundedFont = Math.round(fontSize)
+      registry.set(
+        'Sun',
+        (_projected.x * 0.5 + 0.5) * size.width,
+        (-_projected.y * 0.5 + 0.5) * size.height,
+        3, roundedFont,
+        getLabelPriority('Sun', selectedBodyId === 'Sun'),
+      )
+      const offset = registry.getOffset('Sun')
+      labelRef.current.style.transform = `translate(${offset.dx}px, ${offset.dy}px)`
+    } else {
+      registry.remove('Sun')
     }
   })
+
+  useEffect(() => () => registry.remove('Sun'), [registry])
 
   return (
     <mesh
@@ -54,7 +74,7 @@ export default function Sun({ scaleFactor = 1 }: { scaleFactor?: number }) {
             fontSize: '12px',
             fontFamily: 'monospace',
             whiteSpace: 'nowrap',
-            transform: 'translateY(-20px)',
+            transform: 'translateY(-20px)', /* overridden per-frame by overlap avoidance */
             fontWeight: selectedBodyId === 'Sun' ? 'bold' : 'normal',
             textShadow: '0 0 4px black',
           }}>

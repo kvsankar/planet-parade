@@ -10,6 +10,7 @@ import CameraController from './CameraController'
 import { BODY_LIST } from '../../constants'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
+import { LabelRegistryProvider } from '../../hooks/useLabelOverlap'
 
 const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Mars'])
 const INNER_HIDE_DIST = 150 // scene units — hide inner planets when camera is farther than this
@@ -40,7 +41,7 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
     : BODY_LIST.filter((id) => !INNER_BODIES.has(id))
 
   return (
-    <>
+    <LabelRegistryProvider>
       <ambientLight intensity={0.15} />
       <Stars radius={500} depth={50} count={3000} factor={4} fade speed={0} />
       <Sun />
@@ -54,7 +55,7 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
       ))}
       {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
       <CameraController />
-    </>
+    </LabelRegistryProvider>
   )
 }
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -8,12 +8,14 @@ import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { useSelection } from '../../hooks/useSelection'
 import { simulationStore } from '../../hooks/useSimulationStore'
 import { getBodyPosition } from '../../lib/astronomy'
+import { useLabelRegistry, getLabelPriority } from '../../hooks/useLabelOverlap'
 
 const MIN_FONT = 8
 const MAX_FONT = 14
 // Camera distances that map to the font range (log scale)
 const NEAR_DIST = 5
 const FAR_DIST = 500
+const _projected = new THREE.Vector3()
 
 interface Props {
   bodyId: CelestialBodyId
@@ -27,6 +29,7 @@ export default function CelestialBody({ bodyId, position, scaleFactor = 1 }: Pro
   const { camera } = useThree()
   const { showLabels } = useDisplaySettings()
   const { selectedBodyId, selectBody } = useSelection()
+  const registry = useLabelRegistry()
   const meta = BODY_META[bodyId]
 
   // Store the live position for the label
@@ -52,11 +55,27 @@ export default function CelestialBody({ bodyId, position, scaleFactor = 1 }: Pro
     if (labelRef.current) {
       const t = Math.log(dist / NEAR_DIST) / Math.log(FAR_DIST / NEAR_DIST)
       const clamped01 = Math.max(0, Math.min(1, t))
-      // Invert: close → big, far → small
       const fontSize = MAX_FONT - clamped01 * (MAX_FONT - MIN_FONT)
       labelRef.current.style.fontSize = `${Math.round(fontSize)}px`
+
+      // Label overlap avoidance
+      _projected.copy(livePosRef.current).project(camera)
+      const roundedFont = Math.round(fontSize)
+      registry.set(
+        bodyId,
+        (_projected.x * 0.5 + 0.5) * size.width,
+        (-_projected.y * 0.5 + 0.5) * size.height,
+        bodyId.length, roundedFont,
+        getLabelPriority(bodyId, selectedBodyId === bodyId),
+      )
+      const offset = registry.getOffset(bodyId)
+      labelRef.current.style.transform = `translate(${offset.dx}px, ${offset.dy}px)`
+    } else {
+      registry.remove(bodyId)
     }
   })
+
+  useEffect(() => () => registry.remove(bodyId), [bodyId, registry])
 
   return (
     <mesh
@@ -73,7 +92,7 @@ export default function CelestialBody({ bodyId, position, scaleFactor = 1 }: Pro
             fontSize: '11px',
             fontFamily: 'monospace',
             whiteSpace: 'nowrap',
-            transform: 'translateY(-18px)',
+            transform: 'translateY(-18px)', /* overridden per-frame by overlap avoidance */
             fontWeight: selectedBodyId === bodyId ? 'bold' : 'normal',
             textShadow: '0 0 4px black',
           }}>

@@ -7,6 +7,7 @@ import AlignmentCones from './AlignmentCones'
 import { cameraAngles } from './CameraController'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
+import { LabelRegistryProvider } from '../../hooks/useLabelOverlap'
 
 const INNER_BODIES: CelestialBodyId[] = ['Mercury', 'Venus', 'Earth', 'Mars']
 const INSET_DIST = 45 // fixed camera distance
@@ -37,7 +38,7 @@ function InsetContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
   const { showOrbits } = useDisplaySettings()
 
   return (
-    <>
+    <LabelRegistryProvider>
       <ambientLight intensity={0.15} />
       <InsetCameraSync />
       <Sun scaleFactor={0.7} />
@@ -50,7 +51,7 @@ function InsetContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
         ) : null
       ))}
       {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
-    </>
+    </LabelRegistryProvider>
   )
 }
 
