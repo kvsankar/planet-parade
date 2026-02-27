@@ -774,6 +774,17 @@ select option {
   color: #fff;
 }
 
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.sortable-th:hover {
+  color: #ccc;
+}
+
 .kind-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1066,11 +1077,54 @@ select option {
   align-items: flex-start;
 }
 
-.skychart-zoom {
+.skychart-controls-bar {
   position: absolute;
-  bottom: 42px;
+  bottom: 4px;
+  left: 6px;
   right: 6px;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.skychart-controls-bar > * {
+  pointer-events: auto;
+}
+
+.skychart-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 3px 6px;
+  background: rgba(10, 10, 20, 0.8);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.skychart-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.skychart-toggle input[type="checkbox"] {
+  accent-color: #6B93D6;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+}
+
+.skychart-zoom {
+  position: relative;
 }
 
 /* ====== Driver.js Dark Theme Overrides ====== */
@@ -1574,10 +1628,21 @@ select option {
     font-size: 11px;
   }
 
-  /* Skychart zoom — keep inside panel, bottom-right */
-  .skychart-zoom {
-    bottom: 4px;
+  /* Skychart controls — compact on mobile */
+  .skychart-controls-bar {
+    bottom: 2px;
+    left: 4px;
     right: 4px;
+    flex-wrap: wrap;
+  }
+
+  .skychart-toggles {
+    gap: 4px;
+    padding: 2px 4px;
+  }
+
+  .skychart-toggle {
+    font-size: 9px;
   }
 
 }

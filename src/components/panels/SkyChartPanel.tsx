@@ -32,6 +32,13 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     return () => ro.disconnect()
   }, [measure])
 
+  // --- Display toggles ---
+  const [showStars, setShowStars] = useState(true)
+  const [showConstellationEdges, setShowConstellationEdges] = useState(true)
+  const [showConstellationLabels, setShowConstellationLabels] = useState(true)
+  const [showMilkyWay, setShowMilkyWay] = useState(true)
+  const [showPlanets, setShowPlanets] = useState(true)
+
   // --- Zoom / pan ---
   const [zoomLevel, setZoomLevel] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -252,6 +259,11 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
               moonIllumination={morningMoonIllum}
               moonWaxing={morningMoonWaxing}
               magnitudes={morningMagnitudes}
+              showStars={showStars}
+              showConstellationEdges={showConstellationEdges}
+              showConstellationLabels={showConstellationLabels}
+              showMilkyWay={showMilkyWay}
+              showPlanets={showPlanets}
             />
             <StereoSkyChart
               positions={eveningPositions}
@@ -264,14 +276,35 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
               moonIllumination={eveningMoonIllum}
               moonWaxing={eveningMoonWaxing}
               magnitudes={eveningMagnitudes}
+              showStars={showStars}
+              showConstellationEdges={showConstellationEdges}
+              showConstellationLabels={showConstellationLabels}
+              showMilkyWay={showMilkyWay}
+              showPlanets={showPlanets}
             />
           </div>
-          <div className="skychart-zoom sky-zoom-controls">
-            <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
-            <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>
-              {zoomLevel <= 1 ? '1\u00d7' : `${zoomLevel % 1 === 0 ? zoomLevel : zoomLevel.toFixed(1)}\u00d7`}
-            </button>
-            <button className="sky-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 16}>+</button>
+          <div className="skychart-controls-bar">
+            <div className="skychart-toggles">
+              {([
+                ['Stars', showStars, setShowStars],
+                ['Edges', showConstellationEdges, setShowConstellationEdges],
+                ['Labels', showConstellationLabels, setShowConstellationLabels],
+                ['Milky Way', showMilkyWay, setShowMilkyWay],
+                ['Planets', showPlanets, setShowPlanets],
+              ] as [string, boolean, React.Dispatch<React.SetStateAction<boolean>>][]).map(([label, val, setter]) => (
+                <label key={label} className="skychart-toggle">
+                  <input type="checkbox" checked={val} onChange={() => setter((v) => !v)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div className="sky-zoom-controls">
+              <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
+              <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>
+                {zoomLevel <= 1 ? '1\u00d7' : `${zoomLevel % 1 === 0 ? zoomLevel : zoomLevel.toFixed(1)}\u00d7`}
+              </button>
+              <button className="sky-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 16}>+</button>
+            </div>
           </div>
         </>
       )}

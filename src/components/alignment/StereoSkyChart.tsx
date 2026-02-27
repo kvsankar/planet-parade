@@ -16,6 +16,11 @@ interface StereoSkyChartProps {
   moonIllumination: number
   moonWaxing: boolean
   magnitudes: Partial<Record<SkyBodyId, number | null>>
+  showStars?: boolean
+  showConstellationEdges?: boolean
+  showConstellationLabels?: boolean
+  showMilkyWay?: boolean
+  showPlanets?: boolean
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -113,7 +118,12 @@ function buildGapSplitPath(
   return parts.join(' ')
 }
 
-export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, title, time, size, moonIllumination, moonWaxing, magnitudes }: StereoSkyChartProps) {
+export default function StereoSkyChart({
+  positions, stars, ecliptic, milkyWay, title, time, size,
+  moonIllumination, moonWaxing, magnitudes,
+  showStars = true, showConstellationEdges = true,
+  showConstellationLabels = true, showMilkyWay = true, showPlanets = true,
+}: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
@@ -396,7 +406,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
         {/* Stars + body dots + labels (clipped to circle) */}
         <g clipPath={`url(#clip-${title})`}>
           {/* Milky Way polygon layers (deepest background) */}
-          {milkyWayPaths.map((layer) =>
+          {showMilkyWay && milkyWayPaths.map((layer) =>
             layer.path ? (
               <path
                 key={layer.id}
@@ -430,9 +440,9 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
             </g>
           )}
           {/* Constellation lines + labels (behind stars) */}
-          {constellationData.map((c) => (
+          {(showConstellationEdges || showConstellationLabels) && constellationData.map((c) => (
             <g key={c.name}>
-              {c.segments.map((seg, i) => (
+              {showConstellationEdges && c.segments.map((seg, i) => (
                 <line
                   key={i}
                   x1={cx + seg.x1}
@@ -444,7 +454,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
                   opacity={seg.bothBelow ? 0.1 : 1}
                 />
               ))}
-              {c.centroid && (
+              {showConstellationLabels && c.centroid && (
                 <text
                   x={cx + c.centroid.x}
                   y={cy + c.centroid.y - 6}
@@ -459,7 +469,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
             </g>
           ))}
           {/* Star layer (behind planets) */}
-          {projectedStars.map((s) => {
+          {showStars && projectedStars.map((s) => {
             const sx = cx + s.x
             const sy = cy + s.y
             const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
@@ -502,7 +512,7 @@ export default function StereoSkyChart({ positions, stars, ecliptic, milkyWay, t
             )
           })}
           {/* Planet layer (on top of stars) */}
-          {projected.map((p) => {
+          {showPlanets && projected.map((p) => {
             const px = cx + p.x
             const py = cy + p.y
             const color = bodyColor(p.bodyId)

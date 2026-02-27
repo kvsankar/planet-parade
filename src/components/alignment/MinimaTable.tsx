@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { AlignmentMinimum, AlignmentKind } from '../../types'
 import { SERIES_COLORS, formatDate } from '../../constants'
 
@@ -14,9 +14,40 @@ const KIND_LABELS: Record<AlignmentKind, string> = {
   evening: 'PM',
 }
 
+type SortColumn = 'date' | 'span'
+type SortDir = 'asc' | 'desc'
+
 export default memo(function MinimaTable({ minima, currentDate, onSelect }: MinimaTableProps) {
+  const [sortCol, setSortCol] = useState<SortColumn | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const handleSort = (col: SortColumn) => {
+    if (sortCol === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortCol) return minima
+    const arr = [...minima]
+    const dir = sortDir === 'asc' ? 1 : -1
+    arr.sort((a, b) => {
+      if (sortCol === 'date') return (a.date - b.date) * dir
+      return (a.separation - b.separation) * dir
+    })
+    return arr
+  }, [minima, sortCol, sortDir])
+
   if (minima.length === 0) {
     return <div className="chart-empty">No close alignments found.</div>
+  }
+
+  const arrow = (col: SortColumn) => {
+    if (sortCol !== col) return ' \u2195'
+    return sortDir === 'asc' ? ' \u2191' : ' \u2193'
   }
 
   return (
@@ -26,21 +57,31 @@ export default memo(function MinimaTable({ minima, currentDate, onSelect }: Mini
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Span</th>
+              <th
+                className="sortable-th"
+                onClick={() => handleSort('date')}
+              >
+                Date{arrow('date')}
+              </th>
+              <th
+                className="sortable-th"
+                onClick={() => handleSort('span')}
+              >
+                Span{arrow('span')}
+              </th>
               <th>#</th>
               <th>Group</th>
             </tr>
           </thead>
           <tbody>
-            {minima.map((m) => (
+            {sorted.map((m) => (
               <tr
                 key={`${m.date}-${m.kind}`}
                 className={currentDate === m.date ? 'active' : ''}
                 onClick={() => onSelect(m.date)}
               >
                 <td>{formatDate(m.date)}</td>
-                <td>{m.separation.toFixed(1)}°</td>
+                <td>{m.separation.toFixed(1)}&deg;</td>
                 <td>{m.planetCount}</td>
                 <td>
                   <span
