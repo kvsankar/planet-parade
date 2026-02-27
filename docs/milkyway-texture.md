@@ -107,10 +107,40 @@ The texture `colorSpace` is intentionally left unset (defaults to `NoColorSpace`
 
 The texture is in J2000 equatorial coordinates. The scene uses ecliptic coordinates. The sphere is:
 
-- Rotated by `-obliquity` (23.44 deg) around X to tilt the equatorial pole to the ecliptic pole
+- Created with `phiStart=π` — this rotates the geometry seam to RA=12h, so that after the X-flip `uv.x=0.5` (texture center, RA=0h) aligns with the scene +X direction
 - Scaled by `[-1, 1, 1]` to correct the RA direction (RA increases eastward, but Three.js SphereGeometry phi increases in the opposite sense when viewed from inside with `BackSide`)
+- Rotated by `-obliquity` (23.44°) around X to tilt the equatorial pole to the ecliptic pole
 
 Material opacity is set to 0.25 for a subtle background effect.
+
+### Asset path
+
+The texture is loaded via `import.meta.env.BASE_URL` (Vite replaces this with the configured `base` path at build time). This ensures the URL resolves correctly regardless of the deployment subdirectory. Do not use absolute paths like `/starmap_4k.jpg` — the app's `base` is `./` (relative).
+
+## Sky Chart Texture Reprojection
+
+The same `starmap_4k.jpg` texture is also used in the stereographic sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
+
+### How it works
+
+`MilkyWayTextureCanvas.tsx` reprojects the equirectangular NASA texture into the sky chart's azimuthal equidistant projection using a Web Worker:
+
+1. **Reverse projection** — For each pixel `(px, py)` in the circular chart area, compute altitude and azimuth: `alt = 90° × (1 - r/R)`, `az = atan2(rx, -ry)` (where `r` is distance from chart center)
+2. **Horizontal → J2000** — Apply the `Rotation_HOR_EQJ` matrix (from astronomy-engine, transposed to row-major) to convert the horizontal unit vector to a J2000 equatorial direction
+3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 - dec)/π` (matching the 3D sphere's texture convention where RA=0h maps to u=0.5)
+4. **Bilinear sample** — Interpolate the 4 nearest texture pixels for smooth output
+
+### Architecture
+
+- **Shared Web Worker** — A single inline-blob worker handles all chart instances. Reference-counted (`acquireWorker`/`releaseWorker`) and terminated when no charts are mounted.
+- **Texture caching** — The JPEG is loaded once via an `Image` element, rasterized to a canvas, and transferred to the worker as a typed array.
+- **Instance isolation** — Each `MilkyWayTextureCanvas` component gets a unique instance ID. The worker echoes the ID in results, preventing cross-chart contamination.
+- **Sequence numbers** — Each render request gets an incrementing sequence number. Stale results (from superseded requests) are discarded.
+- **Canvas management** — React does not control `canvas.width`/`canvas.height` attributes (setting them clears the buffer). Dimensions are set imperatively in the worker callback only when they change. A CSS `border-radius: 50%` clip div masks the rectangular canvas to the chart circle.
+
+### UI toggle
+
+The sky chart layer menu shows `[Poly | Tex]` pills when the Milky Way layer is enabled, allowing instant switching between the polygon and texture rendering modes.
 
 ## Regenerating the texture
 
