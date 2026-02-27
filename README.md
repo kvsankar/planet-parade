@@ -2,6 +2,16 @@
 
 An interactive planetary alignment analyzer and sky visualization tool. Find the best dates to see multiple planets at once, visualize their positions in 3D, and explore the sky as seen from Earth — all in the browser.
 
+## Screenshots
+
+![Desktop](screenshots/planet-parade-desktop.png)
+
+<p align="center">
+  <img src="screenshots/planet-parade-mobile-portrait.png" alt="Mobile Portrait" width="240" />
+  &nbsp;&nbsp;
+  <img src="screenshots/planet-parade-mobile-landscape.png" alt="Mobile Landscape" width="480" />
+</p>
+
 ## Features
 
 ### 3D Solar System
