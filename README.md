@@ -1,6 +1,6 @@
-# SkyAlign
+# Planet Parade
 
-An interactive solar system simulator and planetary alignment analyzer. Visualize planetary positions in 3D, compute alignment windows, and explore the sky as seen from Earth — all in the browser.
+An interactive planetary alignment analyzer and sky visualization tool. Find the best dates to see multiple planets at once, visualize their positions in 3D, and explore the sky as seen from Earth — all in the browser.
 
 ## Features
 

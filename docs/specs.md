@@ -1,4 +1,4 @@
-# Solar System Visualization — Specification
+# Planet Parade — Specification
 
 ## 1. Needs
 

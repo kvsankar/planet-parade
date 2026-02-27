@@ -3,7 +3,7 @@ import { driver, type DriveStep, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import type { MobileTab } from '../components/ui/MobileTabBar'
 
-const STORAGE_KEY = 'solar-tour-seen'
+const STORAGE_KEY = 'planet-parade-tour-seen'
 
 /* ─── Step definition with optional mobile overrides ─── */
 
@@ -30,7 +30,7 @@ function toDriverSteps(defs: TourStepDef[], isMobile: boolean): DriveStep[] {
 const basicDefs: TourStepDef[] = [
   {
     popover: {
-      title: 'Planetary Alignment Explorer',
+      title: 'Planet Parade',
       description:
         'When can you step outside and see most \u2014 or all \u2014 of the planets at once, without spending hours waiting? This app finds those windows by measuring how tightly the planets cluster in the sky over any time range you choose.',
     },
