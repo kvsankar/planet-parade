@@ -2,187 +2,463 @@
   {
     "label": "5 naked-eye planets morning (Jun 2022)",
     "peakDate": "2022-06-03",
-    "series": {
-      "length": 91,
-      "firstDate": "2022-04-19",
-      "lastDate": "2022-07-18"
+    "tabs": [
+      5,
+      4
+    ],
+    "minimaByTab": {
+      "4": [
+        {
+          "date": 1650326400000,
+          "separation": 31.89534547715914,
+          "kind": "morning",
+          "planetCount": 4,
+          "planets": [
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn"
+          ]
+        },
+        {
+          "date": 1650326400000,
+          "separation": 72.29405362043434,
+          "kind": "straddling",
+          "planetCount": 4,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter"
+          ]
+        },
+        {
+          "date": 1653091200000,
+          "separation": 64.14504415830442,
+          "kind": "straddling",
+          "planetCount": 4,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter"
+          ]
+        },
+        {
+          "date": 1654387200000,
+          "separation": 51.83532159130874,
+          "kind": "morning",
+          "planetCount": 4,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter"
+          ]
+        },
+        {
+          "date": 1658016000000,
+          "separation": 106.15876020689666,
+          "kind": "straddling",
+          "planetCount": 4,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter"
+          ]
+        }
+      ],
+      "5": [
+        {
+          "date": 1650326400000,
+          "separation": 81.70853546745161,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn"
+          ]
+        },
+        {
+          "date": 1653091200000,
+          "separation": 96.1091348517059,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn"
+          ]
+        },
+        {
+          "date": 1654214400000,
+          "separation": 90.8418034796506,
+          "kind": "morning",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn"
+          ]
+        },
+        {
+          "date": 1658016000000,
+          "separation": 150.74029944039643,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn"
+          ]
+        }
+      ]
     },
-    "totalMinima": [
-      {
-        "date": 1650326400000,
-        "separation": 81.70853546745161,
-        "kind": "total",
-        "planetCount": 5
-      },
-      {
-        "date": 1654214400000,
-        "separation": 90.8418034796506,
-        "kind": "total",
-        "planetCount": 5
-      }
-    ],
-    "morningMinima": [
-      {
-        "date": 1650326400000,
-        "separation": 31.89534547715914,
-        "kind": "morning",
-        "planetCount": 4
-      },
-      {
-        "date": 1654214400000,
-        "separation": 90.8418034796506,
-        "kind": "morning",
-        "planetCount": 5
-      },
-      {
-        "date": 1658016000000,
-        "separation": 124.81226266087538,
-        "kind": "morning",
-        "planetCount": 4
-      }
-    ],
-    "eveningMinima": [],
     "closestMinimum": {
       "date": 1654214400000,
       "separation": 90.8418034796506,
       "kind": "morning",
-      "planetCount": 5
+      "planetCount": 5,
+      "planets": [
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn"
+      ]
     },
     "closestDayOffset": 0
   },
   {
     "label": "6-planet evening alignment (Jan 2025)",
     "peakDate": "2025-01-21",
-    "series": {
-      "length": 91,
-      "firstDate": "2024-12-07",
-      "lastDate": "2025-03-07"
+    "tabs": [
+      6,
+      5
+    ],
+    "minimaByTab": {
+      "5": [
+        {
+          "date": 1741305600000,
+          "separation": 81.37587804115594,
+          "kind": "evening",
+          "planetCount": 5,
+          "planets": [
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ],
+      "6": [
+        {
+          "date": 1741305600000,
+          "separation": 116.29686711074652,
+          "kind": "evening",
+          "planetCount": 6,
+          "planets": [
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ]
     },
-    "totalMinima": [
-      {
-        "date": 1741305600000,
-        "separation": 116.29686711074652,
-        "kind": "total",
-        "planetCount": 6
-      }
-    ],
-    "morningMinima": [],
-    "eveningMinima": [
-      {
-        "date": 1736985600000,
-        "separation": 88.76918496923685,
-        "kind": "evening",
-        "planetCount": 5
-      },
-      {
-        "date": 1741305600000,
-        "separation": 116.29686711074652,
-        "kind": "evening",
-        "planetCount": 6
-      }
-    ],
-    "closestMinimum": {
-      "date": 1736985600000,
-      "separation": 88.76918496923685,
-      "kind": "evening",
-      "planetCount": 5
-    },
-    "closestDayOffset": 5
-  },
-  {
-    "label": "7-planet grand parade (Feb 2025)",
-    "peakDate": "2025-02-28",
-    "series": {
-      "length": 91,
-      "firstDate": "2025-01-14",
-      "lastDate": "2025-04-14"
-    },
-    "totalMinima": [
-      {
-        "date": 1741305600000,
-        "separation": 116.29686711074652,
-        "kind": "total",
-        "planetCount": 7
-      }
-    ],
-    "morningMinima": [],
-    "eveningMinima": [
-      {
-        "date": 1739059200000,
-        "separation": 120.1706212107315,
-        "kind": "evening",
-        "planetCount": 6
-      },
-      {
-        "date": 1741305600000,
-        "separation": 116.29686711074652,
-        "kind": "evening",
-        "planetCount": 7
-      },
-      {
-        "date": 1741824000000,
-        "separation": 109.31335259394501,
-        "kind": "evening",
-        "planetCount": 6
-      }
-    ],
     "closestMinimum": {
       "date": 1741305600000,
       "separation": 116.29686711074652,
       "kind": "evening",
-      "planetCount": 7
+      "planetCount": 6,
+      "planets": [
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ]
+    },
+    "closestDayOffset": 45
+  },
+  {
+    "label": "7-planet grand parade (Feb 2025)",
+    "peakDate": "2025-02-28",
+    "tabs": [
+      7,
+      6
+    ],
+    "minimaByTab": {
+      "6": [
+        {
+          "date": 1739059200000,
+          "separation": 111.214480957538,
+          "kind": "straddling",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1741737600000,
+          "separation": 81.2733938721438,
+          "kind": "evening",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1742256000000,
+          "separation": 81.23506239778209,
+          "kind": "straddling",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ],
+      "7": [
+        {
+          "date": 1739059200000,
+          "separation": 148.3836054005459,
+          "kind": "straddling",
+          "planetCount": 7,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1741305600000,
+          "separation": 116.29686711074652,
+          "kind": "evening",
+          "planetCount": 7,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1741824000000,
+          "separation": 116.49057076253507,
+          "kind": "straddling",
+          "planetCount": 7,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Mars",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ]
+    },
+    "closestMinimum": {
+      "date": 1741305600000,
+      "separation": 116.29686711074652,
+      "kind": "evening",
+      "planetCount": 7,
+      "planets": [
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ]
     },
     "closestDayOffset": 7
   },
   {
     "label": "6-planet evening alignment (Feb 2026)",
     "peakDate": "2026-02-28",
-    "series": {
-      "length": 91,
-      "firstDate": "2026-01-14",
-      "lastDate": "2026-04-14"
+    "tabs": [
+      6,
+      5
+    ],
+    "minimaByTab": {
+      "5": [
+        {
+          "date": 1768953600000,
+          "separation": 117.03642374210946,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1772236800000,
+          "separation": 65.74254119928617,
+          "kind": "evening",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1772928000000,
+          "separation": 71.56940884620167,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1774137600000,
+          "separation": 103.44811929702354,
+          "kind": "evening",
+          "planetCount": 5,
+          "planets": [
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1776124800000,
+          "separation": 60.95227452136203,
+          "kind": "straddling",
+          "planetCount": 5,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ],
+      "6": [
+        {
+          "date": 1768953600000,
+          "separation": 168.18281715744754,
+          "kind": "straddling",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1772323200000,
+          "separation": 113.28182137470395,
+          "kind": "evening",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1772928000000,
+          "separation": 118.7696390425956,
+          "kind": "straddling",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        },
+        {
+          "date": 1776124800000,
+          "separation": 108.44446975734974,
+          "kind": "straddling",
+          "planetCount": 6,
+          "planets": [
+            "Mercury",
+            "Venus",
+            "Jupiter",
+            "Saturn",
+            "Uranus",
+            "Neptune"
+          ]
+        }
+      ]
     },
-    "totalMinima": [
-      {
-        "date": 1772323200000,
-        "separation": 113.28182137470395,
-        "kind": "total",
-        "planetCount": 6
-      },
-      {
-        "date": 1776124800000,
-        "separation": 108.44446975734974,
-        "kind": "total",
-        "planetCount": 6
-      }
-    ],
-    "morningMinima": [],
-    "eveningMinima": [
-      {
-        "date": 1768953600000,
-        "separation": 164.32926942543295,
-        "kind": "evening",
-        "planetCount": 5
-      },
-      {
-        "date": 1772323200000,
-        "separation": 113.28182137470395,
-        "kind": "evening",
-        "planetCount": 6
-      },
-      {
-        "date": 1774137600000,
-        "separation": 103.44811929702354,
-        "kind": "evening",
-        "planetCount": 5
-      }
-    ],
     "closestMinimum": {
-      "date": 1772323200000,
-      "separation": 113.28182137470395,
+      "date": 1772236800000,
+      "separation": 65.74254119928617,
       "kind": "evening",
-      "planetCount": 6
+      "planetCount": 5,
+      "planets": [
+        "Mercury",
+        "Venus",
+        "Saturn",
+        "Uranus",
+        "Neptune"
+      ]
     },
-    "closestDayOffset": 1
+    "closestDayOffset": 0
   }
 ]

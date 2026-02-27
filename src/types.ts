@@ -8,7 +8,6 @@ export type CelestialBodyId =
   | 'Saturn'
   | 'Uranus'
   | 'Neptune'
-  | 'Pluto'
 
 export interface BodyMeta {
   id: CelestialBodyId
@@ -62,17 +61,30 @@ export interface AlignmentDataPoint {
   totalCount: number // total number of selected planets
 }
 
+export interface AlignmentTabDataPoint {
+  date: number                 // ms timestamp
+  morningSep: number | null    // tightest AM span across all combos of this size
+  eveningSep: number | null    // tightest PM span
+  straddlingSep: number | null // tightest Straddling span
+}
+
 export interface ObserverLocation {
   lat: number    // degrees
   lon: number    // degrees
   height: number // meters
 }
 
-export type AlignmentKind = 'total' | 'morning' | 'evening'
+export type AlignmentKind = 'morning' | 'evening' | 'straddling'
 
 export interface AlignmentMinimum {
   date: number // ms timestamp
   separation: number // degrees
   kind: AlignmentKind
   planetCount: number // number of planets in this grouping at this date
+  planets: CelestialBodyId[] // which planets form this minimum
+}
+
+export interface AlignmentResult {
+  tabs: Map<number, AlignmentTabDataPoint[]>  // keyed by planet count
+  minima: Map<number, AlignmentMinimum[]>     // keyed by planet count
 }

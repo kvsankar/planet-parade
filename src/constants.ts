@@ -8,7 +8,7 @@ export const DATE_MAX = new Date('2075-01-01T00:00:00Z')
 
 export const BODY_LIST: CelestialBodyId[] = [
   'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter',
-  'Saturn', 'Uranus', 'Neptune', 'Pluto',
+  'Saturn', 'Uranus', 'Neptune',
 ]
 
 export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
@@ -21,20 +21,19 @@ export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
   Saturn:  { id: 'Saturn',  color: '#EAD6B8', orbitalPeriodDays: 10759.2, orbitSamples: 360 },
   Uranus:  { id: 'Uranus',  color: '#D1E7E7', orbitalPeriodDays: 30688.5, orbitSamples: 360 },
   Neptune: { id: 'Neptune', color: '#5B5DDF', orbitalPeriodDays: 60182,   orbitSamples: 360 },
-  Pluto:   { id: 'Pluto',   color: '#C9B8A4', orbitalPeriodDays: 90560,   orbitSamples: 360 },
 }
 
 export const SPEED_OPTIONS = [1, 5, 10, 30, 100, 365, 1000, 3650]
 
 export const ANALYZABLE_BODIES: CelestialBodyId[] = [
-  'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
+  'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
 
 /** Alignment series colors — single source of truth */
 export const SERIES_COLORS = {
-  total:   '#88AACC', // soft blue-grey (neutral)
-  morning: '#D4943A', // warm golden orange (sunrise / daytime)
-  evening: '#4466AA', // deep indigo blue (night sky)
+  straddling: '#CC6666', // light red — cluster straddles the Sun
+  morning:    '#D4943A', // warm golden orange (sunrise / daytime)
+  evening:    '#4466AA', // deep indigo blue (night sky)
 }
 
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
