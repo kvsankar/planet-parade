@@ -142,7 +142,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
     if (isMobile) {
-      return Math.min(w - 8, h - 8)
+      return Math.min(w - 2, h - 2)
     }
     return horizontal
       ? Math.min(Math.floor((w - 16) / 2), h - 8 - SVG_OVERHEAD)

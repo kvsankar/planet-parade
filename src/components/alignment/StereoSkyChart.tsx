@@ -129,7 +129,7 @@ export default function StereoSkyChart({
   isPlaying = false,
   hideTitle = false,
 }: StereoSkyChartProps) {
-  const MARGIN = 28
+  const MARGIN = hideTitle ? 18 : 28
   const TITLE_OFFSET = hideTitle ? 0 : 18
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
