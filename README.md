@@ -2,6 +2,8 @@
 
 An interactive planetary alignment analyzer and sky visualization tool. Find the best dates to see multiple planets at once, visualize their positions in 3D, and explore the sky as seen from Earth — all in the browser.
 
+**Live:** [kvsankar.github.io/planet-parade](https://kvsankar.github.io/planet-parade/) | [sankara.net/astro/planet-parade](https://sankara.net/astro/planet-parade/)
+
 ## Screenshots
 
 ![Desktop](screenshots/planet-parade-desktop.png)
