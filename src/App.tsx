@@ -24,6 +24,7 @@ import { useAlignmentState } from './hooks/useAlignmentState'
 import { CelestialBodyId, ObserverLocation } from './types'
 import { useTour } from './hooks/useTour'
 import { useIsMobile } from './hooks/useIsMobile'
+import { useIsLandscape } from './hooks/useIsLandscape'
 
 const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
   scene: 'Solar System',
@@ -36,6 +37,7 @@ const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
 export default function App() {
   // --- Mobile ---
   const isMobile = useIsMobile()
+  const isLandscape = useIsLandscape()
   const [mobileTab, setMobileTab] = useState<MobileTab>('align')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -183,15 +185,15 @@ export default function App() {
         <div className={`mobile-sheet${mobileTab !== 'align' ? ' mobile-sheet-with-playback' : ''}`}>
           <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
           <div className="mobile-sheet-body">
-            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} />}
+            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} isLandscape={isLandscape} />}
             {mobileTab === 'timeline' && (
               <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
             )}
             {mobileTab === 'sky' && (
-              <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
+              <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} isLandscape={isLandscape} />
             )}
             {mobileTab === 'charts' && (
-              <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} />
+              <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} isLandscape={isLandscape} />
             )}
           </div>
         </div>

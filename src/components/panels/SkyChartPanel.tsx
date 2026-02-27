@@ -8,12 +8,13 @@ interface SkyChartPanelProps {
   observer: ObserverLocation
   isMobile?: boolean
   isPlaying?: boolean
+  isLandscape?: boolean
 }
 
 const MS_PER_QUARTER_HOUR = 900_000
 const MS_PER_DAY = 86_400_000
 
-export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying }: SkyChartPanelProps) {
+export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying, isLandscape }: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
   const [mobileChart, setMobileChart] = useState<'pm' | 'am'>('pm')
@@ -142,12 +143,13 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
     if (isMobile) {
-      return Math.min(w - 2, h - 2)
+      // In landscape, size by width so E-W axis fills the screen (N-S crops)
+      return isLandscape ? w - 2 : Math.min(w - 2, h - 2)
     }
     return horizontal
       ? Math.min(Math.floor((w - 16) / 2), h - 8 - SVG_OVERHEAD)
       : Math.min(w - 8, Math.floor((h - 16) / 2) - SVG_OVERHEAD)
-  }, [containerSize, horizontal, isMobile])
+  }, [containerSize, horizontal, isMobile, isLandscape])
 
   // Zoomed chart size: circle grows, but labels/dots/strokes stay at original pixel sizes
   const zoomedSize = Math.round(chartSize * zoomLevel)

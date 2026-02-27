@@ -1680,3 +1680,115 @@ select option {
   }
 
 }
+
+/* ====== Mobile Landscape Two-Column Layouts ====== */
+
+.alignment-panel-landscape {
+  flex-direction: row;
+  height: 100%;
+}
+
+.alignment-landscape-left {
+  flex: 0 0 45%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alignment-landscape-right {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.sky-view-landscape {
+  display: flex;
+  flex-direction: column;
+}
+
+.sky-view-landscape .sky-view-landscape-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sky-view-landscape .sky-view-chart-area {
+  flex: 0 0 60%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sky-view-landscape .sky-view-table-area {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Mobile landscape: compact controls to fit limited vertical space */
+@media (max-width: 767.98px) and (orientation: landscape) {
+  .chart-panel-inner {
+    min-height: 0;
+  }
+
+  .separation-chart {
+    min-height: 100px;
+  }
+
+  .chart-controls-row {
+    flex-wrap: nowrap;
+  }
+
+  /* Compact left column in Align panel */
+  .alignment-landscape-left .control-label {
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+  }
+
+  .alignment-landscape-left .planet-chip {
+    padding: 1px 4px;
+    font-size: 9px;
+  }
+
+  .alignment-landscape-left .planet-chips {
+    gap: 3px;
+  }
+
+  .alignment-landscape-left .date-input {
+    min-height: 24px;
+    font-size: 10px;
+    padding: 2px 5px;
+    margin-bottom: 3px;
+  }
+
+  .alignment-landscape-left .duration-mode-tab {
+    min-height: 22px;
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .alignment-landscape-left .series-chip {
+    min-height: 22px;
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
+  .alignment-landscape-left .min-planet-chip {
+    min-width: 20px;
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .alignment-landscape-left .time-range-selector {
+    gap: 3px;
+  }
+
+  .alignment-panel-landscape {
+    gap: 6px;
+  }
+}

@@ -6,9 +6,10 @@ import { AlignmentState } from '../../hooks/useAlignmentState'
 
 interface AlignmentPanelProps {
   alignment: AlignmentState
+  isLandscape?: boolean
 }
 
-export default function AlignmentPanel({ alignment }: AlignmentPanelProps) {
+export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPanelProps) {
   const {
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
@@ -21,8 +22,8 @@ export default function AlignmentPanel({ alignment }: AlignmentPanelProps) {
     handleDateSelect,
   } = alignment
 
-  return (
-    <div className="alignment-panel-inner">
+  const controls = (
+    <>
       <PlanetPicker selected={selectedBodies} onChange={setSelectedBodies} />
       <TimeRangeSelector
         startDate={startDate}
@@ -47,11 +48,30 @@ export default function AlignmentPanel({ alignment }: AlignmentPanelProps) {
           </div>
         </div>
       )}
-      <MinimaTable
-        minima={allMinima}
-        currentDate={currentDateMs}
-        onSelect={handleDateSelect}
-      />
+    </>
+  )
+
+  const minimaTable = (
+    <MinimaTable
+      minima={allMinima}
+      currentDate={currentDateMs}
+      onSelect={handleDateSelect}
+    />
+  )
+
+  if (isLandscape) {
+    return (
+      <div className="alignment-panel-inner alignment-panel-landscape">
+        <div className="alignment-landscape-left">{controls}</div>
+        <div className="alignment-landscape-right">{minimaTable}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="alignment-panel-inner">
+      {controls}
+      {minimaTable}
     </div>
   )
 }

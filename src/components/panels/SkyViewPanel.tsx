@@ -6,9 +6,10 @@ interface SkyViewPanelProps {
   alignment: AlignmentState
   currentDate: Date
   visibleSeries: Set<AlignmentKind>
+  isLandscape?: boolean
 }
 
-export default function SkyViewPanel({ alignment, currentDate, visibleSeries }: SkyViewPanelProps) {
+export default function SkyViewPanel({ alignment, currentDate, visibleSeries, isLandscape }: SkyViewPanelProps) {
   return (
     <SkyView
       bodies={alignment.selectedBodies}
@@ -16,6 +17,7 @@ export default function SkyViewPanel({ alignment, currentDate, visibleSeries }: 
       center={alignment.skyCenter}
       onCenterChange={alignment.setSkyCenter}
       visibleSeries={visibleSeries}
+      isLandscape={isLandscape}
     />
   )
 }
