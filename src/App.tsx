@@ -180,7 +180,7 @@ export default function App() {
     <div className="app">
       {/* Scene — always mounted to preserve WebGL state */}
       <div className="mobile-scene">
-        <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+        <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
         <div className="scene-overlay">
           <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
           <button
@@ -197,7 +197,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+        <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
       </div>
 
       {/* Active panel sheet (overlays scene) */}
@@ -210,7 +210,7 @@ export default function App() {
               <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
             )}
             {mobileTab === 'sky' && (
-              <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} isLandscape={isLandscape} />
+              <SkyViewPanel alignment={alignment} currentDate={currentDate} isLandscape={isLandscape} />
             )}
             {mobileTab === 'charts' && (
               <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} isLandscape={isLandscape} />
@@ -244,7 +244,7 @@ export default function App() {
       <div className="panels-layer">
         <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
           <div className="scene-panel-content">
-            <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+            <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
             <div className="scene-overlay">
               <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
               <button
@@ -261,7 +261,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
+            <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
           </div>
         </FloatingPanel>
 
@@ -278,7 +278,7 @@ export default function App() {
         </FloatingPanel>
 
         <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
-          <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
+          <SkyViewPanel alignment={alignment} currentDate={currentDate} />
         </FloatingPanel>
 
         <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>

@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, useEffect, useCallback, useId } from 'react'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
-import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180 } from '../../lib/alignment'
+import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180, BestPerKind } from '../../lib/alignment'
 import { getBodyVisualMagnitude, SkyBodyId } from '../../lib/astronomy'
+import TabSelector from '../ui/TabSelector'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -12,6 +13,10 @@ interface SkyViewProps {
   center: SkyViewCenter
   onCenterChange: (c: SkyViewCenter) => void
   visibleSeries: Set<AlignmentKind>
+  activeTab: number
+  availableTabs: number[]
+  onTabChange: (tab: number) => void
+  bestPerKind: BestPerKind
   isLandscape?: boolean
 }
 
@@ -56,7 +61,7 @@ const MS_PER_HOUR = 3_600_000
 const HEADER_H = 28
 const SEP_H = 26
 
-export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries, isLandscape }: SkyViewProps) {
+export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries, activeTab, availableTabs, onTabChange, bestPerKind, isLandscape }: SkyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const clipId = useId()
   const [cW, setCW] = useState(400)
@@ -79,10 +84,10 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   const xSpanRef = useRef(360)
 
   // Quantize date to nearest hour for ephemeris cache efficiency during animation
+  const quantizedHour = Math.round(date.getTime() / MS_PER_HOUR)
   const quantizedDate = useMemo(() => {
-    const ms = date.getTime()
-    return new Date(Math.round(ms / MS_PER_HOUR) * MS_PER_HOUR)
-  }, [Math.round(date.getTime() / MS_PER_HOUR)])
+    return new Date(quantizedHour * MS_PER_HOUR)
+  }, [quantizedHour])
 
   // Observe container dimensions
   useEffect(() => {
@@ -215,54 +220,38 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     }))
   }, [bodies, quantizedDate, refLon, sunLon])
 
-  // Split planets into morning/evening once, compute spans and shading rects together
-  const { spanInfos, allRects, morningRects, eveningRects } = useMemo(() => {
+  // Derive shading/span annotations from the lifted bestPerKind
+  const { spanInfos, shadingBands, comboSet } = useMemo(() => {
     const planets = plotData.filter((b) => b.id !== 'Sun')
-    const mPlanets = planets.filter((b) => b.elongation < 0)
-    const ePlanets = planets.filter((b) => b.elongation >= 0)
-
-    // Shading rects (include single-planet thin bands)
-    const buildShadeRects = (group: BodyPlotData[]): { left: number; right: number }[] => {
-      if (group.length < 2) {
-        if (group.length === 1) {
-          const p = group[0].plotLon
-          return [{ left: p - 1, right: p + 1 }]
-        }
-        return []
-      }
-      const arc = computeSpanArc(group.map((b) => b.absLon))
-      return arc ? arcToRects(arc, refLon) : []
+    if (planets.length < 2) {
+      return { spanInfos: [] as SpanInfo[], shadingBands: [] as { kind: AlignmentKind; rects: { left: number; right: number }[] }[], comboSet: new Set<string>() }
     }
 
-    // Span annotations
+    const k = Math.min(activeTab, planets.length)
     const spans: SpanInfo[] = []
-    if (planets.length >= 2) {
-      const allLons = planets.map((b) => b.absLon)
-      const allArc = computeSpanArc(allLons)
-      if (allArc) {
-        spans.push({ label: 'All', span: computeMaxSpan(allLons), rects: arcToRects(allArc, refLon), color: SERIES_COLORS.total })
-      }
-    }
-    for (const [group, label, color] of [
-      [mPlanets, 'AM', SERIES_COLORS.morning],
-      [ePlanets, 'PM', SERIES_COLORS.evening],
-    ] as const) {
-      if (group.length >= 2) {
-        const lons = group.map((b) => b.absLon)
-        const arc = computeSpanArc(lons)
+    const bands: { kind: AlignmentKind; rects: { left: number; right: number }[] }[] = []
+
+    // Collect all planets that appear in any visible best combo (for dimming non-combo planets)
+    const allComboIds = new Set<string>()
+
+    for (const kind of ['morning', 'evening', 'straddling'] as AlignmentKind[]) {
+      const best = bestPerKind[kind]
+      if (!best) continue
+      for (const id of best.bodies) allComboIds.add(id)
+
+      if (best.longitudes.length >= 2) {
+        const arc = computeSpanArc(best.longitudes)
         if (arc) {
-          spans.push({ label, span: computeMaxSpan(lons), rects: arcToRects(arc, refLon), color })
+          const rects = arcToRects(arc, refLon)
+          bands.push({ kind, rects })
+          const kindLabel = kind === 'straddling' ? 'Straddle' : kind === 'morning' ? 'AM' : 'PM'
+          spans.push({ label: `${kindLabel} (${k})`, span: best.span, rects, color: SERIES_COLORS[kind] })
         }
       }
     }
 
-    return {
-      spanInfos: spans,
-      allRects: buildShadeRects(planets),
-      morningRects: buildShadeRects(mPlanets),
-      eveningRects: buildShadeRects(ePlanets),
-    }
-  }, [plotData, refLon])
+    return { spanInfos: spans, shadingBands: bands, comboSet: allComboIds }
+  }, [plotData, refLon, activeTab, bestPerKind])
 
   // Separator: click toggles table, drag resizes split
   const handleSepMouseDown = useCallback((e: React.MouseEvent) => {
@@ -332,9 +321,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   const height = Math.max(isLandscape && chartAreaH > 0 ? chartAreaH : chartH, 120)
   const plotH = Math.max(10, height - MARGIN.top - MARGIN.bottom)
 
-  // Latitude range: ±10° for all planets, ±20° if Pluto is selected
-  const hasPluto = bodies.includes('Pluto')
-  const halfLat = hasPluto ? 20 : 10
+  const halfLat = 10
   const halfLon = 180 / zoomLevel
   const maxPan = 180 - halfLon
   const clampedPan = Math.max(-maxPan, Math.min(maxPan, panOffset))
@@ -366,15 +353,6 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   // In landscape, always show table
   const effectiveShowTable = isLandscape || showTable
 
-  if (bodies.length === 0) {
-    return (
-      <div className="sky-view" ref={containerRef}>
-        <span className="control-label">Sky View</span>
-        <div className="chart-empty">Select planets to see their positions in the sky.</div>
-      </div>
-    )
-  }
-
   // Table data sorted by ascending longitude, with magnitudes
   const tableData = useMemo(() => {
     const sorted = [...plotData].sort((a, b) => a.absLon - b.absLon)
@@ -383,6 +361,15 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
       mag: getBodyVisualMagnitude(b.id as SkyBodyId, quantizedDate),
     }))
   }, [plotData, quantizedDate])
+
+  if (bodies.length === 0) {
+    return (
+      <div className="sky-view" ref={containerRef}>
+        <span className="control-label">Sky View</span>
+        <div className="chart-empty">Select planets to see their positions in the sky.</div>
+      </div>
+    )
+  }
 
   const dotR = 5
   const sunR = 7
@@ -420,43 +407,26 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
             strokeDasharray={v === 0 ? '4 3' : undefined} />
         ))}
 
-        {/* Shading bands gated by visibleSeries */}
+        {/* Shading bands — one per visible kind */}
         <g clipPath={`url(#${clipId})`}>
-          {visibleSeries.has('total') && allRects.map((r, i) => {
-            const rx = xOf(r.left)
-            const rw = xOf(r.right) - rx
-            return (
-              <rect key={`all${i}`} x={rx} y={MARGIN.top} width={rw} height={plotH}
-                fill={hexToRgba(SERIES_COLORS.total, 0.06)} />
-            )
-          })}
-          {visibleSeries.has('morning') && morningRects.map((r, i) => {
-            const rx = xOf(r.left)
-            const rw = xOf(r.right) - rx
-            return (
-              <g key={`am${i}`}>
-                <rect x={rx} y={MARGIN.top} width={rw} height={plotH}
-                  fill={hexToRgba(SERIES_COLORS.morning, 0.10)} />
-                <text x={rx + rw / 2} y={MARGIN.top + 12} textAnchor="middle"
-                  fill={hexToRgba(SERIES_COLORS.morning, 0.5)} fontSize={10} fontFamily="sans-serif" fontWeight={600}>
-                  AM
-                </text>
-              </g>
-            )
-          })}
-          {visibleSeries.has('evening') && eveningRects.map((r, i) => {
-            const rx = xOf(r.left)
-            const rw = xOf(r.right) - rx
-            return (
-              <g key={`pm${i}`}>
-                <rect x={rx} y={MARGIN.top} width={rw} height={plotH}
-                  fill={hexToRgba(SERIES_COLORS.evening, 0.10)} />
-                <text x={rx + rw / 2} y={MARGIN.top + 12} textAnchor="middle"
-                  fill={hexToRgba(SERIES_COLORS.evening, 0.5)} fontSize={10} fontFamily="sans-serif" fontWeight={600}>
-                  PM
-                </text>
-              </g>
-            )
+          {shadingBands.map((band) => {
+            if (!visibleSeries.has(band.kind)) return null
+            const bandColor = SERIES_COLORS[band.kind]
+            const bandLabel = band.kind === 'straddling' ? 'Straddle' : band.kind === 'morning' ? 'AM' : 'PM'
+            return band.rects.map((r, i) => {
+              const rx = xOf(r.left)
+              const rw = xOf(r.right) - rx
+              return (
+                <g key={`${band.kind}-${i}`}>
+                  <rect x={rx} y={MARGIN.top} width={rw} height={plotH}
+                    fill={hexToRgba(bandColor, 0.10)} />
+                  <text x={rx + rw / 2} y={MARGIN.top + 12} textAnchor="middle"
+                    fill={hexToRgba(bandColor, 0.5)} fontSize={10} fontFamily="sans-serif" fontWeight={600}>
+                    {bandLabel}
+                  </text>
+                </g>
+              )
+            })
           })}
         </g>
 
@@ -464,13 +434,15 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
         <g clipPath={`url(#${clipId})`}>
           {plotData.map((b) => {
             const isSun = b.id === 'Sun'
+            const inCombo = isSun || comboSet.size === 0 || comboSet.has(b.id)
             const cx = xOf(b.plotLon)
             const cy = yOf(b.lat)
             const r = isSun ? sunR : dotR
+            const opacity = isSun ? 0.7 : inCombo ? 1 : 0.3
             return (
               <g key={b.id}>
-                <circle cx={cx} cy={cy} r={r} fill={b.color} opacity={isSun ? 0.7 : 1} />
-                <text x={cx} y={cy - r - 3} textAnchor="middle" fill={b.color} fontSize={10} fontFamily="sans-serif">
+                <circle cx={cx} cy={cy} r={r} fill={b.color} opacity={opacity} />
+                <text x={cx} y={cy - r - 3} textAnchor="middle" fill={b.color} fontSize={10} fontFamily="sans-serif" opacity={opacity}>
                   {b.id}
                 </text>
               </g>
@@ -592,6 +564,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
       <div className="sky-view-header">
         <span className="control-label">Sky View — {formatDate(date)}</span>
         <div className="sky-view-controls">
+          <TabSelector tabs={availableTabs} activeTab={activeTab} onChange={onTabChange} />
           <div className="sky-zoom-controls">
             <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
             <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>

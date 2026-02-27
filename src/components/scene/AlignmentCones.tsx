@@ -1,17 +1,16 @@
 import { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { CelestialBodyId, AlignmentKind } from '../../types'
+import { AlignmentKind } from '../../types'
 import { SERIES_COLORS } from '../../constants'
-import { getGeocentricEclipticCoords, computeSpanArc, wrap180 } from '../../lib/alignment'
+import { computeSpanArc, BestPerKind, BestCombination } from '../../lib/alignment'
 import { getBodyPosition } from '../../lib/astronomy'
 import { simulationStore } from '../../hooks/useSimulationStore'
 
 const CONE_RADIUS = 500 // scene units — extends well past outer planets
-const MS_PER_HOUR = 3_600_000
 
 interface Props {
-  selectedBodies: CelestialBodyId[]
+  bestPerKind: BestPerKind
   visibleSeries?: Set<AlignmentKind>
 }
 
@@ -89,32 +88,56 @@ function buildEdgeGeometry(longitudes: number[], radius: number): THREE.BufferGe
   return geo
 }
 
-const emptyGeo = () => {
-  const g = new THREE.BufferGeometry()
-  g.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
-  return g
+const EMPTY_GEO = new THREE.BufferGeometry()
+EMPTY_GEO.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
+
+/** Dispose geometry only if it's not the shared empty instance */
+function disposeIfNotEmpty(geo: THREE.BufferGeometry) {
+  if (geo !== EMPTY_GEO) geo.dispose()
 }
 
-const DEFAULT_VISIBLE = new Set<AlignmentKind>(['total', 'morning', 'evening'])
+function buildGeoForCombo(best: BestCombination | null): { sector: THREE.BufferGeometry; edge: THREE.BufferGeometry } {
+  if (!best || best.longitudes.length < 2) {
+    return { sector: EMPTY_GEO, edge: EMPTY_GEO }
+  }
+  return {
+    sector: buildSectorGeometry(best.longitudes, CONE_RADIUS),
+    edge: buildEdgeGeometry(best.longitudes, CONE_RADIUS),
+  }
+}
 
-export default function AlignmentCones({ selectedBodies, visibleSeries = DEFAULT_VISIBLE }: Props) {
+const DEFAULT_VISIBLE = new Set<AlignmentKind>(['morning', 'evening', 'straddling'])
+
+export default function AlignmentCones({ bestPerKind, visibleSeries = DEFAULT_VISIBLE }: Props) {
   const groupRef = useRef<THREE.Group>(null!)
-  const allMeshRef = useRef<THREE.Mesh>(null!)
+  const straddlingMeshRef = useRef<THREE.Mesh>(null!)
   const amMeshRef = useRef<THREE.Mesh>(null!)
   const pmMeshRef = useRef<THREE.Mesh>(null!)
-  const allEdgeRef = useRef<THREE.LineSegments>(null!)
+  const straddlingEdgeRef = useRef<THREE.LineSegments>(null!)
   const amEdgeRef = useRef<THREE.LineSegments>(null!)
   const pmEdgeRef = useRef<THREE.LineSegments>(null!)
-  const lastHourRef = useRef(-1)
-  const bodiesRef = useRef(selectedBodies)
-  bodiesRef.current = selectedBodies
 
-  // Force geometry recompute when selected bodies change
-  const bodiesKey = selectedBodies.join(',')
-  useEffect(() => { lastHourRef.current = -1 }, [bodiesKey])
+  // Rebuild geometry when bestPerKind changes
+  const bestRef = useRef(bestPerKind)
+  bestRef.current = bestPerKind
 
-  const allMat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: SERIES_COLORS.total, transparent: true, opacity: 0.06,
+  useEffect(() => {
+    const refs = [
+      { mesh: straddlingMeshRef, edge: straddlingEdgeRef, kind: 'straddling' as AlignmentKind },
+      { mesh: amMeshRef, edge: amEdgeRef, kind: 'morning' as AlignmentKind },
+      { mesh: pmMeshRef, edge: pmEdgeRef, kind: 'evening' as AlignmentKind },
+    ]
+    for (const { mesh, edge, kind } of refs) {
+      disposeIfNotEmpty(mesh.current.geometry)
+      disposeIfNotEmpty(edge.current.geometry)
+      const geo = buildGeoForCombo(bestPerKind[kind])
+      mesh.current.geometry = geo.sector
+      edge.current.geometry = geo.edge
+    }
+  }, [bestPerKind])
+
+  const straddlingMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: SERIES_COLORS.straddling, transparent: true, opacity: 0.06,
     side: THREE.DoubleSide, depthWrite: false,
   }), [])
   const amMat = useMemo(() => new THREE.MeshBasicMaterial({
@@ -125,8 +148,8 @@ export default function AlignmentCones({ selectedBodies, visibleSeries = DEFAULT
     color: SERIES_COLORS.evening, transparent: true, opacity: 0.10,
     side: THREE.DoubleSide, depthWrite: false,
   }), [])
-  const allLineMat = useMemo(() => new THREE.LineBasicMaterial({
-    color: SERIES_COLORS.total, transparent: true, opacity: 0.15,
+  const straddlingLineMat = useMemo(() => new THREE.LineBasicMaterial({
+    color: SERIES_COLORS.straddling, transparent: true, opacity: 0.15,
   }), [])
   const amLineMat = useMemo(() => new THREE.LineBasicMaterial({
     color: SERIES_COLORS.morning, transparent: true, opacity: 0.25,
@@ -135,68 +158,19 @@ export default function AlignmentCones({ selectedBodies, visibleSeries = DEFAULT
     color: SERIES_COLORS.evening, transparent: true, opacity: 0.25,
   }), [])
 
+  // Position group at Earth every frame for smooth animation
   useFrame(() => {
     if (!groupRef.current) return
-
-    // Position group at Earth every frame for smooth animation
     const earthPos = getBodyPosition('Earth', simulationStore.date)
     groupRef.current.position.set(earthPos[0], earthPos[1], earthPos[2])
-
-    // Only recompute geometry when the hour changes
-    const hour = Math.round(simulationStore.date.getTime() / MS_PER_HOUR)
-    if (hour === lastHourRef.current) return
-    lastHourRef.current = hour
-
-    const bodies = bodiesRef.current
-    if (bodies.length < 1) {
-      for (const ref of [allMeshRef, amMeshRef, pmMeshRef]) {
-        ref.current.geometry.dispose()
-        ref.current.geometry = emptyGeo()
-      }
-      for (const ref of [allEdgeRef, amEdgeRef, pmEdgeRef]) {
-        ref.current.geometry.dispose()
-        ref.current.geometry = emptyGeo()
-      }
-      return
-    }
-
-    const date = new Date(hour * MS_PER_HOUR)
-    const sunLon = getGeocentricEclipticCoords('Sun', date).lon
-
-    const allLons: number[] = []
-    const morningLons: number[] = []
-    const eveningLons: number[] = []
-
-    for (const id of bodies) {
-      const ecl = getGeocentricEclipticCoords(id, date)
-      allLons.push(ecl.lon)
-      if (wrap180(ecl.lon - sunLon) < 0) morningLons.push(ecl.lon)
-      else eveningLons.push(ecl.lon)
-    }
-
-    // Update sector fills
-    allMeshRef.current.geometry.dispose()
-    allMeshRef.current.geometry = buildSectorGeometry(allLons, CONE_RADIUS)
-    amMeshRef.current.geometry.dispose()
-    amMeshRef.current.geometry = buildSectorGeometry(morningLons, CONE_RADIUS)
-    pmMeshRef.current.geometry.dispose()
-    pmMeshRef.current.geometry = buildSectorGeometry(eveningLons, CONE_RADIUS)
-
-    // Update edge lines
-    allEdgeRef.current.geometry.dispose()
-    allEdgeRef.current.geometry = buildEdgeGeometry(allLons, CONE_RADIUS)
-    amEdgeRef.current.geometry.dispose()
-    amEdgeRef.current.geometry = buildEdgeGeometry(morningLons, CONE_RADIUS)
-    pmEdgeRef.current.geometry.dispose()
-    pmEdgeRef.current.geometry = buildEdgeGeometry(eveningLons, CONE_RADIUS)
   })
 
   return (
     <group ref={groupRef}>
-      <mesh ref={allMeshRef} material={allMat} visible={visibleSeries.has('total')} />
+      <mesh ref={straddlingMeshRef} material={straddlingMat} visible={visibleSeries.has('straddling')} />
       <mesh ref={amMeshRef} material={amMat} visible={visibleSeries.has('morning')} />
       <mesh ref={pmMeshRef} material={pmMat} visible={visibleSeries.has('evening')} />
-      <lineSegments ref={allEdgeRef} material={allLineMat} visible={visibleSeries.has('total')} />
+      <lineSegments ref={straddlingEdgeRef} material={straddlingLineMat} visible={visibleSeries.has('straddling')} />
       <lineSegments ref={amEdgeRef} material={amLineMat} visible={visibleSeries.has('morning')} />
       <lineSegments ref={pmEdgeRef} material={pmLineMat} visible={visibleSeries.has('evening')} />
     </group>

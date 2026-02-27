@@ -14,6 +14,7 @@ import { BODY_LIST } from '../../constants'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { LabelRegistryProvider } from '../../hooks/useLabelOverlap'
+import { BestPerKind } from '../../lib/alignment'
 
 const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Mars'])
 const INNER_HIDE_DIST = 150 // scene units — hide inner planets when camera is farther than this
@@ -21,11 +22,11 @@ const INNER_HIDE_DIST = 150 // scene units — hide inner planets when camera is
 interface Props {
   positions: Record<CelestialBodyId, [number, number, number]>
   orbitPaths: Record<CelestialBodyId, [number, number, number][]>
-  selectedBodies?: CelestialBodyId[]
   visibleSeries?: Set<AlignmentKind>
+  bestPerKind?: BestPerKind
 }
 
-function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeries }: Props) {
+function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
   const { showOrbits, forceInner, showStars, showMilkyWay, showConstellations, showConstellationBoundaries, showCones } = useDisplaySettings()
   const [showInner, setShowInner] = useState(false) // default camera at 300 → hidden
   const showInnerRef = useRef(false)
@@ -43,6 +44,8 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
     ? BODY_LIST
     : BODY_LIST.filter((id) => !INNER_BODIES.has(id))
 
+  const hasCones = bestPerKind && (bestPerKind.morning || bestPerKind.evening || bestPerKind.straddling)
+
   return (
     <LabelRegistryProvider>
       <ambientLight intensity={0.15} />
@@ -59,23 +62,16 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
           <OrbitLine key={`orbit-${id}`} bodyId={id} points={orbitPaths[id]} />
         ) : null
       ))}
-      {showCones && selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
+      {showCones && hasCones && <AlignmentCones bestPerKind={bestPerKind!} visibleSeries={visibleSeries} />}
       <CameraController />
     </LabelRegistryProvider>
   )
 }
 
-export default function SolarSystemScene({ positions, orbitPaths, selectedBodies, visibleSeries }: Props) {
+export default function SolarSystemScene({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
   const [initialCameraY] = useState(() => {
-    const HALF_FOV = (45 / 2) * Math.PI / 180
-    let maxDist = 0
-    for (const id of (selectedBodies ?? [])) {
-      const pos = positions[id]
-      if (pos) {
-        maxDist = Math.max(maxDist, Math.sqrt(pos[0] ** 2 + pos[2] ** 2))
-      }
-    }
-    return Math.min(1000, Math.max(50, maxDist * 1.3 / Math.tan(HALF_FOV)))
+    // Use a reasonable default — camera starts zoomed out
+    return 300
   })
 
   return (
@@ -83,7 +79,7 @@ export default function SolarSystemScene({ positions, orbitPaths, selectedBodies
       camera={{ position: [0, initialCameraY, 0], fov: 45, near: 0.1, far: 2000 }}
       style={{ background: '#0a0a0f' }}
     >
-      <SceneContents positions={positions} orbitPaths={orbitPaths} selectedBodies={selectedBodies} visibleSeries={visibleSeries} />
+      <SceneContents positions={positions} orbitPaths={orbitPaths} visibleSeries={visibleSeries} bestPerKind={bestPerKind} />
     </Canvas>
   )
 }
