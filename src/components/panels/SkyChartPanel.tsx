@@ -36,6 +36,9 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
     return () => ro.disconnect()
   }, [measure])
 
+  // --- Layer menu ---
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false)
+
   // --- Display toggles ---
   const [showStars, setShowStars] = useState(true)
   const [showConstellationEdges, setShowConstellationEdges] = useState(true)
@@ -329,25 +332,28 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
               </button>
               <button className="sky-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 16}>+</button>
             </div>
+            <div className="skychart-layer-menu">
+              <button className="skychart-layer-btn" onClick={() => setLayerMenuOpen(o => !o)} aria-label="Layers">☰</button>
+              {layerMenuOpen && (
+                <div className="skychart-layer-dropdown">
+                  {([
+                    ['Stars', showStars, setShowStars],
+                    ['Edges', showConstellationEdges, setShowConstellationEdges],
+                    ['Labels', showConstellationLabels, setShowConstellationLabels],
+                    ['Milky Way', showMilkyWay, setShowMilkyWay],
+                    ['Sun & Planets', showPlanets, setShowPlanets],
+                    ['Moon', showMoon, setShowMoon],
+                  ] as [string, boolean, React.Dispatch<React.SetStateAction<boolean>>][]).map(([label, val, setter]) => (
+                    <label key={label} className="skychart-toggle">
+                      <input type="checkbox" checked={val} onChange={() => setter(v => !v)} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
-      </div>
-      <div className="skychart-controls-bar">
-        <div className="skychart-toggles">
-          {([
-            ['Stars', showStars, setShowStars],
-            ['Edges', showConstellationEdges, setShowConstellationEdges],
-            ['Labels', showConstellationLabels, setShowConstellationLabels],
-            ['Milky Way', showMilkyWay, setShowMilkyWay],
-            ['Sun & Planets', showPlanets, setShowPlanets],
-            ['Moon', showMoon, setShowMoon],
-          ] as [string, boolean, React.Dispatch<React.SetStateAction<boolean>>][]).map(([label, val, setter]) => (
-            <label key={label} className="skychart-toggle">
-              <input type="checkbox" checked={val} onChange={() => setter((v) => !v)} />
-              {label}
-            </label>
-          ))}
-        </div>
       </div>
     </div>
   )

@@ -40,6 +40,7 @@ export default function App() {
   const isLandscape = useIsLandscape()
   const [mobileTab, setMobileTab] = useState<MobileTab>('align')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [sceneMenuOpen, setSceneMenuOpen] = useState(false)
 
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -227,8 +228,19 @@ export default function App() {
             <SolarSystemScene positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
             <div className="scene-overlay">
               <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
-              <DisplayToggles />
-              <BodySelector />
+              <button
+                className="scene-menu-btn"
+                onClick={() => setSceneMenuOpen((o) => !o)}
+                aria-label="Settings"
+              >
+                ☰
+              </button>
+              {sceneMenuOpen && (
+                <div className="scene-menu-dropdown">
+                  <DisplayToggles />
+                  <BodySelector />
+                </div>
+              )}
             </div>
             <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} selectedBodies={alignment.selectedBodies} visibleSeries={alignment.visibleSeries} />
           </div>

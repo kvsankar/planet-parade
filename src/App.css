@@ -928,6 +928,36 @@ select option {
   border-bottom: none;
 }
 
+.scene-menu-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(10, 10, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.scene-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.scene-menu-dropdown {
+  background: rgba(10, 10, 20, 0.92);
+  border-radius: 8px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ====== Inner Planets Inset ====== */
 .inner-planets-inset {
   position: absolute;
@@ -1164,6 +1194,47 @@ select option {
   bottom: 4px;
   right: 6px;
   z-index: 1;
+}
+
+.skychart-layer-menu {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  z-index: 1;
+}
+
+.skychart-layer-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(10, 10, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.skychart-layer-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.skychart-layer-dropdown {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  background: rgba(10, 10, 20, 0.92);
+  border-radius: 8px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 /* ====== Driver.js Dark Theme Overrides ====== */
