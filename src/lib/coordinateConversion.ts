@@ -1,5 +1,7 @@
 import { AU_TO_SCENE } from '../constants'
 
+export const CELESTIAL_SPHERE_RADIUS = 950
+
 const OBLIQUITY_RAD = 23.4392911 * (Math.PI / 180)
 const cosObl = Math.cos(OBLIQUITY_RAD)
 const sinObl = Math.sin(OBLIQUITY_RAD)
@@ -29,4 +31,19 @@ function eclipticToScene(eclX: number, eclY: number, eclZ: number): [number, num
 export function eqjToScene(x: number, y: number, z: number): [number, number, number] {
   const [eclX, eclY, eclZ] = eqjToEcliptic(x, y, z)
   return eclipticToScene(eclX, eclY, eclZ)
+}
+
+/** Convert RA/Dec (J2000) to 3D scene position on celestial sphere */
+export function raDecToSceneSphere(raHours: number, decDeg: number, radius = CELESTIAL_SPHERE_RADIUS): [number, number, number] {
+  const raRad = raHours * (Math.PI / 12)
+  const decRad = decDeg * (Math.PI / 180)
+  const cosDec = Math.cos(decRad)
+  // EQJ unit vector
+  const x = cosDec * Math.cos(raRad)
+  const y = cosDec * Math.sin(raRad)
+  const z = Math.sin(decRad)
+  // Rotate to ecliptic
+  const [eclX, eclY, eclZ] = eqjToEcliptic(x, y, z)
+  // Map to scene axes: eclX→X, eclZ→Y(up), -eclY→Z, scaled by radius
+  return [eclX * radius, eclZ * radius, -eclY * radius]
 }
