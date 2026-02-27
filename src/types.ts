@@ -37,9 +37,19 @@ export interface DisplaySettings {
   showOrbits: boolean
   showLabels: boolean
   forceInner: boolean
+  showStars: boolean
+  showMilkyWay: boolean
+  showConstellations: boolean
+  showConstellationBoundaries: boolean
+  showCones: boolean
   toggleOrbits: () => void
   toggleLabels: () => void
   toggleForceInner: () => void
+  toggleStars: () => void
+  toggleMilkyWay: () => void
+  toggleConstellations: () => void
+  toggleConstellationBoundaries: () => void
+  toggleCones: () => void
 }
 
 export interface AlignmentDataPoint {

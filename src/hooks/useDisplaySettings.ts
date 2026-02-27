@@ -5,9 +5,19 @@ export const DisplaySettingsContext = createContext<DisplaySettings>({
   showOrbits: true,
   showLabels: true,
   forceInner: false,
+  showStars: true,
+  showMilkyWay: true,
+  showConstellations: true,
+  showConstellationBoundaries: false,
+  showCones: true,
   toggleOrbits: () => {},
   toggleLabels: () => {},
   toggleForceInner: () => {},
+  toggleStars: () => {},
+  toggleMilkyWay: () => {},
+  toggleConstellations: () => {},
+  toggleConstellationBoundaries: () => {},
+  toggleCones: () => {},
 })
 
 export function useDisplaySettings() {

@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useFrame } from '@react-three/fiber'
-import { Stars } from '@react-three/drei'
 import Sun from './Sun'
 import CelestialBody from './CelestialBody'
 import OrbitLine from './OrbitLine'
 import AlignmentCones from './AlignmentCones'
 import CameraController from './CameraController'
+import RealStars from './RealStars'
+import MilkyWaySphere from './MilkyWaySphere'
+import ConstellationLines3D from './ConstellationLines3D'
+import ConstellationBoundaries3D from './ConstellationBoundaries3D'
 import { BODY_LIST } from '../../constants'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
@@ -23,7 +26,7 @@ interface Props {
 }
 
 function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeries }: Props) {
-  const { showOrbits, forceInner } = useDisplaySettings()
+  const { showOrbits, forceInner, showStars, showMilkyWay, showConstellations, showConstellationBoundaries, showCones } = useDisplaySettings()
   const [showInner, setShowInner] = useState(false) // default camera at 300 → hidden
   const showInnerRef = useRef(false)
 
@@ -43,7 +46,10 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
   return (
     <LabelRegistryProvider>
       <ambientLight intensity={0.15} />
-      <Stars radius={500} depth={50} count={3000} factor={4} fade speed={0} />
+      {showMilkyWay && <MilkyWaySphere />}
+      {showStars && <RealStars />}
+      {showConstellations && <ConstellationLines3D />}
+      {showConstellationBoundaries && <ConstellationBoundaries3D />}
       <Sun />
       {visibleBodies.map((id) => (
         <CelestialBody key={id} bodyId={id} position={positions[id]} />
@@ -53,7 +59,7 @@ function SceneContents({ positions, orbitPaths, selectedBodies = [], visibleSeri
           <OrbitLine key={`orbit-${id}`} bodyId={id} points={orbitPaths[id]} />
         ) : null
       ))}
-      {selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
+      {showCones && selectedBodies.length > 0 && <AlignmentCones selectedBodies={selectedBodies} visibleSeries={visibleSeries} />}
       <CameraController />
     </LabelRegistryProvider>
   )

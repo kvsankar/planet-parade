@@ -111,9 +111,19 @@ export default function App() {
   const [showOrbits, setShowOrbits] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
   const [forceInner, setForceInner] = useState(false)
+  const [showStars, setShowStars] = useState(true)
+  const [showMilkyWay, setShowMilkyWay] = useState(true)
+  const [showConstellations, setShowConstellations] = useState(true)
+  const [showConstellationBoundaries, setShowConstellationBoundaries] = useState(false)
+  const [showCones, setShowCones] = useState(true)
   const toggleOrbits = useCallback(() => setShowOrbits((o) => !o), [])
   const toggleLabels = useCallback(() => setShowLabels((l) => !l), [])
   const toggleForceInner = useCallback(() => setForceInner((f) => !f), [])
+  const toggleStars = useCallback(() => setShowStars((s) => !s), [])
+  const toggleMilkyWay = useCallback(() => setShowMilkyWay((m) => !m), [])
+  const toggleConstellations = useCallback(() => setShowConstellations((c) => !c), [])
+  const toggleConstellationBoundaries = useCallback(() => setShowConstellationBoundaries((b) => !b), [])
+  const toggleCones = useCallback(() => setShowCones((c) => !c), [])
 
   // --- Computed (throttled React state — for UI only) ---
   const positions = usePlanetPositions(currentDate)
@@ -142,8 +152,17 @@ export default function App() {
 
   const displayValue = useMemo(() => ({
     showOrbits, showLabels, forceInner,
+    showStars, showMilkyWay, showConstellations, showConstellationBoundaries,
+    showCones,
     toggleOrbits, toggleLabels, toggleForceInner,
-  }), [showOrbits, showLabels, forceInner, toggleOrbits, toggleLabels, toggleForceInner])
+    toggleStars, toggleMilkyWay, toggleConstellations, toggleConstellationBoundaries,
+    toggleCones,
+  }), [showOrbits, showLabels, forceInner,
+    showStars, showMilkyWay, showConstellations, showConstellationBoundaries,
+    showCones,
+    toggleOrbits, toggleLabels, toggleForceInner,
+    toggleStars, toggleMilkyWay, toggleConstellations, toggleConstellationBoundaries,
+    toggleCones])
 
   // Shared panel props
   const fp = (id: PanelId) => ({
