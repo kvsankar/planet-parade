@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
-import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMilkyWayPolygons, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMilkyWayPolygons, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude, getHORtoEQJMatrix } from '../../lib/astronomy'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
@@ -11,7 +11,7 @@ interface SkyChartPanelProps {
   isLandscape?: boolean
 }
 
-const MS_PER_QUARTER_HOUR = 900_000
+const MS_PER_MW_STEP = 120_000 // 2 minutes — only for expensive MW computations
 const MS_PER_DAY = 86_400_000
 
 export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying, isLandscape }: SkyChartPanelProps) {
@@ -46,6 +46,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   const [showMilkyWay, setShowMilkyWay] = useState(true)
   const [showPlanets, setShowPlanets] = useState(true)
   const [showMoon, setShowMoon] = useState(true)
+  const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('polygons')
 
   // --- Zoom / pan ---
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -63,49 +64,72 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1))
   const zoomReset = () => { setZoomLevel(1); setPan({ x: 0, y: 0 }) }
 
-  // --- Smoothly-animated positions (hourly quantization) ---
-  // Instead of computing positions at daily sunrise/sunset (which jumps once
-  // per day), we slide the observer's longitude so the Sun stays on the
-  // horizon while the rest of the sky rotates continuously.
-  const quantizedHour = Math.round(currentDate.getTime() / MS_PER_QUARTER_HOUR)
-  const quantizedDate = useMemo(() => {
-    return new Date(quantizedHour * MS_PER_QUARTER_HOUR)
-  }, [quantizedHour])
+  // --- Smooth animation ---
+  // Stars, planets, ecliptic, and observers update every frame (cheap).
+  // MW polygons and texture use coarser quantization (expensive).
+  const currentMs = currentDate.getTime()
 
   // Virtual observers: same latitude, longitude where Sun is on the horizon
   const morningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(quantizedDate, observer.lat, true)
+    const lon = sunHorizonLongitude(currentDate, observer.lat, true)
     return { lat: observer.lat, lon, height: observer.height }
-  }, [quantizedDate, observer.lat, observer.height])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMs, observer.lat, observer.height])
 
   const eveningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(quantizedDate, observer.lat, false)
+    const lon = sunHorizonLongitude(currentDate, observer.lat, false)
     return { lat: observer.lat, lon, height: observer.height }
-  }, [quantizedDate, observer.lat, observer.height])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMs, observer.lat, observer.height])
 
-  // Positions computed at quantizedDate from the virtual observers
+  // Positions computed every frame for smooth animation
   const morningPositions: AltAzPosition[] = useMemo(() => {
-    return getAllAltAz(quantizedDate, morningObserver)
-  }, [quantizedDate, morningObserver])
+    return getAllAltAz(currentDate, morningObserver)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMs, morningObserver])
 
   const eveningPositions: AltAzPosition[] = useMemo(() => {
-    return getAllAltAz(quantizedDate, eveningObserver)
-  }, [quantizedDate, eveningObserver])
+    return getAllAltAz(currentDate, eveningObserver)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMs, eveningObserver])
 
   const morningStars = useMemo(() =>
-    getStarAltAzPositions(quantizedDate, morningObserver), [quantizedDate, morningObserver])
+    getStarAltAzPositions(currentDate, morningObserver),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, morningObserver])
   const eveningStars = useMemo(() =>
-    getStarAltAzPositions(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
+    getStarAltAzPositions(currentDate, eveningObserver),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, eveningObserver])
 
   const morningEcliptic = useMemo(() =>
-    getEclipticAltAzPositions(quantizedDate, morningObserver), [quantizedDate, morningObserver])
+    getEclipticAltAzPositions(currentDate, morningObserver),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, morningObserver])
   const eveningEcliptic = useMemo(() =>
-    getEclipticAltAzPositions(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
+    getEclipticAltAzPositions(currentDate, eveningObserver),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, eveningObserver])
+
+  // Coarser quantization only for expensive MW computations
+  const mwStep = Math.round(currentMs / MS_PER_MW_STEP)
+  const mwDate = useMemo(() => new Date(mwStep * MS_PER_MW_STEP), [mwStep])
 
   const morningMilkyWay = useMemo(() =>
-    getMilkyWayPolygons(quantizedDate, morningObserver), [quantizedDate, morningObserver])
+    getMilkyWayPolygons(mwDate, morningObserver), [mwDate, morningObserver])
   const eveningMilkyWay = useMemo(() =>
-    getMilkyWayPolygons(quantizedDate, eveningObserver), [quantizedDate, eveningObserver])
+    getMilkyWayPolygons(mwDate, eveningObserver), [mwDate, eveningObserver])
+
+  // HOR→EQJ rotation matrices — updated every frame (cheap: single matrix call).
+  // The worker self-throttles via seq; it always works on the latest request.
+  const morningRotMatrix = useMemo(() =>
+    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(currentDate, morningObserver) : undefined,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, morningObserver, milkyWayStyle])
+  const eveningRotMatrix = useMemo(() =>
+    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(currentDate, eveningObserver) : undefined,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [currentMs, eveningObserver, milkyWayStyle])
 
   // --- Daily quantities (labels, moon phase, magnitudes) ---
   const dayStart = useMemo(() => {
@@ -257,6 +281,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
     showStars, showConstellationEdges, showConstellationLabels,
     showMilkyWay, showPlanets, showMoon, isPlaying,
     hideTitle: !!isMobile,
+    milkyWayStyle,
   }
 
   const morningChart = (
@@ -271,6 +296,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
       moonIllumination={morningMoonIllum}
       moonWaxing={morningMoonWaxing}
       magnitudes={morningMagnitudes}
+      horToEqjMatrix={morningRotMatrix}
       {...toggleProps}
     />
   )
@@ -287,6 +313,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
       moonIllumination={eveningMoonIllum}
       moonWaxing={eveningMoonWaxing}
       magnitudes={eveningMagnitudes}
+      horToEqjMatrix={eveningRotMatrix}
       {...toggleProps}
     />
   )
@@ -347,6 +374,22 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
                     <label key={label} className="skychart-toggle">
                       <input type="checkbox" checked={val} onChange={() => setter(v => !v)} />
                       {label}
+                      {label === 'Milky Way' && val && (
+                        <span className="skychart-mw-pills" onClick={(e) => e.preventDefault()}>
+                          <button
+                            className={`skychart-mw-pill${milkyWayStyle === 'polygons' ? ' active' : ''}`}
+                            onClick={(e) => { e.preventDefault(); setMilkyWayStyle('polygons') }}
+                          >
+                            Poly
+                          </button>
+                          <button
+                            className={`skychart-mw-pill${milkyWayStyle === 'texture' ? ' active' : ''}`}
+                            onClick={(e) => { e.preventDefault(); setMilkyWayStyle('texture') }}
+                          >
+                            Tex
+                          </button>
+                        </span>
+                      )}
                     </label>
                   ))}
                 </div>

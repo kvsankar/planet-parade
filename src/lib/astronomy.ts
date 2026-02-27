@@ -222,6 +222,23 @@ export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation
   return points
 }
 
+// ============ HOR → EQJ rotation matrix (for texture reprojection) ============
+
+/** Returns the 3×3 rotation matrix from horizontal (alt-az) to J2000 equatorial coordinates.
+ *  Transposed from astronomy-engine's column-major storage so that standard
+ *  row-major matrix×vector multiplication gives the correct result. */
+export function getHORtoEQJMatrix(date: Date, observer: ObserverLocation): number[][] {
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  const rot = Astronomy.Rotation_HOR_EQJ(astroTime, obs)
+  // astronomy-engine stores rot[col][row]; transpose to row-major
+  return [
+    [rot.rot[0][0], rot.rot[1][0], rot.rot[2][0]],
+    [rot.rot[0][1], rot.rot[1][1], rot.rot[2][1]],
+    [rot.rot[0][2], rot.rot[1][2], rot.rot[2][2]],
+  ]
+}
+
 // ============ Milky Way polygons (d3-celestial data) ============
 
 // Minimal GeoJSON types for mw.json

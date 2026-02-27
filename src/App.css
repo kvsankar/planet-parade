@@ -1189,6 +1189,30 @@ select option {
   margin: 0;
 }
 
+.skychart-mw-pills {
+  display: inline-flex;
+  margin-left: 6px;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.skychart-mw-pill {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 9px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.skychart-mw-pill.active {
+  background: rgba(107, 147, 214, 0.35);
+  color: #ccc;
+}
+
 .skychart-zoom {
   position: absolute;
   bottom: 4px;

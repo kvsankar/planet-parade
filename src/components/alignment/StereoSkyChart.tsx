@@ -4,6 +4,7 @@ import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { CONSTELLATIONS } from '../../data/constellationLines'
+import MilkyWayTextureCanvas from './MilkyWayTextureCanvas'
 
 interface StereoSkyChartProps {
   positions: AltAzPosition[]
@@ -24,6 +25,8 @@ interface StereoSkyChartProps {
   showMoon?: boolean
   isPlaying?: boolean
   hideTitle?: boolean
+  milkyWayStyle?: 'polygons' | 'texture'
+  horToEqjMatrix?: number[][]
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -128,6 +131,8 @@ export default function StereoSkyChart({
   showConstellationLabels = true, showMilkyWay = true, showPlanets = true, showMoon = true,
   isPlaying = false,
   hideTitle = false,
+  milkyWayStyle = 'polygons',
+  horToEqjMatrix,
 }: StereoSkyChartProps) {
   const MARGIN = hideTitle ? 18 : 28
   const TITLE_OFFSET = hideTitle ? 0 : 18
@@ -273,6 +278,8 @@ export default function StereoSkyChart({
     return offsets
   }, [projected, isPlaying])
 
+  const useTexture = milkyWayStyle === 'texture' && showMilkyWay && !!horToEqjMatrix
+
   if (size < 50) return null
 
   const gridColor = 'rgba(255,255,255,0.12)'
@@ -281,10 +288,22 @@ export default function StereoSkyChart({
   const svgHeight = hideTitle ? size : size + 36
 
   return (
+    <div style={{ position: 'relative', width: size, height: svgHeight, overflow: 'hidden' }}>
+      {useTexture && horToEqjMatrix && (
+        <MilkyWayTextureCanvas
+          rotMatrix={horToEqjMatrix}
+          cx={cx}
+          cy={cy}
+          R={R}
+          width={size}
+          height={svgHeight}
+          opacity={0.45}
+        />
+      )}
     <svg
       width={size}
       height={svgHeight}
-      style={{ display: 'block' }}
+      style={{ display: 'block', position: 'relative' }}
     >
         {/* Title + time */}
         {!hideTitle && (
@@ -332,7 +351,7 @@ export default function StereoSkyChart({
         </defs>
 
         {/* Background */}
-        <circle cx={cx} cy={cy} r={R} fill="#0a0e1a" stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+        <circle cx={cx} cy={cy} r={R} fill={useTexture ? 'transparent' : '#0a0e1a'} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
 
         {/* Twilight glow overlay */}
         {sunProj && (
@@ -427,8 +446,8 @@ export default function StereoSkyChart({
 
         {/* Stars + body dots + labels (clipped to circle) */}
         <g clipPath={`url(#clip-${title})`}>
-          {/* Milky Way polygon layers (deepest background) */}
-          {showMilkyWay && milkyWayPaths.map((layer) =>
+          {/* Milky Way polygon layers (deepest background) — skip when using texture */}
+          {showMilkyWay && !useTexture && milkyWayPaths.map((layer) =>
             layer.path ? (
               <path
                 key={layer.id}
@@ -606,5 +625,6 @@ export default function StereoSkyChart({
           })}
         </g>
     </svg>
+    </div>
   )
 }
