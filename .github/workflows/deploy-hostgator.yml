@@ -44,10 +44,30 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SFTP_PORT }} -H ${{ secrets.SFTP_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Debug SSH key format
+        run: |
+          echo "Key file info:"
+          wc -l ~/.ssh/deploy_key
+          head -1 ~/.ssh/deploy_key
+          tail -1 ~/.ssh/deploy_key
+          echo "Key fingerprint:"
+          ssh-keygen -lf ~/.ssh/deploy_key || echo "Failed to read key"
+
+      - name: Test SSH connection
+        run: |
+          ssh -vvv -i ~/.ssh/deploy_key -p ${{ secrets.SFTP_PORT }} \
+            -o StrictHostKeyChecking=no \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} \
+            "echo SSH_OK" 2>&1 | tail -80
+        timeout-minutes: 2
+        continue-on-error: true
+
       - name: Deploy to Hostgator via rsync
         run: |
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SFTP_PORT }} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SFTP_PORT }} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
             ./dist/ \
             ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:${{ secrets.SFTP_REMOTE_PATH }}
         timeout-minutes: 10
