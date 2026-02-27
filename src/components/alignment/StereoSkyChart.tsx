@@ -21,6 +21,7 @@ interface StereoSkyChartProps {
   showConstellationLabels?: boolean
   showMilkyWay?: boolean
   showPlanets?: boolean
+  showMoon?: boolean
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -122,7 +123,7 @@ export default function StereoSkyChart({
   positions, stars, ecliptic, milkyWay, title, time, size,
   moonIllumination, moonWaxing, magnitudes,
   showStars = true, showConstellationEdges = true,
-  showConstellationLabels = true, showMilkyWay = true, showPlanets = true,
+  showConstellationLabels = true, showMilkyWay = true, showPlanets = true, showMoon = true,
 }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
@@ -138,7 +139,7 @@ export default function StereoSkyChart({
   const moonProj = projected.find((p) => p.bodyId === 'Moon') ?? null
 
   // Moon glow peak opacity: 0.12 * illumination * clamp01(sin(altitude))
-  const moonGlowOpacity = moonProj && moonProj.altitude > 0 && moonIllumination > 0.1
+  const moonGlowOpacity = showMoon && moonProj && moonProj.altitude > 0 && moonIllumination > 0.1
     ? 0.12 * moonIllumination * Math.min(1, Math.sin(moonProj.altitude * DEG_TO_RAD))
     : 0
 
@@ -512,13 +513,15 @@ export default function StereoSkyChart({
             )
           })}
           {/* Planet layer (on top of stars) */}
-          {showPlanets && projected.map((p) => {
+          {projected.map((p) => {
+            const isMoon = p.bodyId === 'Moon'
+            if (isMoon && !showMoon) return null
+            if (!isMoon && !showPlanets) return null
             const px = cx + p.x
             const py = cy + p.y
             const color = bodyColor(p.bodyId)
             const mag = magnitudes[p.bodyId]
             const isSun = p.bodyId === 'Sun'
-            const isMoon = p.bodyId === 'Moon'
             const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(mag ?? 2)
             const isAboveHorizon = p.altitude >= 0
 

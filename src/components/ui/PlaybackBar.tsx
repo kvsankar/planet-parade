@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, type ReactNode } from 'react'
 import { SPEED_OPTIONS, DATE_MIN, DATE_MAX } from '../../constants'
 
 interface PlaybackBarProps {
@@ -8,6 +8,7 @@ interface PlaybackBarProps {
   togglePlay: () => void
   setSpeed: (s: number) => void
   onDateChange: (d: Date) => void
+  extraActions?: ReactNode
 }
 
 function addDays(date: Date, days: number): Date {
@@ -23,6 +24,7 @@ export default memo(function PlaybackBar({
   togglePlay,
   setSpeed,
   onDateChange,
+  extraActions,
 }: PlaybackBarProps) {
   return (
     <div className="playback-bar">
@@ -68,6 +70,7 @@ export default memo(function PlaybackBar({
           <option key={s} value={s}>{s} d/s</option>
         ))}
       </select>
+      {extraActions}
     </div>
   )
 })

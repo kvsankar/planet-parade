@@ -259,14 +259,16 @@ export default function App() {
           togglePlay={togglePlay}
           setSpeed={handleSetSpeed}
           onDateChange={handleSetDate}
+          extraActions={
+            <>
+              <button className="reset-layout-btn" onClick={panel.resetLayout}>
+                Reset Layout
+              </button>
+              <HelpButton onStartTour={startTour} onStartAdvancedTour={startAdvancedTour} />
+            </>
+          }
         />
 
-        <div className="bottom-right-actions">
-          <button className="reset-layout-btn" onClick={panel.resetLayout}>
-            Reset Layout
-          </button>
-          <HelpButton onStartTour={startTour} onStartAdvancedTour={startAdvancedTour} />
-        </div>
       </div>
     </div>
   )

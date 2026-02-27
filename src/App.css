@@ -178,6 +178,7 @@ html, body, #root {
   gap: 0;
 }
 
+
 /* Sections */
 .control-section {
   margin-bottom: 8px;
@@ -1056,6 +1057,14 @@ select option {
 /* ====== Sky Chart Panel ====== */
 .skychart-panel {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.skychart-chart-area {
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -1078,20 +1087,11 @@ select option {
 }
 
 .skychart-controls-bar {
-  position: absolute;
-  bottom: 4px;
-  left: 6px;
-  right: 6px;
-  z-index: 1;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  pointer-events: none;
-}
-
-.skychart-controls-bar > * {
-  pointer-events: auto;
+  justify-content: center;
+  padding: 4px 6px;
 }
 
 .skychart-toggles {
@@ -1124,7 +1124,10 @@ select option {
 }
 
 .skychart-zoom {
-  position: relative;
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  z-index: 1;
 }
 
 /* ====== Driver.js Dark Theme Overrides ====== */
@@ -1209,9 +1212,6 @@ select option {
 }
 
 .help-menu {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
   display: flex;
   flex-direction: column;
   background: rgba(10, 10, 20, 0.95);
@@ -1219,7 +1219,7 @@ select option {
   border-radius: 6px;
   backdrop-filter: blur(12px);
   overflow: hidden;
-  z-index: 220;
+  z-index: 600;
   min-width: 120px;
 }
 
@@ -1417,10 +1417,6 @@ select option {
     font-size: 11px;
   }
 
-  .mobile-help-btn .help-menu {
-    bottom: auto;
-    top: calc(100% + 6px);
-  }
 
   /* --- Scene overlay on mobile — compact menu --- */
   .mobile-scene .scene-overlay {
@@ -1635,10 +1631,7 @@ select option {
 
   /* Skychart controls — compact on mobile */
   .skychart-controls-bar {
-    bottom: 2px;
-    left: 4px;
-    right: 4px;
-    flex-wrap: wrap;
+    padding: 2px 4px;
   }
 
   .skychart-toggles {
