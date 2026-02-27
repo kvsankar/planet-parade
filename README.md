@@ -24,29 +24,38 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 ### Planetary Alignments
 - Select any combination of planets and compute their angular separation over time
 - Morning/evening visibility classification based on solar elongation
-- Automatic detection of closest-alignment dates (local minima)
+- Automatic detection of closest-alignment dates (local minima) with navigation
 - Configurable time ranges from 3 months to 100 years
 
 ### Alignment Timeline
 - Interactive time-series chart of planetary separation (total, morning, evening)
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
 - Click-to-navigate to any date; current-date indicator overlay
+- Series toggles (All/AM/PM) and jump-to-minimum buttons (Today/Prev/Next)
 
 ### Sky View
-- Scatter plot of planet positions in ecliptic longitude, centered on any selected body
-- Morning and evening visibility cones
+- Scatter plot of planet positions in ecliptic longitude and latitude
+- Centerable on ecliptic longitude 0° or the Sun
+- Morning (AM) and evening (PM) visibility shading with span annotations showing angular extent
+- Planetary data table with ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM sky classification
+- Draggable separator to resize chart vs table; table toggleable
 - X-axis zoom/pan with pinch and drag support
 
 ### Stereographic Sky Charts
 - Hemispheric projection of the sky dome at sunrise and sunset
 - Sun, Moon (with phase), planets, 192 stars, 39 constellations, ecliptic curve, and Milky Way
+- Visual magnitudes determine planet and star dot sizes
+- Toggleable layers: stars, constellation edges, constellation labels, Milky Way, planets, Moon
 - Panel-level zoom expands the charts while labels and dots retain their pixel sizes
 - Smooth animation — sky rotates continuously as the date changes
+- Mobile: AM/PM tabs to switch between morning and evening charts
 
 ### Cross-Platform
 - Desktop: draggable, resizable floating panels with z-ordering
 - Mobile: full-screen tabbed interface with compact controls
+- Mobile landscape: two-column layouts for Align (controls | minima table) and Sky View (chart | data table); full-width sky chart circle
 - Touch gestures throughout (pinch-to-zoom, drag-to-pan)
+- Guided tour with Quick Tour and Full Tour modes; auto-starts on first visit
 
 ## Getting Started
 
@@ -85,12 +94,14 @@ npm run test:watch   # Run tests in watch mode
 src/
   components/
     scene/       3D solar system (Sun, planets, orbits, camera)
-    panels/      Floating panel wrappers and panel-specific logic
-    alignment/   Charts, sky views, stereo sky charts, planet picker
-    ui/          Playback bar, body selector, toggles, mobile tab bar
-  hooks/         State management (simulation time, selection, alignment, panels)
+    panels/      Floating panel wrappers (AlignmentPanel, ChartPanel, SkyViewPanel, SkyChartPanel)
+    alignment/   Charts, sky views, stereo sky charts, planet picker, minima table
+    ui/          Playback bar, body selector, toggles, mobile tab bar, help button
+  hooks/         State management, responsive hooks (useIsMobile, useIsLandscape),
+                 guided tour (useTour), display settings, panel manager
   lib/           Astronomy calculations, alignment math, coordinate transforms
   data/          Star catalog, constellation lines, Milky Way polygons
+  types.ts       Shared type definitions (CelestialBodyId, AlignmentDataPoint, etc.)
 ```
 
 ## Data Sources
