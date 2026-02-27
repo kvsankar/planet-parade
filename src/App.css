@@ -1149,6 +1149,47 @@ select option {
   color: #fff !important;
 }
 
+/* ====== Help Button Menu ====== */
+.help-btn-container {
+  position: relative;
+}
+
+.help-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 10, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  z-index: 220;
+  min-width: 120px;
+}
+
+.help-menu-item {
+  padding: 7px 12px;
+  font-size: 11px;
+  font-family: inherit;
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+
+.help-menu-item:hover {
+  background: rgba(107, 147, 214, 0.15);
+  color: #fff;
+}
+
+.help-menu-item + .help-menu-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 /* ====== Mobile Layout (< 768px) ====== */
 @media (max-width: 767.98px) {
 

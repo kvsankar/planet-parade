@@ -126,7 +126,7 @@ export default function App() {
   const panel = usePanelManager()
 
   // --- Guided tour ---
-  const { startTour } = useTour()
+  const { startTour, startAdvancedTour } = useTour()
 
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
@@ -209,7 +209,7 @@ export default function App() {
       )}
 
       <div className="mobile-help-btn">
-        <HelpButton onClick={startTour} />
+        <HelpButton onStartTour={startTour} onStartAdvancedTour={startAdvancedTour} />
       </div>
 
       <MobileTabBar activeTab={mobileTab} onTabChange={setMobileTab} />
@@ -265,7 +265,7 @@ export default function App() {
           <button className="reset-layout-btn" onClick={panel.resetLayout}>
             Reset Layout
           </button>
-          <HelpButton onClick={startTour} />
+          <HelpButton onStartTour={startTour} onStartAdvancedTour={startAdvancedTour} />
         </div>
       </div>
     </div>
