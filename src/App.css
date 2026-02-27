@@ -1417,6 +1417,11 @@ select option {
     font-size: 11px;
   }
 
+  .mobile-help-btn .help-menu {
+    bottom: auto;
+    top: calc(100% + 6px);
+  }
+
   /* --- Scene overlay on mobile — compact menu --- */
   .mobile-scene .scene-overlay {
     top: 8px;
