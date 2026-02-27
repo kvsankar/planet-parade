@@ -166,7 +166,7 @@ function ensureTexture(worker: Worker): Promise<void> {
       resolve()
     }
     img.onerror = () => resolve()
-    img.src = '/starmap_4k.jpg'
+    img.src = `${import.meta.env.BASE_URL}starmap_4k.jpg`
   })
   return textureLoadPromise
 }

@@ -35,7 +35,7 @@ const fragmentShader = `
  * Data: Gaia DR2 (ESA/Gaia/DPAC).
  */
 export default function MilkyWaySphere() {
-  const texture = useLoader(THREE.TextureLoader, '/starmap_4k.jpg')
+  const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}starmap_4k.jpg`)
 
   const { geometry, material } = useMemo(() => {
     // Don't set colorSpace — we want raw sRGB bytes passed through as-is
