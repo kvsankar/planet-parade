@@ -23,6 +23,7 @@ interface StereoSkyChartProps {
   showPlanets?: boolean
   showMoon?: boolean
   isPlaying?: boolean
+  hideTitle?: boolean
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -126,11 +127,13 @@ export default function StereoSkyChart({
   showStars = true, showConstellationEdges = true,
   showConstellationLabels = true, showMilkyWay = true, showPlanets = true, showMoon = true,
   isPlaying = false,
+  hideTitle = false,
 }: StereoSkyChartProps) {
   const MARGIN = 28
+  const TITLE_OFFSET = hideTitle ? 0 : 18
   const R = (size - MARGIN * 2) / 2
   const cx = size / 2
-  const cy = size / 2 + 18 // shift down to clear title + time text
+  const cy = size / 2 + TITLE_OFFSET
 
   const projected = useMemo(() => {
     return positions.map((p) => ({ ...p, ...projectAltAz(p.altitude, p.azimuth, R) }))
@@ -275,20 +278,26 @@ export default function StereoSkyChart({
   const gridColor = 'rgba(255,255,255,0.12)'
   const textColor = '#666'
 
+  const svgHeight = hideTitle ? size : size + 36
+
   return (
     <svg
       width={size}
-      height={size + 36}
+      height={svgHeight}
       style={{ display: 'block' }}
     >
         {/* Title + time */}
-        <text x={cx} y={14} textAnchor="middle" fill="#aaa" fontSize={12} fontWeight={600}>
-          {title}
-        </text>
-        {time && (
-          <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
-            {formatTime(time)}
-          </text>
+        {!hideTitle && (
+          <>
+            <text x={cx} y={14} textAnchor="middle" fill="#aaa" fontSize={12} fontWeight={600}>
+              {title}
+            </text>
+            {time && (
+              <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
+                {formatTime(time)}
+              </text>
+            )}
+          </>
         )}
 
         {/* Clip path and glow gradients */}

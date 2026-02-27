@@ -135,14 +135,14 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   }, [sunsetTime])
 
   // Layout: side-by-side when wide, stacked when tall (desktop shows both)
-  // Mobile: single chart, full width
+  // Mobile: single chart, full width, no title overhead
   const horizontal = containerSize.w > containerSize.h
-  const SVG_OVERHEAD = 36 // title + time text above the chart circle
+  const SVG_OVERHEAD = 36 // title + time text above the chart circle (desktop only)
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
     if (isMobile) {
-      return Math.min(w - 8, h - 8 - SVG_OVERHEAD)
+      return Math.min(w - 8, h - 8)
     }
     return horizontal
       ? Math.min(Math.floor((w - 16) / 2), h - 8 - SVG_OVERHEAD)
@@ -154,7 +154,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   // Pair natural dimensions at current zoom for pan clamping
   const pairW = isMobile ? zoomedSize : horizontal ? zoomedSize * 2 + 4 : zoomedSize
-  const pairH = isMobile ? zoomedSize + 36 : horizontal ? zoomedSize + 36 : (zoomedSize + 36) * 2 + 4
+  const pairH = isMobile ? zoomedSize : horizontal ? zoomedSize + 36 : (zoomedSize + 36) * 2 + 4
   pairSizeRef.current = { w: pairW, h: pairH }
   containerSizeRef.current = containerSize
 
@@ -251,6 +251,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   const toggleProps = {
     showStars, showConstellationEdges, showConstellationLabels,
     showMilkyWay, showPlanets, showMoon, isPlaying,
+    hideTitle: !!isMobile,
   }
 
   const morningChart = (
