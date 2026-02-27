@@ -208,6 +208,10 @@ export default function App() {
         />
       )}
 
+      <div className="mobile-help-btn">
+        <HelpButton onClick={startTour} />
+      </div>
+
       <MobileTabBar activeTab={mobileTab} onTabChange={setMobileTab} />
     </div>
   )
