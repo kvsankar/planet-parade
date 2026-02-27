@@ -126,7 +126,7 @@ export default function App() {
   const panel = usePanelManager()
 
   // --- Guided tour ---
-  const { startTour, startAdvancedTour } = useTour()
+  const { startTour, startAdvancedTour } = useTour({ isMobile, setMobileTab })
 
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
