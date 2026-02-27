@@ -38,7 +38,7 @@ export default memo(function PlaybackBar({
         }}
       />
       <button
-        className="minima-nav-btn"
+        className="minima-nav-btn playback-today-btn"
         onClick={() => onDateChange(new Date())}
         title="Jump to today"
       >

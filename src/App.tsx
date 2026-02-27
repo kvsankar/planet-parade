@@ -180,7 +180,7 @@ export default function App() {
 
       {/* Active panel sheet (overlays scene) */}
       {mobileTab !== 'scene' && (
-        <div className="mobile-sheet">
+        <div className={`mobile-sheet${mobileTab !== 'align' ? ' mobile-sheet-with-playback' : ''}`}>
           <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
           <div className="mobile-sheet-body">
             {mobileTab === 'align' && <AlignmentPanel alignment={alignment} />}
@@ -197,14 +197,16 @@ export default function App() {
         </div>
       )}
 
-      <PlaybackBar
-        currentDate={currentDate}
-        isPlaying={isPlaying}
-        speed={speed}
-        togglePlay={togglePlay}
-        setSpeed={handleSetSpeed}
-        onDateChange={handleSetDate}
-      />
+      {mobileTab !== 'align' && (
+        <PlaybackBar
+          currentDate={currentDate}
+          isPlaying={isPlaying}
+          speed={speed}
+          togglePlay={togglePlay}
+          setSpeed={handleSetSpeed}
+          onDateChange={handleSetDate}
+        />
+      )}
 
       <MobileTabBar activeTab={mobileTab} onTabChange={setMobileTab} />
     </div>
