@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
-import { AlignmentDataPoint, AlignmentKind } from '../../types'
+import { AlignmentTabDataPoint, AlignmentKind } from '../../types'
 import { SERIES_COLORS, formatDate } from '../../constants'
 
 const TOOLTIP_STYLE = {
@@ -19,13 +19,13 @@ const TOOLTIP_STYLE = {
 }
 
 const SERIES_LABELS: Record<string, string> = {
-  separation: 'Total',
-  eveningSep: 'Evening',
   morningSep: 'Morning',
+  eveningSep: 'Evening',
+  straddlingSep: 'Straddling',
 }
 
 interface SeparationChartProps {
-  data: AlignmentDataPoint[]
+  data: AlignmentTabDataPoint[]
   currentDate: number | null
   onDateClick: (dateMs: number) => void
   visibleSeries: Set<AlignmentKind>
@@ -75,11 +75,11 @@ const ChartInner = memo(function ChartInner({
             [`${Number(value ?? 0).toFixed(1)}°`, SERIES_LABELS[name ?? ''] || name]
           }
         />
-        {visibleSeries.has('total') && (
+        {visibleSeries.has('morning') && (
           <Line
             type="monotone"
-            dataKey="separation"
-            stroke={SERIES_COLORS.total}
+            dataKey="morningSep"
+            stroke={SERIES_COLORS.morning}
             strokeWidth={1.5}
             dot={false}
             activeDot={{ r: 3 }}
@@ -90,17 +90,16 @@ const ChartInner = memo(function ChartInner({
             type="monotone"
             dataKey="eveningSep"
             stroke={SERIES_COLORS.evening}
-            strokeWidth={1}
+            strokeWidth={1.5}
             dot={false}
-            activeDot={{ r: 2 }}
-            strokeDasharray="4 2"
+            activeDot={{ r: 3 }}
           />
         )}
-        {visibleSeries.has('morning') && (
+        {visibleSeries.has('straddling') && (
           <Line
             type="monotone"
-            dataKey="morningSep"
-            stroke={SERIES_COLORS.morning}
+            dataKey="straddlingSep"
+            stroke={SERIES_COLORS.straddling}
             strokeWidth={1}
             dot={false}
             activeDot={{ r: 2 }}
@@ -283,6 +282,9 @@ export default function SeparationChart({
   }
   if (visibleSeries.has('evening') && !data.some((d) => d.eveningSep != null)) {
     emptyKinds.push('PM')
+  }
+  if (visibleSeries.has('straddling') && !data.some((d) => d.straddlingSep != null)) {
+    emptyKinds.push('Straddle')
   }
 
   // Current-date indicator within zoomed domain

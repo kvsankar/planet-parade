@@ -18,8 +18,10 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
     minPlanets, setMinPlanets,
     effectiveMin,
     allMinima,
+    availableTabs,
     currentDateMs,
     handleDateSelect,
+    setActiveTab,
   } = alignment
 
   const controls = (
@@ -34,17 +36,21 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
       <SeriesToggle visible={visibleSeries} onChange={setVisibleSeries} />
       {selectedBodies.length > 2 && (
         <div className="min-planets-control">
-          <label className="control-label">Min planets for AM/PM</label>
+          <label className="control-label">Min planets</label>
           <div className="min-planets-chips">
-            {Array.from({ length: selectedBodies.length - 1 }, (_, i) => i + 2).map((n) => (
-              <button
-                key={n}
-                className={`min-planet-chip ${effectiveMin === n ? 'active' : ''}`}
-                onClick={() => setMinPlanets(n)}
-              >
-                {n}
-              </button>
-            ))}
+            {Array.from({ length: selectedBodies.length - 1 }, (_, i) => i + 2).map((n) => {
+              const disabled = n < selectedBodies.length - 3
+              return (
+                <button
+                  key={n}
+                  className={`min-planet-chip ${effectiveMin === n ? 'active' : ''}`}
+                  disabled={disabled}
+                  onClick={() => setMinPlanets(n)}
+                >
+                  {n}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -54,8 +60,10 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
   const minimaTable = (
     <MinimaTable
       minima={allMinima}
+      availableTabs={availableTabs}
       currentDate={currentDateMs}
       onSelect={handleDateSelect}
+      onTabChange={setActiveTab}
     />
   )
 

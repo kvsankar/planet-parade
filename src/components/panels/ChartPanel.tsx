@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import SeparationChart from '../alignment/SeparationChart'
 import AlignmentTimeSlider from '../alignment/AlignmentTimeSlider'
 import SeriesToggle from '../alignment/SeriesToggle'
+import TabSelector from '../ui/TabSelector'
 import { AlignmentState } from '../../hooks/useAlignmentState'
-import { AlignmentDataPoint } from '../../types'
+import { AlignmentTabDataPoint } from '../../types'
 import { formatDate, SERIES_COLORS } from '../../constants'
 
 interface ChartPanelProps {
@@ -14,8 +15,8 @@ interface ChartPanelProps {
 
 /** Find the contiguous non-null range around `dateMs` for a given field */
 function findActiveRange(
-  series: AlignmentDataPoint[],
-  field: 'morningSep' | 'eveningSep',
+  series: AlignmentTabDataPoint[],
+  field: 'morningSep' | 'eveningSep' | 'straddlingSep',
   dateMs: number,
 ): { from: number; to: number } | null {
   // Build contiguous ranges of non-null data
@@ -50,33 +51,36 @@ export default function ChartPanel({
   onDateChange,
 }: ChartPanelProps) {
   const {
-    series,
+    activeTabData,
     startDate,
     durationDays,
     visibleSeries, setVisibleSeries,
+    activeTab, setActiveTab, availableTabs,
     currentDateMs,
     handleDateSelect,
     hasPrev, hasNext, jumpToMinimum,
   } = alignment
 
-  // Find the active contiguous range around currentDate for AM/PM
+  // Find the active contiguous range around currentDate for AM/PM/Straddling
   const activeRanges = useMemo(() => {
     const result: { label: string; from: number; to: number; color: string }[] = []
     for (const [key, field, label, color] of [
       ['morning', 'morningSep', 'AM', SERIES_COLORS.morning],
       ['evening', 'eveningSep', 'PM', SERIES_COLORS.evening],
+      ['straddling', 'straddlingSep', 'Straddle', SERIES_COLORS.straddling],
     ] as const) {
       if (!visibleSeries.has(key)) continue
-      const range = findActiveRange(series, field, currentDateMs)
+      const range = findActiveRange(activeTabData, field, currentDateMs)
       if (range) result.push({ label, ...range, color })
     }
     return result
-  }, [series, visibleSeries, currentDateMs])
+  }, [activeTabData, visibleSeries, currentDateMs])
 
   return (
     <div className="chart-panel-inner">
+      <TabSelector tabs={availableTabs} activeTab={activeTab} onChange={setActiveTab} />
       <SeparationChart
-        data={series}
+        data={activeTabData}
         currentDate={currentDateMs}
         onDateClick={handleDateSelect}
         visibleSeries={visibleSeries}

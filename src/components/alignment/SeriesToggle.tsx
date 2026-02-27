@@ -9,9 +9,9 @@ interface SeriesToggleProps {
 }
 
 const SERIES_OPTIONS: { kind: AlignmentKind; label: string }[] = [
-  { kind: 'total', label: 'All' },
   { kind: 'morning', label: 'AM' },
   { kind: 'evening', label: 'PM' },
+  { kind: 'straddling', label: 'Straddle' },
 ]
 
 export default memo(function SeriesToggle({ visible, onChange, inline }: SeriesToggleProps) {
