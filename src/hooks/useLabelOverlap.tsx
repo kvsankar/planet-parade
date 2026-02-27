@@ -125,7 +125,7 @@ export function useLabelRegistry(): LabelRegistry {
 const PRIORITY_ORDER: Record<string, number> = {
   Sun: 1, Earth: 2, Jupiter: 3, Saturn: 4,
   Mars: 5, Venus: 6, Neptune: 7, Uranus: 8,
-  Mercury: 9, Pluto: 10,
+  Mercury: 9,
 }
 
 export function getLabelPriority(bodyId: string, isSelected: boolean): number {

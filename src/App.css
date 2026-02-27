@@ -525,8 +525,13 @@ select option {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.min-planet-chip:hover:not(.active) {
+.min-planet-chip:hover:not(.active):not(:disabled) {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.min-planet-chip:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* ====== Chart Panel ====== */
@@ -535,6 +540,44 @@ select option {
   flex-direction: column;
   gap: 0;
   height: 100%;
+}
+
+.chart-tab-selector {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.chart-tab-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chart-tab-btn.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+}
+
+.chart-tab-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.06);
+  color: #ddd;
+}
+
+.planets-cell {
+  font-size: 10px;
+  color: #999;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Separation chart */
@@ -717,6 +760,11 @@ select option {
 .minima-table {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.minima-count-filter {
+  display: flex;
   gap: 4px;
 }
 

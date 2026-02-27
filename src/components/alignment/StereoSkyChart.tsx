@@ -41,7 +41,6 @@ const BODY_LABELS: Record<SkyBodyId, string> = {
   Saturn: 'Sat',
   Uranus: 'Ura',
   Neptune: 'Nep',
-  Pluto: 'Plu',
 }
 
 function bodyColor(id: SkyBodyId): string {

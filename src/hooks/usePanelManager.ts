@@ -13,7 +13,7 @@ export type PanelId = 'scene' | 'controls' | 'chart' | 'skyview' | 'skychart'
 
 type PanelLayouts = Record<PanelId, PanelLayout>
 
-const STORAGE_KEY = 'solar-panels-layout-v8'
+const STORAGE_KEY = 'solar-panels-layout-v9'
 
 function getDefaults(): PanelLayouts {
   const w = window.innerWidth
@@ -23,7 +23,7 @@ function getDefaults(): PanelLayouts {
   const totalH = h - PAD * 2
 
   // Column 1: Alignments (left sidebar)
-  const col1W = 250
+  const col1W = 340
   const col1X = PAD
 
   // Column 4: Sky Charts (right sidebar)

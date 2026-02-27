@@ -13,7 +13,6 @@ const BODY_MAP: Record<string, Astronomy.Body> = {
   Saturn: Astronomy.Body.Saturn,
   Uranus: Astronomy.Body.Uranus,
   Neptune: Astronomy.Body.Neptune,
-  Pluto: Astronomy.Body.Pluto,
 }
 
 /** Get heliocentric position of a planet in Three.js scene coords */
@@ -40,11 +39,11 @@ export function getAllPositions(date: Date): Record<CelestialBodyId, [number, nu
 // ============ Sky Chart (alt-az) functions ============
 
 export type SkyBodyId = 'Sun' | 'Moon' | 'Mercury' | 'Venus' | 'Mars'
-  | 'Jupiter' | 'Saturn' | 'Uranus' | 'Neptune' | 'Pluto'
+  | 'Jupiter' | 'Saturn' | 'Uranus' | 'Neptune'
 
 export const SKY_BODIES: SkyBodyId[] = [
   'Sun', 'Moon', 'Mercury', 'Venus', 'Mars',
-  'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
+  'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
 
 const SKY_BODY_MAP: Record<SkyBodyId, Astronomy.Body> = {
@@ -57,7 +56,6 @@ const SKY_BODY_MAP: Record<SkyBodyId, Astronomy.Body> = {
   Saturn: Astronomy.Body.Saturn,
   Uranus: Astronomy.Body.Uranus,
   Neptune: Astronomy.Body.Neptune,
-  Pluto: Astronomy.Body.Pluto,
 }
 
 export interface AltAzPosition {
