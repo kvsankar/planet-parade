@@ -1,151 +1,128 @@
 # Planet Parade — Specification
 
-## 1. Needs
+## 1. Purpose
 
-The application addresses the need for an interactive, browser-based visualization of our solar system and sky that uses real astronomical data. Users should be able to:
+Planetary alignment events — like the Feb 2025 and Feb 2026 "planet parades" — generate enormous media hype, but the reality is often underwhelming: planets spread across 90+ degrees of sky, some too faint to see, some lost in twilight. This app lets users investigate alignments themselves with real astronomical data.
 
-- See where the planets actually are (or were, or will be) at any point in time.
-- Explore the solar system spatially — zoom, rotate, and look at it from any angle.
-- Watch the planets move along their orbits in animated playback.
-- Select individual bodies to inspect them and track their motion.
-- Gain an intuitive sense of scale — how far apart the planets are, how fast they move relative to each other.
-- Find planetary alignment events and understand morning/evening visibility.
-- View the sky as it appears from any location at sunrise and sunset — planets, stars, constellations, and the Milky Way.
+The core question it answers: **When can I see the most planets at once without spending hours outside?**
 
-The target audience is anyone curious about planetary motion — students, educators, hobbyists — not professional astronomers. Accuracy matters, but approachability matters more.
+If you observe the sky for 24 hours, all planets are visible (ignoring twilight/Sun/Moon effects). But can you see most of them at a single point in time — in the evening sky, or the morning sky? If not all, then how many, and when? Planet Parade lets you explore and find those times across months, years, or decades.
+
+The target audience is astronomy educators, science communicators, and curious hobbyists — people who want to cut through hype and understand what planetary alignments really look like and when they actually happen.
 
 ---
 
 ## 2. Features
 
-### 2.1 Celestial Bodies
+### 2.1 Alignment Analysis (Primary Feature)
 
-The visualization includes **11 celestial bodies**:
+The alignment analyzer is the heart of the app. The user selects a set of planets (up to 8, excluding Earth), defines a time range, and the app computes how tightly those planets cluster in the sky over time.
 
-| Body    | Notes                          |
-|---------|--------------------------------|
-| Sun     | Fixed at the center of the scene |
-| Mercury | Innermost planet               |
-| Venus   |                                |
-| Earth   |                                |
-| Mars    |                                |
-| Jupiter |                                |
-| Saturn  |                                |
-| Uranus  |                                |
-| Neptune |                                |
-| Pluto   | Included despite dwarf planet reclassification |
-| Moon    | Earth's Moon; orbits Earth     |
+#### Planet selection
 
-Each body is rendered as a colored sphere. No textures — color alone distinguishes them.
+The user picks which planets to analyze. Default: Mercury through Neptune (7 planets). Pluto is optional. Any combination of 2–8 planets can be selected.
 
-### 2.2 Accurate Positions
+#### Time range
 
-- Planetary positions are computed from real ephemeris data (astronomy-engine, VSOP87 models), not simplified circular orbits.
-- Positions use the **ecliptic coordinate system** (the plane of Earth's orbit as the reference plane).
-- Orbits are **to-scale** in distance: the relative spacing between planets reflects their true distances in AU.
-- The Moon's position is computed relative to Earth and offset accordingly.
+- **Start date**: any date in the 1975–2075 range.
+- **Duration presets**: 3 months, 6 months, 1, 2, 5, 10, 20, 50, or 100 years.
+- **Custom duration**: exact number of days, months, or years.
 
-### 2.3 Orbit Lines
+#### Angular separation series
 
-- Each body's orbital path is drawn as a line tracing one full orbital period.
-- Orbit lines can be **toggled on/off** globally.
+For each day in the time range, the app computes the minimum ecliptic longitude arc that spans all selected planets as seen from Earth's center. This produces three series:
 
-### 2.4 Labels
+- **Total**: the span of all selected planets, regardless of when they're visible.
+- **Morning (AM)**: the span of planets west of the Sun (visible before sunrise) — only computed when enough planets qualify.
+- **Evening (PM)**: the span of planets east of the Sun (visible after sunset) — only computed when enough planets qualify.
 
-- Each body has a text label showing its name.
-- Labels can be **toggled on/off** globally.
-- The selected body's label appears bold.
-- Labels have overlap detection to avoid cluttering.
+The AM/PM distinction is the key insight: a "planet parade" is only useful if the planets are actually in the same part of the sky at the same time — either the morning sky or the evening sky.
 
-### 2.5 Dynamic Body Sizing
+#### Minimum planet threshold
 
-- Bodies are **not to scale** in physical radius — they would be invisible at true scale.
-- Instead, each body maintains a roughly consistent **apparent size on screen** regardless of zoom level.
-- Selected bodies appear slightly larger than unselected ones.
+When 3+ planets are selected, the user can set how many must be visible in the AM or PM window for it to count. Example: with 7 planets selected and a threshold of 6, the AM series only has values on dates when at least 6 of the 7 are in the morning sky.
+
+#### Closest alignments
+
+The app automatically finds local minima — dates when the selected planets cluster tightest. These are shown in a sortable table (by date or by span). Clicking a row jumps the entire app to that date. Previous/Next buttons step through minima chronologically.
+
+#### Colors
+
+Consistent across all views:
+- **AM**: warm orange (evoking morning)
+- **PM**: deep indigo (evoking night)
+- **Total**: neutral blue-grey
+
+### 2.2 Alignment Timeline
+
+An interactive line chart plotting angular separation (degrees) over time. Up to three traces (Total, AM, PM) are shown simultaneously, each independently toggleable.
+
+- Click any point to jump to that date.
+- Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
+- Current-date indicator (vertical line).
+- Context labels showing the active AM/PM date ranges.
+
+### 2.3 Sky View (Ecliptic Projection)
+
+A 2D scatter plot of planet positions in ecliptic longitude (X) and latitude (Y):
+
+- **Center modes**: Longitude 0° at center, or Sun at center.
+- **Shading bands**: colored regions show the AM, PM, and total spans with degree annotations.
+- **Zoom/pan**: X-axis zoom (1–16×) with drag and pinch support.
+- **Planet data table**: ecliptic longitude, latitude, elongation from Sun, visual magnitude, and AM/PM classification for each body.
+
+### 2.4 Sky Charts (Stereographic Projection)
+
+Dual hemispheric sky charts showing what you would actually see at sunrise (morning chart) and sunset (evening chart) from a location on Earth's equator:
+
+- **Projection**: azimuthal equidistant — zenith at center, horizon at edge, cardinal directions labeled.
+- **Rendered elements**: Sun, Moon (with accurate phase), planets, 192 bright stars (with spectral color), 39 constellation stick figures and labels, ecliptic curve, Milky Way.
+- **Milky Way rendering**: two modes toggled via `[Poly | Tex]` pills:
+  - Polygons — multi-layer SVG fills from d3-celestial data.
+  - Texture — real-time reprojection of a NASA Deep Star Maps JPEG (Gaia DR2, 1.7 billion stars) via Web Worker.
+- **Toggleable layers**: stars, constellation edges, constellation labels, Milky Way, Sun & planets, Moon.
+- **Visual magnitude**: brighter objects rendered larger.
+- **Zoom**: 1–16× panel zoom expands both charts; labels and dots scale down to avoid clutter.
+
+### 2.5 3D Solar System
+
+An interactive heliocentric 3D view showing the Sun, eight planets, Pluto, and the Moon as colored spheres at their real positions:
+
+- **Accurate positions**: computed from `astronomy-engine` ephemeris data (VSOP87 models) in ecliptic coordinates, to-scale in AU.
+- **Orbits**: one full orbital period per body, toggleable.
+- **Labels**: toggleable, with overlap detection.
+- **Dynamic sizing**: bodies maintain a consistent apparent pixel size regardless of zoom.
+- **Alignment cones**: when alignment analysis is active, cones from Earth visualize the angular spread of the selected planets.
+- **Celestial background** (all toggleable):
+  - NASA Deep Star Maps Milky Way sphere (custom ShaderMaterial, see `docs/milkyway-texture.md`).
+  - 192 bright stars with accurate B-V color mapping.
+  - 39 constellation stick figures.
+  - IAU constellation boundary lines.
+- **Camera**: rotate (drag), zoom (scroll), pan (right-drag). Body selection animates camera toward the body. Follow mode tracks the selected body continuously.
+- **Inner planets**: auto-hide when zoomed far out to avoid crowding; toggleable override.
 
 ### 2.6 Time Controls
 
-Users can control the simulation date through:
+A global playback bar shared across all views — changing the date updates everything simultaneously:
 
-- **Date picker**: type or pick an exact date.
-- **Timeline slider**: scrub across the full date range.
-- **Play/Pause**: animate time progression.
-- **Speed selector**: choose how many simulated days pass per real second.
-- **Navigation buttons**: ±1 day, ±5 days, Today.
+- **Date picker**: direct date entry.
+- **Timeline slider**: scrub across the 1975–2075 range.
+- **Play/Pause**: animated time progression.
+- **Speed presets**: 1, 5, 10, 30, 100, 365, 1000, 3650 days/second.
+- **Navigation**: ±1 day, ±5 days, Today, Previous alignment, Next alignment.
+- **Smooth animation**: positions update every render frame (60 fps). No per-frame jitter.
 
-**Date range**: 1975-01-01 to 2075-01-01 (100 years).
+### 2.7 Responsive Layout
 
-**Speed presets**: 1, 5, 10, 30, 100, 365, 1000, 3650 days/second.
+- **Desktop**: floating, draggable, resizable panels with z-ordering. All five views visible simultaneously.
+- **Mobile (portrait)**: tabbed interface — Align, Timeline, Scene, Sky, Charts. One panel at a time.
+- **Mobile (landscape)**: two-column layouts where appropriate (chart + table, controls + results).
+- **Touch**: pinch-to-zoom and drag-to-pan on all interactive charts.
 
-**Default speed**: 10 days/second.
+### 2.8 Guided Tours
 
-Animation must be **smooth** — bodies should glide along their orbits without visible jitter or stuttering.
-
-### 2.7 Camera Controls
-
-- **Rotate**: drag to orbit the camera around the scene.
-- **Zoom**: scroll to zoom in and out.
-- **Pan**: right-drag or shift-drag to pan.
-- **Default view**: top-down, looking at the Sun from above the ecliptic (north ecliptic pole).
-
-### 2.8 Body Selection
-
-- **Click** a body in the 3D scene to select it.
-- **Body list** in the control panel: click a name to select it.
-- When a body is selected:
-  - The camera smoothly animates to center on it.
-  - An info panel shows the body's name and its current distance from the Sun (in AU).
-
-### 2.9 Follow Mode
-
-- When a body is selected, a **Follow** toggle becomes available.
-- When Follow is on, the camera continuously tracks the selected body, keeping it centered as time advances.
-- When Follow is off, the camera animates to the body once and then stays put.
-
-### 2.10 Celestial Background
-
-The scene includes several toggleable background layers:
-
-- **Milky Way sphere**: A 949-unit radius sphere textured with a NASA Deep Star Maps 2020 JPEG (Gaia DR2, 1.7 billion stars), rendered via a custom ShaderMaterial to bypass Three.js color management. See `docs/milkyway-texture.md` for full details.
-- **Real stars**: 192 bright stars from the Yale BSC/Hipparcos catalog, rendered as point sprites with accurate B-V color mapping (spectral class → effective temperature → sRGB via Planck/CIE chromaticity).
-- **Constellation lines**: 39 constellation stick figures connecting catalog stars.
-- **Constellation boundaries**: Dashed lines showing official IAU constellation boundaries.
-
-### 2.11 Planetary Alignment Detection
-
-The alignment panel allows users to:
-
-- Select which planets to analyze (8 analyzable, excluding Earth).
-- Set a time range (3 months to 100 years).
-- Compute angular separation series (ecliptic longitude span) at daily intervals.
-- View total, morning, and evening alignment series on an interactive timeline chart.
-- Find local minima (closest-alignment dates) with jump-to-date navigation.
-- Classify planets as morning or evening objects based on elongation from the Sun.
-- Set minimum planet count for AM/PM groupings.
-
-### 2.12 Sky View (Ecliptic Scatter)
-
-A 2D projection of planets in ecliptic longitude (X) and latitude (Y):
-
-- Centerable on ecliptic longitude 0° or the Sun.
-- Morning/evening visibility shading with angular span annotations.
-- Planet data table showing ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM classification.
-- X-axis zoom/pan with pinch and drag support.
-
-### 2.13 Stereographic Sky Charts
-
-Dual hemispheric projections showing the sky at sunrise (morning) and sunset (evening):
-
-- **Azimuthal equidistant projection**: altitude maps linearly to radius, azimuth maps to angle.
-- **Rendered elements**: Sun, Moon (with accurate phase visualization), planets, 192 stars, 39 constellations (edges and labels), ecliptic curve, Milky Way.
-- **Milky Way dual rendering**:
-  - **Polygons**: Multi-layer SVG fills from d3-celestial data (5 opacity layers).
-  - **Texture**: Real-time reprojection of NASA Deep Star Maps JPEG via Web Worker with bilinear sampling.
-  - Toggle between modes with `[Poly | Tex]` pills in the layer menu.
-- **Toggleable layers**: Stars, constellation edges, constellation labels, Milky Way (with style sub-toggle), Sun, planets, Moon.
-- **Visual magnitude scaling**: Planet and star dot sizes scale with brightness.
-- **Panel zoom**: 1× to 16× zoom expands charts while preserving label/dot sizes.
-- **Smooth animation**: Continuous updates as date changes; rotation matrices update per-frame, expensive Milky Way polygons update on coarser 2-minute quantization.
+- Quick Tour (introductory) and Full Tour (comprehensive), powered by `driver.js`.
+- Auto-launches on first visit.
 
 ---
 
@@ -155,59 +132,53 @@ Dual hemispheric projections showing the sky at sunrise (morning) and sunset (ev
 
 | ID    | Requirement |
 |-------|-------------|
-| FR-1  | The app shall display the Sun, eight planets, Pluto, and Earth's Moon as distinct colored spheres in 3D space. |
-| FR-2  | Body positions shall be computed from astronomical ephemeris data for the current simulation date. |
-| FR-3  | Positions shall use ecliptic coordinates, with orbits to-scale in AU. |
-| FR-4  | The Moon shall orbit Earth at its correct geocentric position, offset by Earth's heliocentric position. |
-| FR-5  | Orbit lines shall trace one full orbital period for each body and be toggleable. |
-| FR-6  | Text labels shall be toggleable and displayed above each body with overlap detection. |
-| FR-7  | Bodies shall maintain a consistent apparent screen size (in pixels) regardless of camera distance. |
-| FR-8  | The user shall be able to set the simulation date via a date picker, a timeline slider, or animated playback. |
-| FR-9  | Playback speed shall be selectable from a set of presets. |
-| FR-10 | Animation shall update body positions every render frame for smooth motion (no per-frame jitter). |
-| FR-11 | The camera shall support rotate, zoom, and pan interactions. |
-| FR-12 | Clicking a body (in the scene or body list) shall select it and animate the camera toward it. |
-| FR-13 | Follow mode shall continuously track the selected body's position each frame. |
-| FR-14 | An info panel shall show the selected body's name and distance from the Sun in AU. |
+| FR-1  | The user shall be able to select a subset of planets and compute their ecliptic longitude span over a configurable time range. |
+| FR-2  | The app shall classify planets as morning (west of Sun) or evening (east of Sun) and compute separate AM/PM alignment series. |
+| FR-3  | The app shall detect local minima (closest-alignment dates) and present them in a navigable table. |
+| FR-4  | The user shall be able to set a minimum planet count for AM/PM groupings. |
+| FR-5  | An interactive timeline chart shall display Total, AM, and PM separation series with zoom, pan, and click-to-navigate. |
+| FR-6  | A sky view shall plot planet positions in ecliptic longitude/latitude with AM/PM shading and span annotations. |
+| FR-7  | A planet data table shall show ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM classification. |
+| FR-8  | Dual stereographic sky charts shall show the sky at sunrise and sunset with stars, constellations, Milky Way, Moon phase, and planets. |
+| FR-9  | The Milky Way shall be renderable in both polygon and NASA texture modes, toggled by the user. |
+| FR-10 | A 3D solar system view shall display all bodies at their real heliocentric positions with to-scale orbits. |
+| FR-11 | Alignment cones from Earth shall visualize the angular spread of selected planets in the 3D view. |
+| FR-12 | The celestial background shall include real stars, constellation lines, and constellation boundaries, all toggleable. |
+| FR-13 | Body positions shall be computed from astronomical ephemeris data for the current simulation date. |
+| FR-14 | The user shall be able to control the simulation date via date picker, timeline slider, or animated playback with selectable speed. |
 | FR-15 | The simulation date range shall span 1975-01-01 to 2075-01-01. |
-| FR-16 | The app shall compute and display planetary alignment series with morning/evening classification. |
-| FR-17 | Stereographic sky charts shall show the sky as seen from any location at sunrise/sunset with toggleable layers. |
-| FR-18 | The Milky Way shall be renderable in both polygon (SVG) and texture (NASA JPEG reprojection) modes. |
-| FR-19 | The celestial background shall include real stars, constellation lines, and constellation boundaries, all toggleable. |
+| FR-16 | Animation shall update positions every render frame for smooth motion. |
+| FR-17 | Clicking a body shall select it and animate the camera toward it; Follow mode shall track it continuously. |
 
 ### 3.2 Non-Functional Requirements
 
 | ID     | Requirement |
 |--------|-------------|
-| NFR-1  | The app shall run in modern desktop browsers (Chrome, Firefox, Edge, Safari). |
-| NFR-2  | Animation shall maintain 60fps on mid-range hardware. |
-| NFR-3  | UI control updates (date display, slider position) may be throttled to ~10/sec to avoid input lag, but 3D positions must update every frame. |
-| NFR-4  | Orbit path computations shall be memoized to avoid redundant recalculation. |
+| NFR-1  | The app shall run in modern desktop browsers (Chrome, Firefox, Edge, Safari) and on mobile. |
+| NFR-2  | Animation shall maintain 60 fps on mid-range hardware. |
+| NFR-3  | Ephemeris computations shall be cached to avoid redundant recalculation during animation. |
+| NFR-4  | Expensive computations (Milky Way texture reprojection) shall be offloaded to Web Workers. |
 | NFR-5  | The app shall be a single-page client-side application with no backend. |
-| NFR-6  | The app shall be responsive — desktop uses floating draggable panels, mobile uses a tabbed interface with landscape two-column layouts. |
-| NFR-7  | Expensive computations (Milky Way texture reprojection) shall be offloaded to Web Workers to keep the main thread responsive. |
+| NFR-6  | Desktop shall use floating draggable panels; mobile shall use a tabbed interface with landscape-optimized layouts. |
 
 ---
 
 ## 4. Design Decisions
 
-This section captures high-level architectural and technology choices made during implementation. These are not requirements — alternative choices could satisfy the same needs.
+These are architectural and technology choices — not requirements. Alternative choices could satisfy the same needs.
 
-- **Tech stack**: Vite + React + TypeScript, with Three.js via `@react-three/fiber` and `@react-three/drei`.
-- **Ephemeris source**: The `astronomy-engine` npm package provides position calculations.
-- **Coordinate pipeline**: J2000 equatorial (EQJ) from astronomy-engine → ecliptic rotation (23.44° obliquity) → Three.js Y-up axis mapping (ecliptic X→X, ecliptic Z→Y, ecliptic Y→-Z).
-- **Scale**: 1 AU = 10 Three.js scene units. Celestial sphere radius = 950.
-- **State management**: React contexts for UI state (selection, display toggles, time controls); a module-level mutable store for the live simulation date, shared between React and the Three.js render loop without context bridging.
-- **Animation architecture**: Time is advanced inside Three.js's `useFrame` loop. Each body recomputes its position from the shared store every frame. React state is updated at a throttled rate for the UI panel only.
-- **Dynamic sizing**: Per-frame calculation using camera distance, FOV, and a target pixel size. Applied via `mesh.scale` to avoid React re-renders.
-- **Orbit sampling**: Positions sampled at N evenly-spaced points over one orbital period (180 for inner planets, 360 for outer, 60 for Moon). Memoized by coarsened date (year for planets, month for Moon).
-- **Camera**: OrbitControls from drei. Selection triggers a lerp animation toward the target body. Follow mode overrides the controls target each frame.
-- **Body rendering**: Bodies use flat-colored materials for simplicity and fast loading. No planet textures.
-- **Milky Way sphere**: Custom ShaderMaterial with raw texture passthrough to bypass Three.js color management. `phiStart=π` on SphereGeometry aligns RA=0h with scene +X.
-- **Sky chart texture**: Web Worker with inline blob source, shared across chart instances with reference counting and instance-ID isolation. Canvas dimensions managed imperatively to avoid React clearing the buffer.
-- **Asset paths**: All references to `public/` assets use `import.meta.env.BASE_URL` so URLs resolve correctly under Vite's `base: './'` configuration, regardless of deployment subdirectory.
-- **Responsive layout**: Desktop uses `react-rnd` for floating, draggable, resizable panels with z-ordering. Mobile uses a tab bar (portrait) or two-column layouts (landscape).
-- **Onboarding**: Guided tours via `driver.js` with auto-launch on first visit.
+- **Tech stack**: Vite + React + TypeScript, with Three.js via `@react-three/fiber` and `@react-three/drei`. Recharts for the alignment timeline.
+- **Ephemeris**: `astronomy-engine` npm package. Geocentric ecliptic coordinates for alignment computations, J2000 equatorial for star/sky positions.
+- **Alignment algorithm**: minimum ecliptic longitude arc spanning all selected planets, computed at daily intervals. AM/PM split by elongation from Sun. See `docs/alignment-algorithm-analysis.md`.
+- **Coordinate pipeline**: J2000 equatorial (EQJ) from astronomy-engine → ecliptic rotation (23.44° obliquity) → Three.js Y-up mapping.
+- **Scale**: 1 AU = 10 scene units. Celestial sphere radius = 950.
+- **State management**: React contexts for UI state; a module-level mutable store for the live simulation date shared between React and the Three.js render loop.
+- **Animation**: time advanced in Three.js `useFrame` loop. Per-frame position updates from the shared store. React UI updated at throttled rate (~10/sec).
+- **Sky chart texture**: Web Worker with inline blob source, shared across chart instances with reference counting and instance-ID isolation. See `docs/milkyway-texture.md`.
+- **Milky Way sphere**: custom ShaderMaterial bypassing Three.js color management. `phiStart=π` on SphereGeometry for RA alignment.
+- **Asset paths**: `import.meta.env.BASE_URL` prefix for all `public/` assets (Vite `base: './'`).
+- **Responsive layout**: `react-rnd` for desktop panels. Tab bar + two-column landscape layouts for mobile.
+- **Onboarding**: `driver.js` guided tours.
 
 ---
 
@@ -280,7 +251,7 @@ src/
 └── index.html                 Vite entry point
 
 public/
-└── starmap_4k.jpg             NASA Deep Star Maps 2020 (4096×2048, Gaia DR2)
+└── starmap_4k.jpg             NASA Deep Star Maps 2020 (4096x2048, Gaia DR2)
 
 docs/
 ├── specs.md                   This file
