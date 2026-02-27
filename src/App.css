@@ -1281,7 +1281,7 @@ select option {
 }
 
 /* ====== Mobile Layout (< 768px) ====== */
-@media (max-width: 767.98px) {
+@media (max-width: 767.98px), ((max-height: 767.98px) and (orientation: landscape) and (pointer: coarse)) {
 
   /* --- Scene: fixed full-screen base layer --- */
   .mobile-scene {
@@ -1730,7 +1730,7 @@ select option {
 }
 
 /* Mobile landscape: compact controls to fit limited vertical space */
-@media (max-width: 767.98px) and (orientation: landscape) {
+@media (max-height: 767.98px) and (orientation: landscape) and (pointer: coarse) {
   .chart-panel-inner {
     min-height: 0;
   }

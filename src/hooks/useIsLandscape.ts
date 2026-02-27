@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const LANDSCAPE_QUERY = '(max-width: 767.98px) and (orientation: landscape)'
+const LANDSCAPE_QUERY = '(max-height: 767.98px) and (orientation: landscape) and (pointer: coarse)'
 
 export function useIsLandscape(): boolean {
   const [isLandscape, setIsLandscape] = useState(
