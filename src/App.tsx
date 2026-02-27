@@ -191,7 +191,7 @@ export default function App() {
               <SkyViewPanel alignment={alignment} currentDate={currentDate} visibleSeries={alignment.visibleSeries} />
             )}
             {mobileTab === 'charts' && (
-              <SkyChartPanel currentDate={currentDate} observer={observer} />
+              <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} />
             )}
           </div>
         </div>
@@ -249,7 +249,7 @@ export default function App() {
         </FloatingPanel>
 
         <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>
-          <SkyChartPanel currentDate={currentDate} observer={observer} />
+          <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} />
         </FloatingPanel>
 
         <PlaybackBar

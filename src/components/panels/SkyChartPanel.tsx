@@ -6,14 +6,17 @@ import StereoSkyChart from '../alignment/StereoSkyChart'
 interface SkyChartPanelProps {
   currentDate: Date
   observer: ObserverLocation
+  isMobile?: boolean
+  isPlaying?: boolean
 }
 
 const MS_PER_QUARTER_HOUR = 900_000
 const MS_PER_DAY = 86_400_000
 
-export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelProps) {
+export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying }: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
+  const [mobileChart, setMobileChart] = useState<'pm' | 'am'>('pm')
 
   const measure = useCallback(() => {
     if (containerRef.current) {
@@ -131,23 +134,27 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     return m
   }, [sunsetTime])
 
-  // Layout: side-by-side when wide, stacked when tall
+  // Layout: side-by-side when wide, stacked when tall (desktop shows both)
+  // Mobile: single chart, full width
   const horizontal = containerSize.w > containerSize.h
   const SVG_OVERHEAD = 36 // title + time text above the chart circle
   const chartSize = useMemo(() => {
     const { w, h } = containerSize
     if (w === 0 || h === 0) return 0
+    if (isMobile) {
+      return Math.min(w - 8, h - 8 - SVG_OVERHEAD)
+    }
     return horizontal
       ? Math.min(Math.floor((w - 16) / 2), h - 8 - SVG_OVERHEAD)
       : Math.min(w - 8, Math.floor((h - 16) / 2) - SVG_OVERHEAD)
-  }, [containerSize, horizontal])
+  }, [containerSize, horizontal, isMobile])
 
   // Zoomed chart size: circle grows, but labels/dots/strokes stay at original pixel sizes
   const zoomedSize = Math.round(chartSize * zoomLevel)
 
   // Pair natural dimensions at current zoom for pan clamping
-  const pairW = horizontal ? zoomedSize * 2 + 4 : zoomedSize
-  const pairH = horizontal ? zoomedSize + 36 : (zoomedSize + 36) * 2 + 4
+  const pairW = isMobile ? zoomedSize : horizontal ? zoomedSize * 2 + 4 : zoomedSize
+  const pairH = isMobile ? zoomedSize + 36 : horizontal ? zoomedSize + 36 : (zoomedSize + 36) * 2 + 4
   pairSizeRef.current = { w: pairW, h: pairH }
   containerSizeRef.current = containerSize
 
@@ -241,52 +248,77 @@ export default function SkyChartPanel({ currentDate, observer }: SkyChartPanelPr
     }
   }, [])
 
+  const toggleProps = {
+    showStars, showConstellationEdges, showConstellationLabels,
+    showMilkyWay, showPlanets, showMoon, isPlaying,
+  }
+
+  const morningChart = (
+    <StereoSkyChart
+      positions={morningPositions}
+      stars={morningStars}
+      ecliptic={morningEcliptic}
+      milkyWay={morningMilkyWay}
+      title="Morning"
+      time={sunriseTime}
+      size={zoomedSize}
+      moonIllumination={morningMoonIllum}
+      moonWaxing={morningMoonWaxing}
+      magnitudes={morningMagnitudes}
+      {...toggleProps}
+    />
+  )
+
+  const eveningChart = (
+    <StereoSkyChart
+      positions={eveningPositions}
+      stars={eveningStars}
+      ecliptic={eveningEcliptic}
+      milkyWay={eveningMilkyWay}
+      title="Evening"
+      time={sunsetTime}
+      size={zoomedSize}
+      moonIllumination={eveningMoonIllum}
+      moonWaxing={eveningMoonWaxing}
+      magnitudes={eveningMagnitudes}
+      {...toggleProps}
+    />
+  )
+
   return (
     <div className="skychart-panel">
+      {isMobile && (
+        <div className="skychart-ampm-tabs">
+          <button
+            className={`skychart-ampm-tab${mobileChart === 'pm' ? ' active' : ''}`}
+            onClick={() => setMobileChart('pm')}
+          >
+            PM (Evening)
+          </button>
+          <button
+            className={`skychart-ampm-tab${mobileChart === 'am' ? ' active' : ''}`}
+            onClick={() => setMobileChart('am')}
+          >
+            AM (Morning)
+          </button>
+        </div>
+      )}
       <div className={`skychart-chart-area${zoomLevel > 1 ? ' sky-pannable' : ''}`} ref={containerRef}>
         {chartSize > 50 && (
           <>
-            <div
-              className={horizontal ? 'skychart-pair skychart-pair-h' : 'skychart-pair'}
-              style={zoomLevel > 1 ? { transform: `translate(${cpx}px, ${cpy}px)` } : undefined}
-            >
-              <StereoSkyChart
-                positions={morningPositions}
-                stars={morningStars}
-                ecliptic={morningEcliptic}
-                milkyWay={morningMilkyWay}
-                title="Morning"
-                time={sunriseTime}
-                size={zoomedSize}
-                moonIllumination={morningMoonIllum}
-                moonWaxing={morningMoonWaxing}
-                magnitudes={morningMagnitudes}
-                showStars={showStars}
-                showConstellationEdges={showConstellationEdges}
-                showConstellationLabels={showConstellationLabels}
-                showMilkyWay={showMilkyWay}
-                showPlanets={showPlanets}
-                showMoon={showMoon}
-              />
-              <StereoSkyChart
-                positions={eveningPositions}
-                stars={eveningStars}
-                ecliptic={eveningEcliptic}
-                milkyWay={eveningMilkyWay}
-                title="Evening"
-                time={sunsetTime}
-                size={zoomedSize}
-                moonIllumination={eveningMoonIllum}
-                moonWaxing={eveningMoonWaxing}
-                magnitudes={eveningMagnitudes}
-                showStars={showStars}
-                showConstellationEdges={showConstellationEdges}
-                showConstellationLabels={showConstellationLabels}
-                showMilkyWay={showMilkyWay}
-                showPlanets={showPlanets}
-                showMoon={showMoon}
-              />
-            </div>
+            {isMobile ? (
+              <div style={zoomLevel > 1 ? { transform: `translate(${cpx}px, ${cpy}px)` } : undefined}>
+                {mobileChart === 'pm' ? eveningChart : morningChart}
+              </div>
+            ) : (
+              <div
+                className={horizontal ? 'skychart-pair skychart-pair-h' : 'skychart-pair'}
+                style={zoomLevel > 1 ? { transform: `translate(${cpx}px, ${cpy}px)` } : undefined}
+              >
+                {morningChart}
+                {eveningChart}
+              </div>
+            )}
             <div className="skychart-zoom sky-zoom-controls">
               <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
               <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>

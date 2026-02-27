@@ -22,6 +22,7 @@ interface StereoSkyChartProps {
   showMilkyWay?: boolean
   showPlanets?: boolean
   showMoon?: boolean
+  isPlaying?: boolean
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -124,6 +125,7 @@ export default function StereoSkyChart({
   moonIllumination, moonWaxing, magnitudes,
   showStars = true, showConstellationEdges = true,
   showConstellationLabels = true, showMilkyWay = true, showPlanets = true, showMoon = true,
+  isPlaying = false,
 }: StereoSkyChartProps) {
   const MARGIN = 28
   const R = (size - MARGIN * 2) / 2
@@ -220,6 +222,16 @@ export default function StereoSkyChart({
 
   const labelOffsets = useMemo(() => {
     const offsets = new Map<SkyBodyId, { lx: number; ly: number }>()
+    const DEFAULT_OFFSET = { lx: 0, ly: -6 }
+
+    // During animation, use fixed offsets so labels don't jump around.
+    // Conflict resolution runs once when animation stops.
+    if (isPlaying) {
+      for (const p of projected) {
+        offsets.set(p.bodyId, DEFAULT_OFFSET)
+      }
+      return offsets
+    }
 
     for (const p of projected) {
       let rx = 0, ry = 0
@@ -248,15 +260,15 @@ export default function StereoSkyChart({
         if (len > 0.01) {
           offsets.set(p.bodyId, { lx: (rx / len) * LABEL_EXT, ly: (ry / len) * LABEL_EXT })
         } else {
-          offsets.set(p.bodyId, { lx: 0, ly: -6 })
+          offsets.set(p.bodyId, DEFAULT_OFFSET)
         }
       } else {
-        offsets.set(p.bodyId, { lx: 0, ly: -6 })
+        offsets.set(p.bodyId, DEFAULT_OFFSET)
       }
     }
 
     return offsets
-  }, [projected])
+  }, [projected, isPlaying])
 
   if (size < 50) return null
 

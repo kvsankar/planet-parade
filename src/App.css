@@ -1086,6 +1086,42 @@ select option {
   align-items: flex-start;
 }
 
+.skychart-ampm-tabs {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 6px 8px 2px;
+}
+
+.skychart-ampm-tab {
+  flex: 1;
+  max-width: 140px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.skychart-ampm-tab:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.skychart-ampm-tab:last-child {
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+.skychart-ampm-tab.active {
+  background: rgba(107, 147, 214, 0.2);
+  color: #6B93D6;
+  border-color: rgba(107, 147, 214, 0.4);
+}
+
 .skychart-controls-bar {
   flex-shrink: 0;
   display: flex;
