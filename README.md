@@ -17,26 +17,32 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 ## Features
 
 ### 3D Solar System
-- Heliocentric view of all planets (Mercury through Pluto) with accurate orbital positions
+- Heliocentric view of all planets (Mercury through Neptune) with accurate orbital positions
 - Orbit lines, labels, and an inner-planets inset for detail
+- Per-kind alignment cones from Earth (AM/PM/Straddling) showing the best cluster for each category
 - Animated playback from 1x to 3650x speed across a 100-year range (1975–2075)
 
 ### Planetary Alignments
-- Select any combination of planets and compute their angular separation over time
-- Morning/evening visibility classification based on solar elongation
-- Automatic detection of closest-alignment dates (local minima) with navigation
+- Select any combination of planets and compute the tightest cluster for every combination size
+- Combination-based classification: AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun)
+- Tabbed results by combination size (e.g. best 7, best 6, best 5 from 7 selected)
+- Automatic detection of closest-alignment dates with sortable minima table
+- Planet count filter chips, planet symbols with tooltips, click-to-navigate and switch tabs
 - Configurable time ranges from 3 months to 100 years
 
 ### Alignment Timeline
-- Interactive time-series chart of planetary separation (total, morning, evening)
+- Interactive time-series chart with separate lines for AM, PM, and Straddling spans
+- Combination size tabs — switching tabs updates all panels globally
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
 - Click-to-navigate to any date; current-date indicator overlay
-- Series toggles (All/AM/PM) and jump-to-minimum buttons (Today/Prev/Next)
+- Series toggles (AM/PM/Straddle) and jump-to-minimum buttons (Today/Prev/Next within current tab)
 
 ### Sky View
 - Scatter plot of planet positions in ecliptic longitude and latitude
 - Centerable on ecliptic longitude 0° or the Sun
-- Morning (AM) and evening (PM) visibility shading with span annotations showing angular extent
+- Per-kind shading bands (AM/PM/Straddle) with span annotations showing angular extent
+- Combination size tabs synced with the Alignment Timeline
+- Non-combo planets dimmed to highlight the active cluster
 - Planetary data table with ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM sky classification
 - Draggable separator to resize chart vs table; table toggleable
 - X-axis zoom/pan with pinch and drag support
@@ -101,7 +107,7 @@ src/
                  guided tour (useTour), display settings, panel manager
   lib/           Astronomy calculations, alignment math, coordinate transforms
   data/          Star catalog, constellation lines, Milky Way polygons
-  types.ts       Shared type definitions (CelestialBodyId, AlignmentDataPoint, etc.)
+  types.ts       Shared type definitions (CelestialBodyId, AlignmentTabDataPoint, etc.)
 ```
 
 ## Data Sources

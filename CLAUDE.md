@@ -32,7 +32,7 @@ The app uses three distinct state layers to bridge React and Three.js:
 
 2. **Module-level singleton store** (`hooks/useSimulationStore.ts`) — A plain mutable object (`simulationStore`) that mirrors simulation time state. Three.js Canvas components import this directly instead of using Context, because React Context doesn't reliably cross the R3F Canvas boundary. Mutations are synchronous.
 
-3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations.
+3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns `activeTab` (combination size), `bestPerKind` (best combo per AM/PM/Straddling), and feeds both SkyView and AlignmentCones via props.
 
 ### Animation Loop
 
@@ -54,7 +54,7 @@ astronomy-engine (J2000 equatorial) → ecliptic rotation (23.44° obliquity) �
 
 ### Key Libraries
 
-- `lib/alignment.ts` — Alignment series computation, local minima detection, ecliptic span math. Uses a FIFO ephemeris cache (200k entries) keyed by `"bodyId:dateMs"`.
+- `lib/alignment.ts` — Combination-based alignment computation (`computeAlignmentTabs`, `findBestPerKind`), classification (`classifyCombination`), local minima detection, ecliptic span math. Uses a FIFO ephemeris cache (200k entries) keyed by `"bodyId:dateMs"`.
 - `lib/astronomy.ts` — Heliocentric/geocentric positions, alt-az, moon phase, magnitude via astronomy-engine.
 - `lib/coordinateConversion.ts` — EQJ↔scene, RA/Dec↔XYZ, ecliptic transforms.
 
@@ -68,7 +68,7 @@ astronomy-engine (J2000 equatorial) → ecliptic rotation (23.44° obliquity) �
 ## Key Conventions
 
 - All body/planet identifiers use the `CelestialBodyId` union type from `types.ts`
-- Colors for AM/PM/Total series are defined once in `SERIES_COLORS` in `constants.ts`
+- Colors for AM/PM/Straddling series are defined once in `SERIES_COLORS` in `constants.ts`
 - Body metadata (color, orbital period, orbit samples) lives in `BODY_META` in `constants.ts`
 - Date range is 1975–2075 (`DATE_MIN`/`DATE_MAX` constants)
 - Asset paths use `import.meta.env.BASE_URL` prefix (Vite `base: './'`)

@@ -32,7 +32,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Planet Parade',
       description:
-        'When can you step outside and see most \u2014 or all \u2014 of the planets at once, without spending hours waiting? This app finds those windows by measuring how tightly the planets cluster in the sky over any time range you choose.',
+        'When can you step outside and see most \u2014 or all \u2014 of the planets at once? This app finds those windows by computing the tightest planet clusters for every combination size across any time range you choose.',
     },
   },
   {
@@ -42,7 +42,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Alignments Panel',
       description:
-        'Select which planets to include and set a time range to scan. The app finds the dates when they\'re grouped most tightly \u2014 the best nights to see them all in one look.',
+        'Pick planets, set a time range, and choose the minimum group size. The app evaluates every combination and finds the dates with the tightest clusters \u2014 classified as AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun).',
       side: 'right',
     },
   },
@@ -53,7 +53,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Solar System View',
       description:
-        'A 3D view of the solar system showing where the planets actually are in their orbits. Scroll to zoom, drag to orbit the view, and click a planet to select it.',
+        'A 3D view of the solar system showing where the planets actually are in their orbits. Colored cones show the best cluster for each visibility category. Scroll to zoom, drag to orbit.',
       side: 'bottom',
     },
   },
@@ -64,7 +64,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Alignment Timeline',
       description:
-        'Shows angular separation between your selected planets over time. Dips in the chart are the dates when planets cluster closest together in the sky \u2014 click a minimum to jump to that date.',
+        'Plots the tightest angular span over time for AM, PM, and Straddling clusters. Use the number tabs to switch between combination sizes (e.g. best 7, best 6, best 5). Click a dip to jump to that date.',
       side: 'left',
     },
   },
@@ -75,7 +75,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Sky View',
       description:
-        'A hemispheric projection of the sky as seen from Earth. See at a glance whether your chosen planets fit within a narrow arc of sky or are scattered wide apart.',
+        'An ecliptic projection of the sky as seen from Earth. Shaded bands show the best cluster for each category at the current date. Planets not in the active combination are dimmed.',
       side: 'left',
     },
   },
@@ -96,7 +96,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Playback Controls',
       description:
-        'Animate time forward or backward to watch the planets converge and spread apart. Use the date picker to jump to any date, or let playback run to see alignments form and dissolve.',
+        'Animate time forward or backward to watch clusters form and dissolve. Use the date picker to jump to any date, or step through alignment minima with Prev/Next.',
       side: 'top',
     },
   },
@@ -120,7 +120,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Planet Picker',
       description:
-        'Toggle planets on/off to include them in alignment searches. At least two must be selected. Active chips are highlighted.',
+        'Toggle planets on/off to include them in alignment searches. At least two must be selected. The app evaluates every combination of the selected planets.',
       side: 'right',
     },
   },
@@ -138,9 +138,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.series-toggle-chips',
     mobileTab: 'align',
     popover: {
-      title: 'Series Toggle \u2014 All / AM / PM',
+      title: 'Series Toggle \u2014 AM / PM / Straddle',
       description:
-        'Filter alignments by visibility. "AM" = visible before sunrise, "PM" = after sunset, "All" = both. Colors match the chart traces.',
+        'Filter alignments by visibility category. "AM" = visible before sunrise, "PM" = after sunset, "Straddle" = planets span both sides of the Sun. Colors match the chart lines and shading.',
       side: 'right',
     },
   },
@@ -150,7 +150,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Minimum Planets',
       description:
-        'Set the minimum number of planets that must be tightly grouped for an event to count as an alignment. Higher values find rarer groupings.',
+        'Set the minimum combination size. With 7 planets selected and min 5, the app computes tabs for 7-, 6-, and 5-planet combinations. Greyed-out values exceed the computation limit.',
       side: 'right',
     },
   },
@@ -158,9 +158,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.minima-table',
     mobileTab: 'align',
     popover: {
-      title: 'Minima Table',
+      title: 'Closest Alignments Table',
       description:
-        'Lists the best alignment events sorted by angular separation. Click any row to jump the simulation to that date. The "Kind" column shows AM or PM visibility.',
+        'Lists the tightest alignment events across all combination sizes. The # column shows planet count, Planets shows which ones (hover for names). Click a row to jump to that date and switch to its tab. Use the filter chips to show/hide specific counts. Sort by date, span, or count.',
       side: 'right',
     },
   },
@@ -172,7 +172,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: '3D Solar System',
       description:
-        'Drag to orbit, scroll to zoom. Planet positions update in real-time as the simulation date changes. Colored cones from the Sun show how tightly the selected planets are clustered.',
+        'Drag to orbit, scroll to zoom. Colored cones from Earth show the best cluster for each visibility category (AM/PM/Straddle). The cones update as the combination tab changes.',
       side: 'bottom',
     },
   },
@@ -182,7 +182,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Display Toggles & Body Selector',
       description:
-        'Toggle orbit paths and labels on/off. Click a planet name to select it and see its distance. Enable "Follow" to keep the camera locked on a planet.',
+        'Open the \u2630 menu to toggle orbits, labels, stars, constellations, and alignment cones. Click a planet name to select it and see its distance.',
       side: 'right',
     },
   },
@@ -192,18 +192,29 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Inner Planets Inset',
       description:
-        'A zoomed-in view of Mercury through Mars in the bottom-right corner. Useful when the main view is zoomed out to see outer planets.',
+        'A zoomed-in view of Mercury through Mars. Shows alignment cones in the same colors as the main view. Useful when the main camera is zoomed out to see outer planets.',
       side: 'left',
     },
   },
   // --- Alignment Timeline ---
+  {
+    element: '.chart-tab-selector',
+    mobileElement: '.chart-tab-selector',
+    mobileTab: 'timeline',
+    popover: {
+      title: 'Combination Size Tabs',
+      description:
+        'Switch between different combination sizes. E.g. with 7 planets, the "5" tab shows the tightest 5-planet subset on each date. This selection is global \u2014 it also updates the Sky View and 3D cones.',
+      side: 'bottom',
+    },
+  },
   {
     element: '.separation-chart',
     mobileTab: 'timeline',
     popover: {
       title: 'Separation Chart',
       description:
-        'Plots angular separation over time. Lower = tighter alignment. The golden vertical line marks the current simulation date.',
+        'Plots the tightest angular span over time for each category: AM (orange), PM (blue), Straddle (red). Lower = tighter cluster. The golden line marks the current date. Click a point to jump to it.',
       side: 'top',
     },
   },
@@ -214,7 +225,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Chart Zoom & Pan',
       description:
-        'Use + / \u2212 to zoom into a time period, then drag horizontally to pan. Scroll wheel also works. Double-click to reset zoom.',
+        'Use + / \u2212 to zoom into a time period, then drag to pan. Ctrl+scroll also works. Click the multiplier button to reset zoom.',
       side: 'bottom',
     },
   },
@@ -224,7 +235,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Timeline Controls',
       description:
-        'Shows the visible date range and provides series toggles and navigation buttons to step through alignment minima.',
+        'Shows the active date range for each visible series. Use Prev/Next to step through minima within the current tab. The series toggles filter AM/PM/Straddle lines.',
       side: 'top',
     },
   },
@@ -235,7 +246,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Ecliptic Longitude Plot',
       description:
-        'Shows planet positions projected onto the ecliptic. Planets near each other here appear close in the real sky. AM/PM background shading shows morning vs. evening visibility.',
+        'Shows planet positions on the ecliptic as seen from Earth. Shaded bands highlight the best cluster for each visible category (AM/PM/Straddle). Planets outside the active combination are dimmed. Span annotations below the axis show arc widths.',
       side: 'top',
     },
   },
@@ -246,7 +257,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Sky View Controls',
       description:
-        'Zoom in to see tight groupings. The "Center" dropdown re-centers the view on a chosen planet. Cone toggles show angular-span brackets.',
+        'The number tabs switch combination sizes (same as the Timeline tabs). Use zoom +/\u2212 to focus on tight groupings. The Center dropdown re-centers the plot on 0\u00b0 longitude or on the Sun.',
       side: 'bottom',
     },
   },
@@ -256,7 +267,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Position Data Table',
       description:
-        'Lists ecliptic longitude and positional data for each planet at the current simulation date. Drag the separator bar to resize.',
+        'Lists each planet\'s ecliptic longitude, latitude, elongation from the Sun, visual magnitude, and AM/PM status. Drag the separator bar to resize the chart vs. table split.',
       side: 'top',
     },
   },
@@ -267,7 +278,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Morning & Evening Sky Charts',
       description:
-        'Horizon-to-zenith charts for the AM (east) and PM (west) sky. Stars are sized by brightness. The curved ecliptic line shows the Sun\'s path \u2014 planets stay near it.',
+        'Stereographic charts for the AM (east) and PM (west) sky. Stars are sized by brightness. The curved ecliptic line shows the Sun\'s path \u2014 planets stay near it.',
       side: 'top',
     },
   },
@@ -277,7 +288,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Chart Controls',
       description:
-        'Toggle stars, constellation lines/labels, Milky Way, and planets. Zoom in to see finer detail and the Moon with its correct phase.',
+        'Toggle stars, constellation lines/labels, Milky Way texture, and planet markers. Zoom in to see finer detail and the Moon with its correct phase.',
       side: 'top',
     },
   },
@@ -288,7 +299,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Play / Pause',
       description:
-        'Start or stop the time animation. While playing, the simulation date advances and all views update in real-time.',
+        'Start or stop the time animation. While playing, all panels update in sync \u2014 watch clusters form and dissolve in the 3D view, timeline, and sky view simultaneously.',
       side: 'top',
     },
   },
@@ -298,7 +309,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Speed Selector',
       description:
-        'Choose how fast time advances: from 1 day/sec for slow observation up to 365 days/sec for scanning through years.',
+        'Choose how fast time advances: from 1 day/sec for careful observation up to 3650 days/sec (10 yr/sec) for scanning across decades.',
       side: 'top',
     },
   },

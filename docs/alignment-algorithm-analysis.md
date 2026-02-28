@@ -11,9 +11,40 @@ Our algorithm uses **ecliptic longitude** — the preferred approach for multi-p
 - Skyfield (the gold-standard Python library) uses ecliptic longitude for its `oppositions_conjunctions()` function
 - In-The-Sky.org is a notable exception that uses RA for pairwise conjunctions, producing slightly different timestamps
 
-## Our Algorithm (Min Span) Is the Standard Approach
+## Our Algorithm: Combination-Based Min Span
 
-Computing the minimum ecliptic longitude arc spanning all target planets is the most common method. Star Walk reports this as the "sky sector size" in degrees. There is **no formal threshold** — "planetary alignment" is not an official astronomical term, and each source defines it differently.
+Given N selected planets and a minimum size M, the algorithm evaluates every k-planet combination (for k = N down to M, capped at N−3) and finds the tightest ecliptic longitude cluster per category per day.
+
+### Per-day computation
+
+For each day in the time range:
+1. Pre-compute Sun longitude and all planet longitudes/elongations (O(N) ephemeris calls).
+2. For each combination size k, iterate all N-choose-k combinations.
+3. For each combination, compute the minimum ecliptic arc via `computeSpanArc` and classify via `classifyCombination`.
+4. Track the tightest span per category (AM/PM/Straddling) across all combinations of that size.
+
+### Combination classification
+
+Each combination is classified as a whole unit — not per-planet. Three cases:
+
+- **All planets on same side of Sun**: All elongations negative → `morning`. All non-negative → `evening`.
+- **Mixed sides, Sun inside arc** → `straddling`: Planets are on both sides of the Sun, and the Sun's longitude falls inside the combination's ecliptic arc. The Sun is literally between the planets.
+- **Mixed sides, Sun outside arc** → `morning` or `evening`: Planets are on both sides of the Sun, but grouped on the far side (the "midnight cluster" case). The planet closest to the Sun determines classification.
+
+### Results structure
+
+Results are organized in tabs by combination size. Each tab contains a time series with three fields: `morningSep`, `eveningSep`, `straddlingSep` — the tightest span for each category at that date. Local minima are detected per tab and category.
+
+### Per-kind best combination (`findBestPerKind`)
+
+For the current date, the app also computes the best (tightest) combination for each visibility category separately. This drives the 3D alignment cones and Sky View shading bands — each category gets its own cone/band showing its specific best cluster.
+
+### Performance
+
+- Ephemeris calls: O(N × days) — pre-computed once before combination iteration.
+- Combination iteration: pure array math. Worst case (7 planets, min 4): 56 combinations/day.
+- All tabs computed in one pass; tab switching is instant.
+- FIFO ephemeris cache (200k entries) ensures no redundant astronomy-engine calls.
 
 ## Morning/Evening Classification
 
@@ -22,15 +53,16 @@ Elongation from the Sun (measured in ecliptic longitude) is the standard:
 - East of Sun = evening object
 - West of Sun = morning object
 
-This matches our `wrap180(lon - sunLon)` approach exactly.
+This matches our `wrap180(lon - sunLon)` approach exactly. Individual planets are still classified per-planet for the data table, but the combination as a whole gets a single classification.
 
 ## How Sources Differ
 
 | Criterion | Our App | Timeanddate.com | Star Walk | grapeot.me |
 |-----------|---------|-----------------|-----------|------------|
-| **Metric** | Min ecliptic lon span | Altitude-based visibility | Ecliptic lon sector | Composite score |
-| **Visibility** | AM/PM by elongation | Sun ≥6° below, planet ≥6° above horizon | Count-based | 40% weight |
-| **Threshold** | None (shows all minima) | Location-dependent | None | Weighted score |
+| **Metric** | Min ecliptic lon span (combination-based) | Altitude-based visibility | Ecliptic lon sector | Composite score |
+| **Visibility** | AM/PM/Straddling by combination classification | Sun ≥6° below, planet ≥6° above horizon | Count-based | 40% weight |
+| **Combinations** | All k-subsets evaluated | N/A | N/A | N/A |
+| **Threshold** | None (shows all minima per tab) | Location-dependent | None | Weighted score |
 
 ## Validation Results
 
@@ -39,9 +71,9 @@ Cross-validated against 4 well-documented real-world events:
 | Event | Closest Minimum | Day Offset | Separation |
 |-------|-----------------|------------|------------|
 | 5 planets morning (Jun 2022) | Jun 3, 2022 | **0 days** | 90.8° |
-| 6-planet evening (Jan 2025) | Jan 16, 2025 | 5 days | 88.8° |
-| 7-planet parade (Feb 2025) | Feb 7, 2025 | 7 days | 116.3° |
-| 6-planet evening (Feb 2026) | Feb 27, 2026 | **1 day** | 113.3° |
+| 6-planet evening (Jan 2025) | Mar 7, 2025 | 45 days | 116.3° |
+| 7-planet parade (Feb 2025) | Mar 7, 2025 | 7 days | 116.3° |
+| 6-planet evening (Feb 2026) | Feb 28, 2026 | **0 days** | 65.7° |
 
 The ±5–7 day offsets on some events are expected because popular sources report the best *visual observing* date (horizon/altitude-dependent), not the geometric minimum span.
 
