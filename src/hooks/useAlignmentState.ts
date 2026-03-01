@@ -45,6 +45,7 @@ export interface AlignmentState {
   currentDateMs: number
   hasPrev: boolean
   hasNext: boolean
+  todayInRange: boolean
   // Callbacks
   handleDateSelect: (dateMs: number) => void
   jumpToPeak: (direction: 'prev' | 'next') => void
@@ -70,11 +71,11 @@ export function useAlignmentState(
 
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
 
-  // Available tabs: N down to max(effectiveMin, N-3)
+  // Available tabs: N down to effectiveMin
   const availableTabs = useMemo(() => {
     const N = selectedBodies.length
     if (N < 2) return []
-    const lowK = Math.max(effectiveMin, N - 3)
+    const lowK = effectiveMin
     const tabs: number[] = []
     for (let k = N; k >= lowK; k--) tabs.push(k)
     return tabs
@@ -214,28 +215,34 @@ export function useAlignmentState(
 
   const currentDateMs = currentDate.getTime()
 
-  const ppiPeaks = ppiResult.ppiPeaks
+  const filteredPeaks = useMemo(() => {
+    if (visibleCounts.size === 0) return ppiResult.ppiPeaks
+    return ppiResult.ppiPeaks.filter((p) => visibleCounts.has(p.planetCount))
+  }, [ppiResult.ppiPeaks, visibleCounts])
 
-  const hasPrev = useMemo(() => ppiPeaks.some((m) => m.date < currentDateMs), [ppiPeaks, currentDateMs])
-  const hasNext = useMemo(() => ppiPeaks.some((m) => m.date > currentDateMs), [ppiPeaks, currentDateMs])
+  const hasPrev = useMemo(() => filteredPeaks.some((m) => m.date < currentDateMs), [filteredPeaks, currentDateMs])
+  const hasNext = useMemo(() => filteredPeaks.some((m) => m.date > currentDateMs), [filteredPeaks, currentDateMs])
 
   const jumpToPeak = useCallback(
     (direction: 'prev' | 'next') => {
-      if (ppiPeaks.length === 0) return
+      if (filteredPeaks.length === 0) return
       if (direction === 'next') {
-        const next = ppiPeaks.find((m) => m.date > currentDateMs)
+        const next = filteredPeaks.find((m) => m.date > currentDateMs)
         if (next) onDateChange(new Date(next.date))
       } else {
         let prev: PPIDayPoint | null = null
-        for (const m of ppiPeaks) {
+        for (const m of filteredPeaks) {
           if (m.date < currentDateMs) prev = m
           else break
         }
         if (prev) onDateChange(new Date(prev.date))
       }
     },
-    [ppiPeaks, currentDateMs, onDateChange],
+    [filteredPeaks, currentDateMs, onDateChange],
   )
+
+  const now = Date.now()
+  const todayInRange = now >= startDate.getTime() && now <= startDate.getTime() + durationDays * MS_PER_DAY
 
   return {
     selectedBodies, setSelectedBodies,
@@ -253,7 +260,7 @@ export function useAlignmentState(
     visibleCounts, setVisibleCounts,
     visibleMetrics, setVisibleMetrics,
     chartData,
-    currentDateMs, hasPrev, hasNext,
+    currentDateMs, hasPrev, hasNext, todayInRange,
     handleDateSelect, jumpToPeak,
   }
 }

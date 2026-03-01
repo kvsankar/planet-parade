@@ -31,6 +31,7 @@ interface SeparationChartProps {
   onDateClick: (dateMs: number) => void
   visibleCounts: Set<number>
   visibleMetrics: Set<ChartMetric>
+  focusToken?: number
 }
 
 function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics }: any) {
@@ -193,6 +194,7 @@ export default function SeparationChart({
   onDateClick,
   visibleCounts,
   visibleMetrics,
+  focusToken,
 }: SeparationChartProps) {
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panOffset, setPanOffset] = useState(0)
@@ -351,6 +353,30 @@ export default function SeparationChart({
       el.removeEventListener('touchend', onTouchEnd)
     }
   }, [])
+
+  // Auto-pan when an explicit jump (Prev/Next/Today) lands outside the zoomed viewport
+  const prevTokenRef = useRef(focusToken)
+  useEffect(() => {
+    if (focusToken == null || focusToken === prevTokenRef.current) return
+    prevTokenRef.current = focusToken
+
+    if (currentDate == null || zoomRef.current <= 1) return
+
+    const fs = fullSpanRef.current
+    if (fs <= 0) return
+    const hs = fs / (2 * zoomRef.current)
+    const dc = (dataMin + dataMax) / 2
+    const lo = dc + panRef.current - hs
+    const hi = dc + panRef.current + hs
+
+    if (currentDate < lo || currentDate > hi) {
+      const newPan = currentDate - dc
+      const maxP = fs / 2 - hs
+      const clamped = Math.max(-maxP, Math.min(maxP, newPan))
+      panRef.current = clamped
+      setPanOffset(clamped)
+    }
+  }, [focusToken, currentDate, dataMin, dataMax])
 
   if (data.length === 0) {
     return <div className="chart-empty">Select planets and a time range to see alignment data.</div>

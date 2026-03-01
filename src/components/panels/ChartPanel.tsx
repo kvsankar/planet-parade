@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SeparationChart from '../alignment/SeparationChart'
 import AlignmentTimeSlider from '../alignment/AlignmentTimeSlider'
 import { AlignmentState } from '../../hooks/useAlignmentState'
@@ -24,8 +25,11 @@ export default function ChartPanel({
     visibleMetrics, setVisibleMetrics,
     currentDateMs,
     handleDateSelect,
-    hasPrev, hasNext, jumpToPeak,
+    hasPrev, hasNext, todayInRange, jumpToPeak,
   } = alignment
+
+  const [focusToken, setFocusToken] = useState(0)
+  const bump = () => setFocusToken((t) => t + 1)
 
   const toggleCount = (k: number) => {
     const next = new Set(visibleCounts)
@@ -97,6 +101,7 @@ export default function ChartPanel({
         onDateClick={handleDateSelect}
         visibleCounts={visibleCounts}
         visibleMetrics={visibleMetrics}
+        focusToken={focusToken}
       />
       <div className="chart-slider-row">
         <AlignmentTimeSlider
@@ -110,14 +115,15 @@ export default function ChartPanel({
         <div className="chart-nav-btns">
           <button
             className="minima-nav-btn"
-            onClick={() => onDateChange(new Date())}
+            onClick={() => { onDateChange(new Date()); bump() }}
+            disabled={!todayInRange}
             title="Jump to today"
           >
             Today
           </button>
           <button
             className="minima-nav-btn"
-            onClick={() => jumpToPeak('prev')}
+            onClick={() => { jumpToPeak('prev'); bump() }}
             disabled={!hasPrev}
             title="Previous peak"
           >
@@ -125,7 +131,7 @@ export default function ChartPanel({
           </button>
           <button
             className="minima-nav-btn"
-            onClick={() => jumpToPeak('next')}
+            onClick={() => { jumpToPeak('next'); bump() }}
             disabled={!hasNext}
             title="Next peak"
           >
