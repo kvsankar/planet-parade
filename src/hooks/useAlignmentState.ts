@@ -21,14 +21,10 @@ export interface AlignmentState {
   setMinPlanets: (n: number) => void
   maxPlanets: number
   setMaxPlanets: (n: number) => void
-  // Tab state
-  activeTab: number
-  setActiveTab: (tab: number) => void
   availableTabs: number[]
   // Computed
   effectiveMin: number
   effectiveMax: number
-  activeTabData: AlignmentTabDataPoint[]
   allMinima: AlignmentMinimum[]
   bestPerKind: BestPerKind
   // PPI
@@ -71,8 +67,6 @@ export function useAlignmentState(
   const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
   const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
-  const [activeTab, setActiveTabRaw] = useState(() => selectedBodies.length)
-
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
   const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
 
@@ -85,22 +79,9 @@ export function useAlignmentState(
     return tabs
   }, [selectedBodies.length, effectiveMin, effectiveMax])
 
-  // Set active tab — clamp to available range
-  const setActiveTab = useCallback((tab: number) => {
-    setActiveTabRaw(tab)
-  }, [])
-
-  // Ensure activeTab is valid
-  const validActiveTab = useMemo(() => {
-    if (availableTabs.length === 0) return 0
-    if (availableTabs.includes(activeTab)) return activeTab
-    return availableTabs[0]
-  }, [availableTabs, activeTab])
-
-  // Reset tab and maxPlanets when selectedBodies changes
+  // Reset maxPlanets when selectedBodies changes
   const bodiesKey = selectedBodies.join(',')
   useEffect(() => {
-    setActiveTabRaw(selectedBodies.length)
     setMaxPlanets(selectedBodies.length)
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -175,10 +156,6 @@ export function useAlignmentState(
     const dayDate = new Date(currentDay * MS_PER_DAY)
     return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights, effectiveMax)
   }, [selectedBodies, currentDay, effectiveMin, ppiWeights, effectiveMax])
-
-  const activeTabData = useMemo(() => {
-    return alignmentResult.tabs.get(validActiveTab) ?? []
-  }, [alignmentResult, validActiveTab])
 
   const allMinima = useMemo(() => {
     const result: AlignmentMinimum[] = []
@@ -265,10 +242,9 @@ export function useAlignmentState(
     maxPlanets, setMaxPlanets,
     ppiWeights, setPPIWeights,
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
-    activeTab: validActiveTab, setActiveTab,
     availableTabs,
     effectiveMin, effectiveMax,
-    activeTabData, allMinima, bestPerKind,
+    allMinima, bestPerKind,
     visibleCounts, setVisibleCounts,
     visibleMetrics, setVisibleMetrics,
     chartData,

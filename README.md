@@ -30,18 +30,17 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Planet count filter chips, planet symbols with tooltips, click-to-navigate and switch tabs
 - Configurable time ranges from 3 months to 100 years
 
-### Alignment Timeline
-- Interactive time-series chart with separate lines for AM, PM, and Straddling spans
-- Combination size tabs — switching tabs updates all panels globally
+### Parade Timeline
+- Interactive time-series chart plotting PPI and angular span over time
+- Simple mode (overall best-of-day) and Advanced mode (per-count lines with toggleable count chips)
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
-- Click-to-navigate to any date; current-date indicator overlay
-- Series toggles (AM/PM/Straddle) and jump-to-minimum buttons (Today/Prev/Next within current tab)
+- Click-to-navigate to any date; current-date indicator with PPI, span, and planet list
+- Jump-to-peak buttons (Today/Prev/Next)
 
-### Sky View
+### Ecliptic Strip
 - Scatter plot of planet positions in ecliptic longitude and latitude
 - Centerable on ecliptic longitude 0° or the Sun
 - Per-kind shading bands (AM/PM/Straddle) with span annotations showing angular extent
-- Combination size tabs synced with the Alignment Timeline
 - Non-combo planets dimmed to highlight the active cluster
 - Planetary data table with ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM sky classification
 - Draggable separator to resize chart vs table; table toggleable
@@ -59,7 +58,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 ### Cross-Platform
 - Desktop: draggable, resizable floating panels with z-ordering
 - Mobile: full-screen tabbed interface with compact controls
-- Mobile landscape: two-column layouts for Align (controls | minima table) and Sky View (chart | data table); full-width sky chart circle
+- Mobile landscape: two-column layouts for Align (controls | minima table) and Ecliptic Strip (chart | data table); full-width sky chart circle
 - Touch gestures throughout (pinch-to-zoom, drag-to-pan)
 - Guided tour with Quick Tour and Full Tour modes; auto-starts on first visit
 

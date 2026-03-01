@@ -21,7 +21,6 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     currentDateMs,
     handleDateSelect,
-    setActiveTab,
   } = alignment
 
   const handleRangeClick = (n: number) => {
@@ -75,7 +74,6 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
       ppiPeaks={ppiResult.ppiPeaks}
       currentDate={currentDateMs}
       onSelect={handleDateSelect}
-      onTabChange={setActiveTab}
       dayDetailCombos={dayDetailCombos}
       selectedDayComboIdx={selectedDayComboIdx}
       onDayComboSelect={setSelectedDayComboIdx}

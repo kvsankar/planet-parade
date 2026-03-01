@@ -62,9 +62,9 @@ const basicDefs: TourStepDef[] = [
     mobileElement: '.chart-panel-inner',
     mobileTab: 'timeline',
     popover: {
-      title: 'Alignment Timeline',
+      title: 'Parade Timeline',
       description:
-        'Plots the tightest angular span over time for AM, PM, and Straddling clusters. Use the number tabs to switch between combination sizes (e.g. best 7, best 6, best 5). Click a dip to jump to that date.',
+        'Plots PPI and angular span over time. Toggle Simple/Advanced to see overall or per-count lines. Click a dip to jump to that date.',
       side: 'left',
     },
   },
@@ -73,7 +73,7 @@ const basicDefs: TourStepDef[] = [
     mobileElement: '.sky-view',
     mobileTab: 'sky',
     popover: {
-      title: 'Sky View',
+      title: 'Ecliptic Strip',
       description:
         'An ecliptic projection of the sky as seen from Earth. Shaded bands show the best cluster for each category at the current date. Planets not in the active combination are dimmed.',
       side: 'left',
@@ -196,18 +196,7 @@ const advancedDefs: TourStepDef[] = [
       side: 'left',
     },
   },
-  // --- Alignment Timeline ---
-  {
-    element: '.chart-tab-selector',
-    mobileElement: '.chart-tab-selector',
-    mobileTab: 'timeline',
-    popover: {
-      title: 'Combination Size Tabs',
-      description:
-        'Switch between different combination sizes. E.g. with 7 planets, the "5" tab shows the tightest 5-planet subset on each date. This selection is global \u2014 it also updates the Sky View and 3D cones.',
-      side: 'bottom',
-    },
-  },
+  // --- Parade Timeline ---
   {
     element: '.separation-chart',
     mobileTab: 'timeline',
@@ -239,7 +228,7 @@ const advancedDefs: TourStepDef[] = [
       side: 'top',
     },
   },
-  // --- Sky View ---
+  // --- Ecliptic Strip ---
   {
     element: '.sky-view-chart-area',
     mobileTab: 'sky',
@@ -255,9 +244,9 @@ const advancedDefs: TourStepDef[] = [
     mobileElement: '.sky-view-controls',
     mobileTab: 'sky',
     popover: {
-      title: 'Sky View Controls',
+      title: 'Ecliptic Strip Controls',
       description:
-        'The number tabs switch combination sizes (same as the Timeline tabs). Use zoom +/\u2212 to focus on tight groupings. The Center dropdown re-centers the plot on 0\u00b0 longitude or on the Sun.',
+        'Use zoom +/\u2212 to focus on tight groupings. The Center dropdown re-centers the plot on 0\u00b0 longitude or on the Sun.',
       side: 'bottom',
     },
   },

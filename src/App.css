@@ -665,13 +665,6 @@ select option {
   height: 100%;
 }
 
-.chart-tab-selector {
-  display: flex;
-  gap: 4px;
-  padding: 4px 8px;
-  flex-shrink: 0;
-}
-
 .chart-toggles-row {
   display: flex;
   align-items: center;
@@ -685,28 +678,6 @@ select option {
   display: inline-block;
   width: 12px;
   height: 0;
-}
-
-.chart-tab-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
-  color: #aaa;
-  font-size: 11px;
-  padding: 2px 8px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.chart-tab-btn.active {
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  border-color: rgba(255,255,255,0.3);
-}
-
-.chart-tab-btn:hover:not(.active) {
-  background: rgba(255,255,255,0.06);
-  color: #ddd;
 }
 
 .planets-cell {

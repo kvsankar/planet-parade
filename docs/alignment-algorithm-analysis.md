@@ -37,7 +37,7 @@ Results are organized in tabs by combination size. Each tab contains a time seri
 
 ### Per-kind best combination (`findBestPerKind`)
 
-For the current date, the app also computes the best (tightest) combination for each visibility category separately. This drives the 3D alignment cones and Sky View shading bands — each category gets its own cone/band showing its specific best cluster.
+For the current date, the app also computes the best (tightest) combination for each visibility category separately. This drives the 3D alignment cones and Ecliptic Strip shading bands — each category gets its own cone/band showing its specific best cluster.
 
 ### Performance
 

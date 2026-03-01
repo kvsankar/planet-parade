@@ -29,8 +29,8 @@ import { useIsLandscape } from './hooks/useIsLandscape'
 const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
   scene: 'Solar System',
   align: 'Alignments',
-  timeline: 'Alignment Timeline',
-  sky: 'Sky View',
+  timeline: 'Parade Timeline',
+  sky: 'Ecliptic Strip',
   charts: 'Sky Charts',
 }
 
@@ -289,7 +289,7 @@ export default function App() {
           <AlignmentPanel alignment={alignment} />
         </FloatingPanel>
 
-        <FloatingPanel {...fp('chart')} title="Alignment Timeline" minWidth={400} minHeight={160}>
+        <FloatingPanel {...fp('chart')} title="Parade Timeline" minWidth={400} minHeight={160}>
           <ChartPanel
             alignment={alignment}
             currentDate={currentDate}
@@ -297,7 +297,7 @@ export default function App() {
           />
         </FloatingPanel>
 
-        <FloatingPanel {...fp('skyview')} title="Sky View" minWidth={300} minHeight={200}>
+        <FloatingPanel {...fp('skyview')} title="Ecliptic Strip" minWidth={300} minHeight={200}>
           <SkyViewPanel alignment={alignment} currentDate={currentDate} />
         </FloatingPanel>
 

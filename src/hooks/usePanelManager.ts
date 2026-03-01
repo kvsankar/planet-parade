@@ -30,7 +30,7 @@ function getDefaults(): PanelLayouts {
   const col4W = Math.min(400, Math.floor(w * 0.26))
   const col4X = w - col4W - PAD
 
-  // Column 3: Alignment Timeline + Sky View (stacked)
+  // Column 3: Parade Timeline + Ecliptic Strip (stacked)
   const col3W = Math.min(500, Math.floor(w * 0.34))
   const col3X = col4X - col3W - GAP
   const chartH = Math.floor(totalH * 0.45)

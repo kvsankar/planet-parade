@@ -3,7 +3,6 @@ import { CelestialBodyId, AlignmentKind } from '../../types'
 import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
 import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180, BestPerKind } from '../../lib/alignment'
 import { getBodyVisualMagnitude, SkyBodyId } from '../../lib/astronomy'
-import TabSelector from '../ui/TabSelector'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -13,9 +12,6 @@ interface SkyViewProps {
   center: SkyViewCenter
   onCenterChange: (c: SkyViewCenter) => void
   visibleSeries: Set<AlignmentKind>
-  activeTab: number
-  availableTabs: number[]
-  onTabChange: (tab: number) => void
   bestPerKind: BestPerKind
   isLandscape?: boolean
 }
@@ -61,7 +57,7 @@ const MS_PER_HOUR = 3_600_000
 const HEADER_H = 28
 const SEP_H = 26
 
-export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries, activeTab, availableTabs, onTabChange, bestPerKind, isLandscape }: SkyViewProps) {
+export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries, bestPerKind, isLandscape }: SkyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const clipId = useId()
   const [cW, setCW] = useState(400)
@@ -395,7 +391,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   if (bodies.length === 0) {
     return (
       <div className="sky-view" ref={containerRef}>
-        <span className="control-label">Sky View</span>
+        <span className="control-label">Ecliptic Strip</span>
         <div className="chart-empty">Select planets to see their positions in the sky.</div>
       </div>
     )
@@ -592,9 +588,8 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   return (
     <div className={`sky-view${isLandscape ? ' sky-view-landscape' : ''}`} ref={containerRef}>
       <div className="sky-view-header">
-        <span className="control-label">Sky View — {formatDate(date)}</span>
+        <span className="control-label">Ecliptic Strip — {formatDate(date)}</span>
         <div className="sky-view-controls">
-          <TabSelector tabs={availableTabs} activeTab={activeTab} onChange={onTabChange} />
           <div className="sky-zoom-controls">
             <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
             <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>

@@ -15,9 +15,6 @@ export default function SkyViewPanel({ alignment, currentDate, isLandscape }: Sk
       center={alignment.skyCenter}
       onCenterChange={alignment.setSkyCenter}
       visibleSeries={alignment.visibleSeries}
-      activeTab={alignment.activeTab}
-      availableTabs={alignment.availableTabs}
-      onTabChange={alignment.setActiveTab}
       bestPerKind={alignment.bestPerKind}
       isLandscape={isLandscape}
     />

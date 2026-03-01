@@ -479,7 +479,7 @@ export default function SeparationChart({
   return (
     <div className="separation-chart">
       <div className="chart-zoom-header">
-        <span className="control-label">PPI / Span Timeline</span>
+        <span className="control-label">Parade Timeline</span>
         <div className="sky-zoom-controls">
           <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
           <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>

@@ -6,7 +6,6 @@ interface MinimaTableProps {
   ppiPeaks: PPIDayPoint[]
   currentDate: number | null
   onSelect: (dateMs: number) => void
-  onTabChange?: (tab: number) => void
   dayDetailCombos?: PPIDayPoint[]
   selectedDayComboIdx?: number | null
   onDayComboSelect?: (idx: number | null) => void
@@ -41,7 +40,7 @@ type DaySortColumn = 'ppi' | 'span' | 'count'
 interface ComboEntry { combo: PPIDayPoint; origIdx: number }
 interface ComboGroup { key: string; best: ComboEntry; children: ComboEntry[] }
 
-export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, onTabChange, dayDetailCombos, selectedDayComboIdx, onDayComboSelect }: MinimaTableProps) {
+export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, dayDetailCombos, selectedDayComboIdx, onDayComboSelect }: MinimaTableProps) {
   const [sortCol, setSortCol] = useState<SortColumn>('ppi')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -201,7 +200,7 @@ export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, onTa
               <tr
                 key={`${m.date}-${m.kind}-${m.planetCount}-${m.planets.join(',')}`}
                 className={currentDate === m.date ? 'active' : ''}
-                onClick={() => { onSelect(m.date); onTabChange?.(m.planetCount) }}
+                onClick={() => onSelect(m.date)}
               >
                 <td>{formatDate(m.date)}</td>
                 <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>

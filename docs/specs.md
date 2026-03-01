@@ -55,23 +55,20 @@ Consistent across all views:
 - **PM**: deep indigo (evoking night)
 - **Straddling**: muted blue-grey
 
-### 2.2 Alignment Timeline
+### 2.2 Parade Timeline
 
-An interactive line chart plotting angular separation (degrees) over time for each combination size tab. Up to three traces (AM, PM, Straddling) are shown simultaneously, each independently toggleable.
-
-- Combination size tabs switch between different planet counts (e.g., best 7, best 6, best 5). Tab selection is global — it updates Sky View and 3D alignment cones too.
+An interactive line chart plotting PPI and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips.
 - Click any point to jump to that date.
 - Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
 - Current-date indicator (vertical line).
-- Context labels showing the active AM/PM/Straddling date ranges.
-- Jump-to-minimum buttons (Today/Prev/Next) navigate within the current tab.
+- Current-date indicator shows PPI, span, and planet list.
+- Jump-to-peak buttons (Today/Prev/Next).
 
-### 2.3 Sky View (Ecliptic Projection)
+### 2.3 Ecliptic Strip (Ecliptic Projection)
 
 A 2D scatter plot of planet positions in ecliptic longitude (X) and latitude (Y):
 
 - **Center modes**: Longitude 0° at center, or Sun at center.
-- **Combination size tabs**: synced with the Alignment Timeline — switching tabs updates globally.
 - **Per-kind shading bands**: colored regions show the best AM, PM, and Straddling cluster spans with degree annotations. Planets not in the active combination are dimmed.
 - **Zoom/pan**: X-axis zoom (1–16×) with drag and pinch support.
 - **Planet data table**: ecliptic longitude, latitude, elongation from Sun, visual magnitude, and AM/PM classification for each body.
