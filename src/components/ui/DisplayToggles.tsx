@@ -4,10 +4,10 @@ export default function DisplayToggles() {
   const {
     showOrbits, showLabels, forceInner,
     showStars, showMilkyWay, showConstellations, showConstellationBoundaries,
-    showCones,
+    showCones, showPPIOverlay,
     toggleOrbits, toggleLabels, toggleForceInner,
     toggleStars, toggleMilkyWay, toggleConstellations, toggleConstellationBoundaries,
-    toggleCones,
+    toggleCones, togglePPIOverlay,
   } = useDisplaySettings()
 
   return (
@@ -28,6 +28,10 @@ export default function DisplayToggles() {
       <label className="toggle-row">
         <input type="checkbox" checked={showCones} onChange={toggleCones} />
         <span>Alignment Cones</span>
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={showPPIOverlay} onChange={togglePPIOverlay} />
+        <span>PPI Info</span>
       </label>
       <label className="control-label" style={{ marginTop: 8 }}>Sky</label>
       <label className="toggle-row">

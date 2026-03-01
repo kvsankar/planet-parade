@@ -31,9 +31,14 @@ function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Pr
   const [showInner, setShowInner] = useState(false) // default camera at 300 → hidden
   const showInnerRef = useRef(false)
 
+  // Check if any active combo contains an inner planet
+  const comboHasInner = bestPerKind != null && (['morning', 'evening', 'straddling'] as AlignmentKind[]).some(
+    (kind) => bestPerKind[kind]?.bodies.some((b) => INNER_BODIES.has(b))
+  )
+
   useFrame(({ camera }) => {
     const dist = camera.position.length()
-    const shouldShow = forceInner || dist < INNER_HIDE_DIST
+    const shouldShow = comboHasInner || forceInner || dist < INNER_HIDE_DIST
     if (shouldShow !== showInnerRef.current) {
       showInnerRef.current = shouldShow
       setShowInner(shouldShow)

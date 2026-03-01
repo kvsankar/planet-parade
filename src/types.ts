@@ -41,6 +41,7 @@ export interface DisplaySettings {
   showConstellations: boolean
   showConstellationBoundaries: boolean
   showCones: boolean
+  showPPIOverlay: boolean
   toggleOrbits: () => void
   toggleLabels: () => void
   toggleForceInner: () => void
@@ -49,6 +50,7 @@ export interface DisplaySettings {
   toggleConstellations: () => void
   toggleConstellationBoundaries: () => void
   toggleCones: () => void
+  togglePPIOverlay: () => void
 }
 
 export interface AlignmentDataPoint {

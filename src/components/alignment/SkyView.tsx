@@ -352,14 +352,45 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   // In landscape, always show table
   const effectiveShowTable = isLandscape || showTable
 
-  // Table data sorted by ascending longitude, with magnitudes
-  const tableData = useMemo(() => {
-    const sorted = [...plotData].sort((a, b) => a.absLon - b.absLon)
-    return sorted.map((b) => ({
+  // Table data with magnitudes
+  const tableRows = useMemo(() => {
+    return plotData.map((b) => ({
       ...b,
       mag: getBodyVisualMagnitude(b.id as SkyBodyId, quantizedDate),
     }))
   }, [plotData, quantizedDate])
+
+  const [tableSortCol, setTableSortCol] = useState<'body' | 'lon' | 'lat' | 'elong' | 'mag'>('lon')
+  const [tableSortDir, setTableSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const handleTableSort = (col: typeof tableSortCol) => {
+    if (tableSortCol === col) {
+      setTableSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setTableSortCol(col)
+      setTableSortDir('asc')
+    }
+  }
+
+  const tableSortArrow = (col: typeof tableSortCol) => {
+    if (tableSortCol !== col) return ' \u2195'
+    return tableSortDir === 'asc' ? ' \u2191' : ' \u2193'
+  }
+
+  const tableData = useMemo(() => {
+    const arr = [...tableRows]
+    const dir = tableSortDir === 'asc' ? 1 : -1
+    arr.sort((a, b) => {
+      switch (tableSortCol) {
+        case 'body': return a.id.localeCompare(b.id) * dir
+        case 'lon': return (a.absLon - b.absLon) * dir
+        case 'lat': return (a.lat - b.lat) * dir
+        case 'elong': return (a.elongation - b.elongation) * dir
+        case 'mag': return ((a.mag ?? 99) - (b.mag ?? 99)) * dir
+      }
+    })
+    return arr
+  }, [tableRows, tableSortCol, tableSortDir])
 
   if (bodies.length === 0) {
     return (
@@ -529,11 +560,11 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
       <table className="skyview-table">
         <thead>
           <tr>
-            <th>Body</th>
-            <th className="col-right">Lon</th>
-            <th className="col-right">Lat</th>
-            <th className="col-right">Elong</th>
-            <th className="col-right">Mag</th>
+            <th className="sortable-th" onClick={() => handleTableSort('body')}>Body{tableSortArrow('body')}</th>
+            <th className="sortable-th col-right" onClick={() => handleTableSort('lon')}>Lon{tableSortArrow('lon')}</th>
+            <th className="sortable-th col-right" onClick={() => handleTableSort('lat')}>Lat{tableSortArrow('lat')}</th>
+            <th className="sortable-th col-right" onClick={() => handleTableSort('elong')}>Elong{tableSortArrow('elong')}</th>
+            <th className="sortable-th col-right" onClick={() => handleTableSort('mag')}>Mag{tableSortArrow('mag')}</th>
             <th>Sky</th>
           </tr>
         </thead>

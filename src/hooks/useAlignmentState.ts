@@ -19,12 +19,15 @@ export interface AlignmentState {
   setVisibleSeries: (v: Set<AlignmentKind>) => void
   minPlanets: number
   setMinPlanets: (n: number) => void
+  maxPlanets: number
+  setMaxPlanets: (n: number) => void
   // Tab state
   activeTab: number
   setActiveTab: (tab: number) => void
   availableTabs: number[]
   // Computed
   effectiveMin: number
+  effectiveMax: number
   activeTabData: AlignmentTabDataPoint[]
   allMinima: AlignmentMinimum[]
   bestPerKind: BestPerKind
@@ -65,21 +68,22 @@ export function useAlignmentState(
     () => new Set(['morning', 'evening', 'straddling']),
   )
   const [minPlanets, setMinPlanets] = useState(2)
+  const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
   const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
   const [activeTab, setActiveTabRaw] = useState(() => selectedBodies.length)
 
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
+  const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
 
-  // Available tabs: N down to effectiveMin
+  // Available tabs: effectiveMax down to effectiveMin
   const availableTabs = useMemo(() => {
     const N = selectedBodies.length
     if (N < 2) return []
-    const lowK = effectiveMin
     const tabs: number[] = []
-    for (let k = N; k >= lowK; k--) tabs.push(k)
+    for (let k = effectiveMax; k >= effectiveMin; k--) tabs.push(k)
     return tabs
-  }, [selectedBodies.length, effectiveMin])
+  }, [selectedBodies.length, effectiveMin, effectiveMax])
 
   // Set active tab — clamp to available range
   const setActiveTab = useCallback((tab: number) => {
@@ -93,10 +97,11 @@ export function useAlignmentState(
     return availableTabs[0]
   }, [availableTabs, activeTab])
 
-  // Reset tab when selectedBodies changes
+  // Reset tab and maxPlanets when selectedBodies changes
   const bodiesKey = selectedBodies.join(',')
   useEffect(() => {
     setActiveTabRaw(selectedBodies.length)
+    setMaxPlanets(selectedBodies.length)
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep visibleCounts in sync with availableTabs: add new tabs, prune removed ones
@@ -122,13 +127,13 @@ export function useAlignmentState(
         minima: new Map<number, AlignmentMinimum[]>(),
       }
     }
-    return computeAlignmentTabs(selectedBodies, startDate, durationDays, effectiveMin)
-  }, [selectedBodies, startDate, durationDays, effectiveMin])
+    return computeAlignmentTabs(selectedBodies, startDate, durationDays, effectiveMin, effectiveMax)
+  }, [selectedBodies, startDate, durationDays, effectiveMin, effectiveMax])
 
   const ppiResult = useMemo((): PPIResult => {
     if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [], dates: [], countBests: new Map() }
-    return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights)
-  }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights])
+    return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax)
+  }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax])
 
   const [selectedDayComboIdx, setSelectedDayComboIdx] = useState<number | null>(null)
 
@@ -146,14 +151,21 @@ export function useAlignmentState(
   const chartData = useMemo(() => {
     return ppiResult.dates.map((dateMs, d) => {
       const point: Record<string, number | string | null> = { date: dateMs }
+      let bestPpi = 0
+      let bestSpan: number | null = null
+      let bestPlanets: string[] | null = null
       for (const [k, bests] of ppiResult.countBests) {
         const b = bests[d]
         if (b) {
           point[`ppi_${k}`] = b.ppi
           point[`span_${k}`] = b.span
           point[`kind_${k}`] = b.kind
+          if (b.ppi > bestPpi) { bestPpi = b.ppi; bestSpan = b.span; bestPlanets = b.planets as string[] }
         }
       }
+      point.best_ppi = bestPpi > 0 ? bestPpi : null
+      point.best_span = bestSpan
+      point.best_planets = bestPlanets ? bestPlanets.join(',') : null
       return point
     })
   }, [ppiResult])
@@ -161,8 +173,8 @@ export function useAlignmentState(
   const dayDetailCombos = useMemo((): PPIDayPoint[] => {
     if (selectedBodies.length < 2) return []
     const dayDate = new Date(currentDay * MS_PER_DAY)
-    return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights)
-  }, [selectedBodies, currentDay, effectiveMin, ppiWeights])
+    return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights, effectiveMax)
+  }, [selectedBodies, currentDay, effectiveMin, ppiWeights, effectiveMax])
 
   const activeTabData = useMemo(() => {
     return alignmentResult.tabs.get(validActiveTab) ?? []
@@ -189,10 +201,9 @@ export function useAlignmentState(
 
     const combosToShow = selectedDayComboIdx !== null && selectedDayComboIdx < dayDetailCombos.length
       ? [dayDetailCombos[selectedDayComboIdx]]
-      : dayDetailCombos
+      : [dayDetailCombos[0]]
 
     for (const combo of combosToShow) {
-      if (result[combo.kind]) continue
       const longitudes = combo.planets.map((p) => getGeocentricEclipticCoords(p, dayDate).lon)
       const elongations = combo.planets.map((p) => wrap180(getGeocentricEclipticCoords(p, dayDate).lon - sunLon))
       result[combo.kind] = {
@@ -251,11 +262,12 @@ export function useAlignmentState(
     skyCenter, setSkyCenter,
     visibleSeries, setVisibleSeries,
     minPlanets, setMinPlanets,
+    maxPlanets, setMaxPlanets,
     ppiWeights, setPPIWeights,
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     activeTab: validActiveTab, setActiveTab,
     availableTabs,
-    effectiveMin,
+    effectiveMin, effectiveMax,
     activeTabData, allMinima, bestPerKind,
     visibleCounts, setVisibleCounts,
     visibleMetrics, setVisibleMetrics,

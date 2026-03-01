@@ -14,7 +14,7 @@ import InfoDisplay from './components/ui/InfoDisplay'
 import MobileTabBar, { MobileTab } from './components/ui/MobileTabBar'
 import { SimulationTimeContext } from './hooks/useSimulationTime'
 import { simulationStore } from './hooks/useSimulationStore'
-import { MS_PER_DAY } from './constants'
+import { MS_PER_DAY, BODY_META } from './constants'
 import { SelectionContext } from './hooks/useSelection'
 import { DisplaySettingsContext } from './hooks/useDisplaySettings'
 import { usePlanetPositions } from './hooks/usePlanetPositions'
@@ -116,6 +116,7 @@ export default function App() {
   const [showConstellations, setShowConstellations] = useState(true)
   const [showConstellationBoundaries, setShowConstellationBoundaries] = useState(false)
   const [showCones, setShowCones] = useState(true)
+  const [showPPIOverlay, setShowPPIOverlay] = useState(true)
   const toggleOrbits = useCallback(() => setShowOrbits((o) => !o), [])
   const toggleLabels = useCallback(() => setShowLabels((l) => !l), [])
   const toggleForceInner = useCallback(() => setForceInner((f) => !f), [])
@@ -124,6 +125,7 @@ export default function App() {
   const toggleConstellations = useCallback(() => setShowConstellations((c) => !c), [])
   const toggleConstellationBoundaries = useCallback(() => setShowConstellationBoundaries((b) => !b), [])
   const toggleCones = useCallback(() => setShowCones((c) => !c), [])
+  const togglePPIOverlay = useCallback(() => setShowPPIOverlay((p) => !p), [])
 
   // --- Computed (throttled React state — for UI only) ---
   const positions = usePlanetPositions(currentDate)
@@ -131,6 +133,22 @@ export default function App() {
 
   // --- Alignment state (shared across panels) ---
   const alignment = useAlignmentState(currentDate, handleSetDate)
+
+  // Best combo for current day (for scene overlay PPI display)
+  const activeCombo = alignment.selectedDayComboIdx != null
+    ? alignment.dayDetailCombos[alignment.selectedDayComboIdx] ?? alignment.dayDetailCombos[0]
+    : alignment.dayDetailCombos[0] ?? null
+
+  const ppiOverlay = showPPIOverlay && activeCombo ? (
+    <div className="scene-ppi-info">
+      <span className="scene-ppi-value">PPI {activeCombo.ppi.toFixed(1)} &middot; {activeCombo.span.toFixed(1)}&deg;</span>
+      <span className="scene-ppi-planets">
+        {activeCombo.planets.map((p) => (
+          <span key={p} style={{ color: BODY_META[p]?.color ?? '#aaa' }}>{p.slice(0, 3)}</span>
+        ))}
+      </span>
+    </div>
+  ) : null
 
   // --- Observer (fixed for Stage 1) ---
   const observer = useMemo<ObserverLocation>(() => ({ lat: 0, lon: 0, height: 0 }), [])
@@ -153,16 +171,16 @@ export default function App() {
   const displayValue = useMemo(() => ({
     showOrbits, showLabels, forceInner,
     showStars, showMilkyWay, showConstellations, showConstellationBoundaries,
-    showCones,
+    showCones, showPPIOverlay,
     toggleOrbits, toggleLabels, toggleForceInner,
     toggleStars, toggleMilkyWay, toggleConstellations, toggleConstellationBoundaries,
-    toggleCones,
+    toggleCones, togglePPIOverlay,
   }), [showOrbits, showLabels, forceInner,
     showStars, showMilkyWay, showConstellations, showConstellationBoundaries,
-    showCones,
+    showCones, showPPIOverlay,
     toggleOrbits, toggleLabels, toggleForceInner,
     toggleStars, toggleMilkyWay, toggleConstellations, toggleConstellationBoundaries,
-    toggleCones])
+    toggleCones, togglePPIOverlay])
 
   // Shared panel props
   const fp = (id: PanelId) => ({
@@ -183,6 +201,7 @@ export default function App() {
         <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
         <div className="scene-overlay">
           <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+          {ppiOverlay}
           <button
             className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen((o) => !o)}
@@ -247,6 +266,7 @@ export default function App() {
             <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
             <div className="scene-overlay">
               <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+              {ppiOverlay}
               <button
                 className="scene-menu-btn"
                 onClick={() => setSceneMenuOpen((o) => !o)}

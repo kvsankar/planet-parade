@@ -30,6 +30,7 @@ export default function ChartPanel({
 
   const [focusToken, setFocusToken] = useState(0)
   const bump = () => setFocusToken((t) => t + 1)
+  const [simpleMode, setSimpleMode] = useState(true)
 
   const toggleCount = (k: number) => {
     const next = new Set(visibleCounts)
@@ -55,21 +56,45 @@ export default function ChartPanel({
     <div className="chart-panel-inner">
       <div className="chart-toggles-row">
         <div className="series-toggle-chips">
-          {availableTabs.map((k) => (
-            <button
-              key={k}
-              className={`series-chip ${visibleCounts.has(k) ? 'active' : ''}`}
-              style={{
-                borderColor: COUNT_COLORS[k] ?? '#888',
-                ...(visibleCounts.has(k) ? { background: (COUNT_COLORS[k] ?? '#888') + '30' } : {}),
-              }}
-              onClick={() => toggleCount(k)}
-            >
-              <span className="series-chip-dot" style={{ background: COUNT_COLORS[k] ?? '#888' }} />
-              {k}p
-            </button>
-          ))}
+          <button
+            className={`series-chip ${simpleMode ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(simpleMode ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => setSimpleMode(true)}
+          >
+            Simple
+          </button>
+          <button
+            className={`series-chip ${!simpleMode ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(!simpleMode ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => setSimpleMode(false)}
+          >
+            Advanced
+          </button>
         </div>
+        {!simpleMode && (
+          <div className="series-toggle-chips">
+            {availableTabs.map((k) => (
+              <button
+                key={k}
+                className={`series-chip ${visibleCounts.has(k) ? 'active' : ''}`}
+                style={{
+                  borderColor: COUNT_COLORS[k] ?? '#888',
+                  ...(visibleCounts.has(k) ? { background: (COUNT_COLORS[k] ?? '#888') + '30' } : {}),
+                }}
+                onClick={() => toggleCount(k)}
+              >
+                <span className="series-chip-dot" style={{ background: COUNT_COLORS[k] ?? '#888' }} />
+                {k}p
+              </button>
+            ))}
+          </div>
+        )}
         <div className="series-toggle-chips">
           <button
             className={`series-chip ${visibleMetrics.has('ppi') ? 'active' : ''}`}
@@ -101,6 +126,7 @@ export default function ChartPanel({
         onDateClick={handleDateSelect}
         visibleCounts={visibleCounts}
         visibleMetrics={visibleMetrics}
+        simpleMode={simpleMode}
         focusToken={focusToken}
       />
       <div className="chart-slider-row">

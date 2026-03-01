@@ -8,8 +8,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
-import { ChartMetric, AlignmentKind } from '../../types'
-import { SERIES_COLORS, COUNT_COLORS, formatDate } from '../../constants'
+import { ChartMetric, AlignmentKind, CelestialBodyId } from '../../types'
+import { SERIES_COLORS, COUNT_COLORS, BODY_META, MS_PER_DAY, formatDate } from '../../constants'
 
 const TOOLTIP_STYLE: React.CSSProperties = {
   background: 'rgba(10,10,20,0.95)',
@@ -31,13 +31,49 @@ interface SeparationChartProps {
   onDateClick: (dateMs: number) => void
   visibleCounts: Set<number>
   visibleMetrics: Set<ChartMetric>
+  simpleMode?: boolean
   focusToken?: number
 }
 
-function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics }: any) {
+function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics, simpleMode }: any) {
   if (!active || !payload || payload.length === 0) return null
   const point = payload[0]?.payload
   if (!point) return null
+
+  if (simpleMode) {
+    const ppi = point.best_ppi
+    const span = point.best_span
+    const planetsStr = point.best_planets as string | null
+    const planets = planetsStr ? planetsStr.split(',') as CelestialBodyId[] : []
+    return (
+      <div style={TOOLTIP_STYLE}>
+        <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number)}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {visibleMetrics.has('ppi') && ppi != null && (
+            <span style={{ color: '#ddd' }}>PPI {Number(ppi).toFixed(1)}</span>
+          )}
+          {visibleMetrics.has('span') && span != null && (
+            <span style={{ color: '#aaa' }}>{Number(span).toFixed(1)}&deg;</span>
+          )}
+        </div>
+        {planets.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+            {planets.map((p) => (
+              <span key={p} style={{
+                fontSize: 10,
+                padding: '1px 4px',
+                borderRadius: 3,
+                background: (BODY_META[p]?.color ?? '#888') + '30',
+                color: BODY_META[p]?.color ?? '#aaa',
+              }}>
+                {p.slice(0, 3)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const counts = Array.from(visibleCounts as Set<number>).sort((a: number, b: number) => b - a)
 
@@ -82,8 +118,9 @@ const ChartInner = memo(function ChartInner({
   onDateClick,
   visibleCounts,
   visibleMetrics,
+  simpleMode,
   xDomain,
-}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleCounts' | 'visibleMetrics'> & { xDomain: [number, number] }) {
+}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleCounts' | 'visibleMetrics' | 'simpleMode'> & { xDomain: [number, number] }) {
   const showPPI = visibleMetrics.has('ppi')
   const showSpan = visibleMetrics.has('span')
   const counts = Array.from(visibleCounts).sort((a, b) => b - a)
@@ -136,48 +173,78 @@ const ChartInner = memo(function ChartInner({
           />
         )}
         <Tooltip
-          content={<CustomTooltip visibleCounts={visibleCounts} visibleMetrics={visibleMetrics} />}
+          content={<CustomTooltip visibleCounts={visibleCounts} visibleMetrics={visibleMetrics} simpleMode={simpleMode} />}
         />
-        {counts.flatMap((k) => {
-          const color = COUNT_COLORS[k] ?? '#888'
-          const lines: React.ReactElement[] = []
-          if (showPPI) {
-            lines.push(
+        {simpleMode ? (
+          <>
+            {showPPI && (
               <Line
-                key={`ppi_${k}`}
                 type="monotone"
-                dataKey={`ppi_${k}`}
+                dataKey="best_ppi"
                 yAxisId="ppi"
-                stroke={color}
-                strokeWidth={1.5}
+                stroke="#fff"
+                strokeWidth={2}
                 dot={false}
-                activeDot={(props: any) => {
-                  const kind = props.payload?.[`kind_${k}`] as AlignmentKind | undefined
-                  const dotColor = kind ? SERIES_COLORS[kind] : color
-                  return <circle cx={props.cx} cy={props.cy} r={3} fill={dotColor} stroke="none" />
-                }}
+                activeDot={{ r: 3, fill: '#fff' }}
                 connectNulls={false}
               />
-            )
-          }
-          if (showSpan) {
-            lines.push(
+            )}
+            {showSpan && (
               <Line
-                key={`span_${k}`}
                 type="monotone"
-                dataKey={`span_${k}`}
+                dataKey="best_span"
                 yAxisId="span"
-                stroke={color}
+                stroke="#fff"
                 strokeWidth={1}
                 strokeDasharray="4 2"
                 dot={false}
-                activeDot={{ r: 2, fill: color }}
+                activeDot={{ r: 2, fill: '#fff' }}
                 connectNulls={false}
               />
-            )
-          }
-          return lines
-        })}
+            )}
+          </>
+        ) : (
+          counts.flatMap((k) => {
+            const color = COUNT_COLORS[k] ?? '#888'
+            const lines: React.ReactElement[] = []
+            if (showPPI) {
+              lines.push(
+                <Line
+                  key={`ppi_${k}`}
+                  type="monotone"
+                  dataKey={`ppi_${k}`}
+                  yAxisId="ppi"
+                  stroke={color}
+                  strokeWidth={1.5}
+                  dot={false}
+                  activeDot={(props: any) => {
+                    const kind = props.payload?.[`kind_${k}`] as AlignmentKind | undefined
+                    const dotColor = kind ? SERIES_COLORS[kind] : color
+                    return <circle cx={props.cx} cy={props.cy} r={3} fill={dotColor} stroke="none" />
+                  }}
+                  connectNulls={false}
+                />
+              )
+            }
+            if (showSpan) {
+              lines.push(
+                <Line
+                  key={`span_${k}`}
+                  type="monotone"
+                  dataKey={`span_${k}`}
+                  yAxisId="span"
+                  stroke={color}
+                  strokeWidth={1}
+                  strokeDasharray="4 2"
+                  dot={false}
+                  activeDot={{ r: 2, fill: color }}
+                  connectNulls={false}
+                />
+              )
+            }
+            return lines
+          })
+        )}
       </LineChart>
     </ResponsiveContainer>
   )
@@ -194,6 +261,7 @@ export default function SeparationChart({
   onDateClick,
   visibleCounts,
   visibleMetrics,
+  simpleMode,
   focusToken,
 }: SeparationChartProps) {
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -384,12 +452,25 @@ export default function SeparationChart({
 
   // Current-date indicator within zoomed domain
   let indicatorPct: number | null = null
+  let indicatorPpi: number | null = null
+  let indicatorSpan: number | null = null
+  let indicatorPlanets: CelestialBodyId[] = []
   if (currentDate != null && data.length >= 2) {
     const span = xDomain[1] - xDomain[0]
     if (span > 0 && currentDate >= xDomain[0] && currentDate <= xDomain[1]) {
       indicatorPct = ((currentDate - xDomain[0]) / span) * 100
+      // Find closest data point by date
+      const idx = Math.round((currentDate - (data[0].date as number)) / MS_PER_DAY)
+      if (idx >= 0 && idx < data.length) {
+        const pt = data[idx]
+        indicatorPpi = pt.best_ppi as number | null
+        indicatorSpan = pt.best_span as number | null
+        const ps = pt.best_planets as string | null
+        if (ps) indicatorPlanets = ps.split(',') as CelestialBodyId[]
+      }
     }
   }
+  const indicatorFlip = indicatorPct != null && indicatorPct > 75
 
   // Track left/right offsets for the date indicator
   const trackLeft = showPPI ? 37 : 5
@@ -413,6 +494,7 @@ export default function SeparationChart({
           onDateClick={onDateClick}
           visibleCounts={visibleCounts}
           visibleMetrics={visibleMetrics}
+          simpleMode={simpleMode}
           xDomain={xDomain}
         />
         {indicatorPct != null && (
@@ -421,12 +503,27 @@ export default function SeparationChart({
               className="chart-date-indicator"
               style={{ left: `${indicatorPct}%` }}
             >
-              <span
+              <div
                 className="chart-date-label"
-                style={indicatorPct > 75 ? { right: 6, left: 'auto' } : undefined}
+                style={indicatorFlip ? { right: 6, left: 'auto', alignItems: 'flex-end' } as const : undefined}
               >
-                {formatDate(currentDate!)}
-              </span>
+                <span>{formatDate(currentDate!)}</span>
+                {indicatorPpi != null && (
+                  <span>
+                    PPI {indicatorPpi.toFixed(1)}
+                    {indicatorSpan != null && <> &middot; {indicatorSpan.toFixed(1)}&deg;</>}
+                  </span>
+                )}
+                {indicatorPlanets.length > 0 && (
+                  <span className="chart-date-planets">
+                    {indicatorPlanets.map((p) => (
+                      <span key={p} style={{ color: BODY_META[p]?.color ?? '#aaa' }}>
+                        {p.slice(0, 3)}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

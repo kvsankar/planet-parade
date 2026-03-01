@@ -10,6 +10,7 @@ export const DisplaySettingsContext = createContext<DisplaySettings>({
   showConstellations: true,
   showConstellationBoundaries: false,
   showCones: true,
+  showPPIOverlay: true,
   toggleOrbits: () => {},
   toggleLabels: () => {},
   toggleForceInner: () => {},
@@ -18,6 +19,7 @@ export const DisplaySettingsContext = createContext<DisplaySettings>({
   toggleConstellations: () => {},
   toggleConstellationBoundaries: () => {},
   toggleCones: () => {},
+  togglePPIOverlay: () => {},
 })
 
 export function useDisplaySettings() {

@@ -98,8 +98,10 @@ export function computePPIResults(
   durationDays: number,
   minPlanets: number,
   weights: PPIWeights,
+  maxPlanets?: number,
 ): PPIResult {
   const N = bodies.length
+  const highK = maxPlanets != null ? Math.min(N, maxPlanets) : N
   const lowK = Math.max(2, minPlanets)
   const numDays = durationDays + 1
   const startMs = startDate.getTime()
@@ -142,7 +144,7 @@ export function computePPIResults(
 
   // Per-count tracking
   const countBests = new Map<number, (CountDayBest | null)[]>()
-  for (let k = N; k >= lowK; k--) {
+  for (let k = highK; k >= lowK; k--) {
     countBests.set(k, new Array(numDays).fill(null))
   }
 
@@ -150,7 +152,7 @@ export function computePPIResults(
     const day = ephemeris[d]
     let best: DayBest | null = null
 
-    for (let k = N; k >= lowK; k--) {
+    for (let k = highK; k >= lowK; k--) {
       let bestForK: CountDayBest | null = null
 
       const evaluate = (combo: number[]) => {
@@ -220,10 +222,12 @@ export function computeDayCombos(
   date: Date,
   minPlanets: number,
   weights: PPIWeights,
+  maxPlanets?: number,
 ): PPIDayPoint[] {
   const N = bodies.length
   if (N < 2) return []
 
+  const highK = maxPlanets != null ? Math.min(N, maxPlanets) : N
   const lowK = Math.max(2, minPlanets)
   const dateMs = date.getTime()
 
@@ -243,7 +247,7 @@ export function computeDayCombos(
   const results: PPIDayPoint[] = []
   const bodyIndices = Array.from({ length: N }, (_, i) => i)
 
-  for (let k = N; k >= lowK; k--) {
+  for (let k = highK; k >= lowK; k--) {
     const evaluate = (combo: number[]) => {
       const lons = combo.map((i) => bodyLons[i])
       const elongs = combo.map((i) => bodyElongs[i])

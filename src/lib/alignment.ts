@@ -378,11 +378,12 @@ export function computeAlignmentTabs(
   startDate: Date,
   durationDays: number,
   minPlanets: number,
+  maxPlanets?: number,
 ): AlignmentResult {
   const N = bodies.length
   const minK = Math.max(2, minPlanets)
-  const maxK = N
-  const lowK = Math.max(minK, N - 3)
+  const maxK = maxPlanets != null ? Math.min(N, maxPlanets) : N
+  const lowK = Math.max(minK, maxK - 3)
 
   const tabs = new Map<number, AlignmentTabDataPoint[]>()
   const minima = new Map<number, AlignmentMinimum[]>()

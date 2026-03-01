@@ -498,11 +498,17 @@ select option {
   border-radius: 50%;
 }
 
-/* Min planets for AM/PM */
+/* Planet count range */
 .min-planets-control {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.planet-range-label {
+  margin-left: 6px;
+  color: #aaa;
+  font-weight: 400;
 }
 
 .min-planets-chips {
@@ -759,11 +765,20 @@ select option {
   position: absolute;
   top: 0;
   left: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   font-size: 9px;
   color: rgba(253, 184, 19, 0.85);
   white-space: nowrap;
   pointer-events: none;
   font-family: monospace;
+}
+
+.chart-date-planets {
+  display: flex;
+  gap: 3px;
+  font-size: 8px;
 }
 
 .chart-empty {
@@ -939,6 +954,10 @@ select option {
   padding: 3px 5px;
   font-family: monospace;
   font-size: 10px;
+}
+
+.minima-table .col-right {
+  text-align: right;
 }
 
 .minima-table tbody tr {
@@ -1179,6 +1198,24 @@ select option {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+.scene-ppi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.scene-ppi-value {
+  color: rgba(253, 184, 19, 0.85);
+}
+
+.scene-ppi-planets {
+  display: flex;
+  gap: 4px;
+  font-size: 9px;
 }
 
 .scene-menu-btn {
