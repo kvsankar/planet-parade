@@ -1,86 +1,96 @@
 import { memo, useState, useCallback, useRef, useEffect } from 'react'
 import { PPIWeights } from '../../types'
-import { DEFAULT_PPI_WEIGHTS } from '../../lib/ppiScoring'
+import { DEFAULT_PPI_WEIGHTS, MEDIA_PPI_WEIGHTS } from '../../lib/ppiScoring'
 
 interface PPISlidersProps {
   weights: PPIWeights
   onChange: (w: PPIWeights) => void
 }
 
+type PresetId = 'visibility' | 'media' | 'custom'
+
+const PRESETS: { id: PresetId; label: string; weights: PPIWeights; desc: string }[] = [
+  { id: 'visibility', label: 'Visibility', weights: DEFAULT_PPI_WEIGHTS, desc: 'Tight bright clusters, visibility-gated' },
+  { id: 'media', label: 'Media', weights: MEDIA_PPI_WEIGHTS, desc: 'Maximum planet count, pure geometry' },
+]
+
+function detectPreset(w: PPIWeights): PresetId {
+  for (const p of PRESETS) {
+    if (w.alpha === p.weights.alpha && w.beta === p.weights.beta &&
+        w.gamma === p.weights.gamma && w.delta === p.weights.delta) return p.id
+  }
+  return 'custom'
+}
+
 export default memo(function PPISliders({ weights, onChange }: PPISlidersProps) {
-  const [localAlpha, setLocalAlpha] = useState(weights.alpha)
-  const [localGamma, setLocalGamma] = useState(weights.gamma)
+  const [local, setLocal] = useState({ ...weights })
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Sync local state when weights change externally
   useEffect(() => {
-    setLocalAlpha(weights.alpha)
-    setLocalGamma(weights.gamma)
-  }, [weights.alpha, weights.gamma])
+    setLocal({ ...weights })
+  }, [weights.alpha, weights.beta, weights.gamma, weights.delta])
 
-  const debounceEmit = useCallback((alpha: number, gamma: number) => {
+  const debounceEmit = useCallback((next: PPIWeights) => {
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      onChange({ alpha, beta: 2.4 - alpha, gamma, spanScale: weights.spanScale })
-    }, 300)
+    timerRef.current = setTimeout(() => onChange(next), 300)
   }, [onChange])
 
-  const handleAlpha = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSlider = useCallback((key: keyof PPIWeights) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
-    setLocalAlpha(v)
-    debounceEmit(v, localGamma)
-  }, [debounceEmit, localGamma])
+    setLocal((prev) => {
+      const next = { ...prev, [key]: v }
+      debounceEmit(next)
+      return next
+    })
+  }, [debounceEmit])
 
-  const handleGamma = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value)
-    setLocalGamma(v)
-    debounceEmit(localAlpha, v)
-  }, [debounceEmit, localAlpha])
+  const activePreset = detectPreset(local)
 
-  const isModified = localAlpha !== DEFAULT_PPI_WEIGHTS.alpha || localGamma !== DEFAULT_PPI_WEIGHTS.gamma
-
-  const handleReset = useCallback(() => {
-    setLocalAlpha(DEFAULT_PPI_WEIGHTS.alpha)
-    setLocalGamma(DEFAULT_PPI_WEIGHTS.gamma)
+  const applyPreset = useCallback((w: PPIWeights) => {
+    setLocal({ ...w })
     if (timerRef.current) clearTimeout(timerRef.current)
-    onChange({ ...DEFAULT_PPI_WEIGHTS })
+    onChange({ ...w })
   }, [onChange])
 
   return (
     <div className="ppi-sliders">
       <span className="control-label">
         Parade Scoring
-        {isModified && (
-          <button className="ppi-reset-btn" onClick={handleReset} title="Reset to defaults">
-            Reset
-          </button>
-        )}
       </span>
+      <div className="ppi-preset-row">
+        {PRESETS.map((p) => (
+          <button
+            key={p.id}
+            className={`ppi-preset-btn ${activePreset === p.id ? 'active' : ''}`}
+            onClick={() => applyPreset(p.weights)}
+            title={p.desc}
+          >
+            {p.label}
+          </button>
+        ))}
+        {activePreset === 'custom' && (
+          <span className="ppi-preset-custom">Custom</span>
+        )}
+      </div>
       <div className="ppi-slider-row">
-        <span className="ppi-slider-label">Count</span>
-        <input
-          type="range"
-          className="ppi-slider"
-          min={0.4}
-          max={2.0}
-          step={0.4}
-          value={localAlpha}
-          onChange={handleAlpha}
-        />
-        <span className="ppi-slider-label">Tightness</span>
+        <span className="ppi-slider-label">Few</span>
+        <input type="range" className="ppi-slider" min={0} max={3} step={0.5} value={local.alpha} onChange={handleSlider('alpha')} />
+        <span className="ppi-slider-label">Many</span>
+      </div>
+      <div className="ppi-slider-row">
+        <span className="ppi-slider-label">Wide</span>
+        <input type="range" className="ppi-slider" min={0} max={3} step={0.5} value={local.beta} onChange={handleSlider('beta')} />
+        <span className="ppi-slider-label">Tight</span>
       </div>
       <div className="ppi-slider-row">
         <span className="ppi-slider-label">All equal</span>
-        <input
-          type="range"
-          className="ppi-slider"
-          min={0}
-          max={2}
-          step={0.5}
-          value={localGamma}
-          onChange={handleGamma}
-        />
+        <input type="range" className="ppi-slider" min={0} max={2} step={0.5} value={local.gamma} onChange={handleSlider('gamma')} />
         <span className="ppi-slider-label">Bright</span>
+      </div>
+      <div className="ppi-slider-row">
+        <span className="ppi-slider-label">Geometric</span>
+        <input type="range" className="ppi-slider" min={0} max={1} step={0.25} value={local.delta} onChange={handleSlider('delta')} />
+        <span className="ppi-slider-label">Visible</span>
       </div>
     </div>
   )

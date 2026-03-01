@@ -16,7 +16,15 @@ import {
 } from './alignment'
 import { getBodyVisualMagnitude, SkyBodyId } from './astronomy'
 
-export const DEFAULT_PPI_WEIGHTS: PPIWeights = { alpha: 1.2, beta: 1.2, gamma: 0.5, spanScale: 180 }
+/** Visibility preset: tight bright clusters, mild visibility gate.
+ *  Derived from parameter sweep + manual audit of top-50 peaks (2000–2026).
+ *  γ=0.25 penalises dim planets (Uranus/Neptune) without eliminating them
+ *  from genuinely compelling geometric groupings. */
+export const DEFAULT_PPI_WEIGHTS: PPIWeights = { alpha: 1.0, beta: 2.0, gamma: 0.25, delta: 0.25, spanScale: 180 }
+
+/** Media preset: best match to public "planet parade" dates.
+ *  Derived from parameter sweep minimizing date offset from 10 known events. */
+export const MEDIA_PPI_WEIGHTS: PPIWeights = { alpha: 1.5, beta: 2.0, gamma: 0.5, delta: 0.5, spanScale: 180 }
 
 /** Per-planet brightness weight: maps visual magnitude to [0.01, 1.0] */
 export function brightnessWeight(mag: number): number {
@@ -54,10 +62,13 @@ export function computeComboPPI(
   const brightness = Math.exp(logBright / k)
 
   // Minimum elongation weight — the least-visible planet is the bottleneck
+  // delta=1: full gate (default). delta=0: no gate (pure geometry).
+  // Effective weight = lerp(1, rawWeight, delta) = 1 - delta*(1 - rawWeight)
+  const d = weights.delta
   let elongVisibility = Infinity
   for (let i = 0; i < k; i++) {
-    const ew = elongationWeight(absElongs[i])
-    if (ew === 0) return { ppi: 0, brightness, elongVisibility: 0 }
+    const raw = elongationWeight(absElongs[i])
+    const ew = 1 - d * (1 - raw)
     if (ew < elongVisibility) elongVisibility = ew
   }
 

@@ -66,15 +66,28 @@ describe('elongationWeight', () => {
 describe('computeComboPPI', () => {
   const N = 7
 
-  it('returns 0 when any planet has elongation < 10°', () => {
+  it('returns 0 when any planet has elongation < 10° and delta=1', () => {
+    const fullGate: PPIWeights = { alpha: 1, beta: 1, gamma: 0.5, delta: 1, spanScale: 180 }
     const result = computeComboPPI(
       3, N, 20,
       [1, 2, 3],       // mags
       [40, 5, 50],      // one planet at 5° — invisible
-      DEFAULT_PPI_WEIGHTS,
+      fullGate,
     )
     expect(result.ppi).toBe(0)
     expect(result.elongVisibility).toBe(0)
+  })
+
+  it('elongation < 10° still scores when delta=0', () => {
+    const noGate: PPIWeights = { alpha: 1, beta: 1, gamma: 0.5, delta: 0, spanScale: 180 }
+    const result = computeComboPPI(
+      3, N, 20,
+      [1, 2, 3],
+      [40, 5, 50],
+      noGate,
+    )
+    expect(result.ppi).toBeGreaterThan(0)
+    expect(result.elongVisibility).toBe(1)  // delta=0 → all elongations map to 1
   })
 
   it('more planets → higher PPI (same span/brightness)', () => {
@@ -97,23 +110,24 @@ describe('computeComboPPI', () => {
     expect(tight.ppi).toBeGreaterThan(wide.ppi)
   })
 
-  it('higher brightness → higher PPI', () => {
+  it('higher brightness → higher PPI (when gamma > 0)', () => {
     const elongs = [40, 40, 40]
-    const bright = computeComboPPI(3, N, 20, [0, 0, 0], elongs, DEFAULT_PPI_WEIGHTS)
-    const dim = computeComboPPI(3, N, 20, [5, 5, 5], elongs, DEFAULT_PPI_WEIGHTS)
+    const w: PPIWeights = { alpha: 1, beta: 1, gamma: 1, delta: 1, spanScale: 180 }
+    const bright = computeComboPPI(3, N, 20, [0, 0, 0], elongs, w)
+    const dim = computeComboPPI(3, N, 20, [5, 5, 5], elongs, w)
     expect(bright.ppi).toBeGreaterThan(dim.ppi)
   })
 
   it('gamma=0 ignores brightness', () => {
     const elongs = [40, 40, 40]
-    const w: PPIWeights = { alpha: 1.5, beta: 1.5, gamma: 0, spanScale: 180 }
+    const w: PPIWeights = { alpha: 1.5, beta: 1.5, gamma: 0, delta: 1, spanScale: 180 }
     const bright = computeComboPPI(3, N, 20, [0, 0, 0], elongs, w)
     const dim = computeComboPPI(3, N, 20, [5, 5, 5], elongs, w)
     expect(bright.ppi).toBeCloseTo(dim.ppi, 5)
   })
 
   it('alpha=3/beta=0 weights count heavily', () => {
-    const w: PPIWeights = { alpha: 3, beta: 0, gamma: 1, spanScale: 180 }
+    const w: PPIWeights = { alpha: 3, beta: 0, gamma: 1, delta: 1, spanScale: 180 }
     const elongs = [40, 40, 40, 40, 40]
 
     // 5 planets, wide span
@@ -179,8 +193,8 @@ describe('computePPIResults', () => {
 
   it('changing weights changes the peak ranking', () => {
     const bodies = ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] as const
-    const countHeavy: PPIWeights = { alpha: 2.5, beta: 0.5, gamma: 1, spanScale: 180 }
-    const spanHeavy: PPIWeights = { alpha: 0.5, beta: 2.5, gamma: 1, spanScale: 180 }
+    const countHeavy: PPIWeights = { alpha: 2.5, beta: 0.5, gamma: 1, delta: 1, spanScale: 180 }
+    const spanHeavy: PPIWeights = { alpha: 0.5, beta: 2.5, gamma: 1, delta: 1, spanScale: 180 }
 
     const r1 = computePPIResults(
       [...bodies],
