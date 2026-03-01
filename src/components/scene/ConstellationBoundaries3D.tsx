@@ -1,9 +1,9 @@
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, memo } from 'react'
 import * as THREE from 'three'
 import { CONSTELLATION_BOUNDARIES } from '../../data/constellationBoundaries'
 import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 
-export default function ConstellationBoundaries3D() {
+export default memo(function ConstellationBoundaries3D() {
   const ref = useRef<THREE.LineSegments>(null)
 
   const { geometry, material } = useMemo(() => {
@@ -43,4 +43,4 @@ export default function ConstellationBoundaries3D() {
   }, [geometry])
 
   return <lineSegments ref={ref} geometry={geometry} material={material} />
-}
+})

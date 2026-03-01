@@ -1,9 +1,13 @@
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import * as THREE from 'three'
 import { useLoader } from '@react-three/fiber'
 
 const OBLIQUITY_RAD = 23.4392911 * (Math.PI / 180)
 const MW_SPHERE_RADIUS = 949
+
+// Stable prop references to avoid re-creating tuples every render
+const MW_ROTATION: [number, number, number] = [-OBLIQUITY_RAD, 0, 0]
+const MW_SCALE: [number, number, number] = [-1, 1, 1]
 
 const vertexShader = `
   varying vec2 vUv;
@@ -34,7 +38,7 @@ const fragmentShader = `
  * Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio.
  * Data: Gaia DR2 (ESA/Gaia/DPAC).
  */
-export default function MilkyWaySphere() {
+export default memo(function MilkyWaySphere() {
   const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}starmap_4k.jpg`)
 
   const { geometry, material } = useMemo(() => {
@@ -62,8 +66,8 @@ export default function MilkyWaySphere() {
     <mesh
       geometry={geometry}
       material={material}
-      rotation={[-OBLIQUITY_RAD, 0, 0]}
-      scale={[-1, 1, 1]}
+      rotation={MW_ROTATION}
+      scale={MW_SCALE}
     />
   )
-}
+})

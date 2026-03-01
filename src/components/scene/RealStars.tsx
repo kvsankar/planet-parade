@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import * as THREE from 'three'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
@@ -84,7 +84,7 @@ const fragmentShader = `
   }
 `
 
-export default function RealStars() {
+export default memo(function RealStars() {
   const { geometry, material } = useMemo(() => {
     const count = STAR_CATALOG.length
     const positions = new Float32Array(count * 3)
@@ -127,4 +127,4 @@ export default function RealStars() {
   }, [])
 
   return <points geometry={geometry} material={material} />
-}
+})

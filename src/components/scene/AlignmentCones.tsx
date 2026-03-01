@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { AlignmentKind } from '../../types'
@@ -108,7 +108,7 @@ function buildGeoForCombo(best: BestCombination | null): { sector: THREE.BufferG
 
 const DEFAULT_VISIBLE = new Set<AlignmentKind>(['morning', 'evening', 'straddling'])
 
-export default function AlignmentCones({ bestPerKind, visibleSeries = DEFAULT_VISIBLE }: Props) {
+export default memo(function AlignmentCones({ bestPerKind, visibleSeries = DEFAULT_VISIBLE }: Props) {
   const groupRef = useRef<THREE.Group>(null!)
   const straddlingMeshRef = useRef<THREE.Mesh>(null!)
   const amMeshRef = useRef<THREE.Mesh>(null!)
@@ -175,4 +175,4 @@ export default function AlignmentCones({ bestPerKind, visibleSeries = DEFAULT_VI
       <lineSegments ref={pmEdgeRef} material={pmLineMat} visible={visibleSeries.has('evening')} />
     </group>
   )
-}
+})

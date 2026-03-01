@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import Sun from './Sun'
@@ -15,6 +16,10 @@ const INSET_DIST = 45 // fixed camera distance
 
 const _spherical = new THREE.Spherical()
 
+// Stable props for Canvas to avoid re-creating objects every render
+const INSET_CAMERA = { position: [0, 45, 0] as [number, number, number], fov: 45, near: 0.1, far: 200 }
+const INSET_STYLE = { background: 'rgba(5, 5, 15, 0.85)' }
+
 interface Props {
   positions: Record<CelestialBodyId, [number, number, number]>
   orbitPaths: Record<CelestialBodyId, [number, number, number][]>
@@ -23,7 +28,7 @@ interface Props {
 }
 
 /** Syncs inset camera angles from the main scene's CameraController */
-function InsetCameraSync() {
+const InsetCameraSync = memo(function InsetCameraSync() {
   const { camera } = useThree()
 
   useFrame(() => {
@@ -33,7 +38,7 @@ function InsetCameraSync() {
   })
 
   return null
-}
+})
 
 function InsetContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
   const { showOrbits, showCones } = useDisplaySettings()
@@ -58,15 +63,15 @@ function InsetContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Pr
   )
 }
 
-export default function InnerPlanetsInset({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
+export default memo(function InnerPlanetsInset({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
   return (
     <div className="inner-planets-inset">
       <Canvas
-        camera={{ position: [0, 45, 0], fov: 45, near: 0.1, far: 200 }}
-        style={{ background: 'rgba(5, 5, 15, 0.85)' }}
+        camera={INSET_CAMERA}
+        style={INSET_STYLE}
       >
         <InsetContents positions={positions} orbitPaths={orbitPaths} visibleSeries={visibleSeries} bestPerKind={bestPerKind} />
       </Canvas>
     </div>
   )
-}
+})

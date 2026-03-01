@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -13,7 +13,7 @@ export const cameraAngles = { theta: 0, phi: Math.PI / 2 }
 const _spherical = new THREE.Spherical()
 const _offset = new THREE.Vector3()
 
-export default function CameraController() {
+export default memo(function CameraController() {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null)
   const { selectedBodyId, followMode } = useSelection()
   const targetRef = useRef(new THREE.Vector3())
@@ -68,4 +68,4 @@ export default function CameraController() {
       maxDistance={1000}
     />
   )
-}
+})

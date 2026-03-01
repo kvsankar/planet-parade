@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Line } from '@react-three/drei'
 import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
@@ -7,7 +8,7 @@ interface Props {
   points: [number, number, number][]
 }
 
-export default function OrbitLine({ bodyId, points }: Props) {
+export default memo(function OrbitLine({ bodyId, points }: Props) {
   if (points.length < 2) return null
   const color = BODY_META[bodyId].color
 
@@ -20,4 +21,4 @@ export default function OrbitLine({ bodyId, points }: Props) {
       opacity={0.4}
     />
   )
-}
+})

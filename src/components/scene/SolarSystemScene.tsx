@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo, memo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useFrame } from '@react-three/fiber'
 import Sun from './Sun'
@@ -17,7 +17,13 @@ import { LabelRegistryProvider } from '../../hooks/useLabelOverlap'
 import { BestPerKind } from '../../lib/alignment'
 
 const INNER_BODIES: Set<CelestialBodyId> = new Set(['Mercury', 'Venus', 'Mars'])
-const INNER_HIDE_DIST = 150 // scene units — hide inner planets when camera is farther than this
+const INNER_HIDE_DIST = 150 // scene units -- hide inner planets when camera is farther than this
+
+// Pre-filtered body lists (avoid creating new arrays every render)
+const OUTER_BODIES = BODY_LIST.filter((id) => !INNER_BODIES.has(id))
+
+// Stable Canvas props
+const MAIN_CANVAS_STYLE = { background: '#0a0a0f' }
 
 interface Props {
   positions: Record<CelestialBodyId, [number, number, number]>
@@ -28,11 +34,11 @@ interface Props {
 
 function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
   const { showOrbits, forceInner, showStars, showMilkyWay, showConstellations, showConstellationBoundaries, showCones } = useDisplaySettings()
-  const [showInner, setShowInner] = useState(false) // default camera at 300 → hidden
+  const [showInner, setShowInner] = useState(false) // default camera at 300 -> hidden
   const showInnerRef = useRef(false)
 
   // Check if any active combo contains an inner planet
-  const comboHasInner = bestPerKind != null && (['morning', 'evening', 'straddling'] as AlignmentKind[]).some(
+  const comboHasInner = showCones && bestPerKind != null && (['morning', 'evening', 'straddling'] as AlignmentKind[]).some(
     (kind) => bestPerKind[kind]?.bodies.some((b) => INNER_BODIES.has(b))
   )
 
@@ -45,9 +51,8 @@ function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Pr
     }
   })
 
-  const visibleBodies = showInner
-    ? BODY_LIST
-    : BODY_LIST.filter((id) => !INNER_BODIES.has(id))
+  // Use pre-computed constant arrays instead of filtering every render
+  const visibleBodies = showInner ? BODY_LIST : OUTER_BODIES
 
   const hasCones = bestPerKind && (bestPerKind.morning || bestPerKind.evening || bestPerKind.straddling)
 
@@ -73,18 +78,21 @@ function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Pr
   )
 }
 
-export default function SolarSystemScene({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
-  const [initialCameraY] = useState(() => {
-    // Use a reasonable default — camera starts zoomed out
-    return 300
-  })
+export default memo(function SolarSystemScene({ positions, orbitPaths, visibleSeries, bestPerKind }: Props) {
+  // Stable camera config -- useMemo ensures the object is only created once
+  const cameraConfig = useMemo(() => ({
+    position: [0, 300, 0] as [number, number, number],
+    fov: 45,
+    near: 0.1,
+    far: 2000,
+  }), [])
 
   return (
     <Canvas
-      camera={{ position: [0, initialCameraY, 0], fov: 45, near: 0.1, far: 2000 }}
-      style={{ background: '#0a0a0f' }}
+      camera={cameraConfig}
+      style={MAIN_CANVAS_STYLE}
     >
       <SceneContents positions={positions} orbitPaths={orbitPaths} visibleSeries={visibleSeries} bestPerKind={bestPerKind} />
     </Canvas>
   )
-}
+})

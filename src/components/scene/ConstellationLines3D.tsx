@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import * as THREE from 'three'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { CONSTELLATIONS } from '../../data/constellationLines'
@@ -7,7 +7,7 @@ import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinat
 // Pre-compute star positions on the celestial sphere
 const starPositions = STAR_CATALOG.map((s) => raDecToSceneSphere(s.ra, s.dec, CELESTIAL_SPHERE_RADIUS))
 
-export default function ConstellationLines3D() {
+export default memo(function ConstellationLines3D() {
   const { geometry, material } = useMemo(() => {
     // Count total segments
     let segCount = 0
@@ -44,4 +44,4 @@ export default function ConstellationLines3D() {
   }, [])
 
   return <lineSegments geometry={geometry} material={material} />
-}
+})
