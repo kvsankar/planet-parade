@@ -88,3 +88,26 @@ export interface AlignmentResult {
   tabs: Map<number, AlignmentTabDataPoint[]>  // keyed by planet count
   minima: Map<number, AlignmentMinimum[]>     // keyed by planet count
 }
+
+export interface PPIWeights {
+  alpha: number      // count exponent (default 1.5)
+  beta: number       // compactness exponent (default 1.5); alpha + beta = 3
+  gamma: number      // brightness exponent (default 1.0)
+  spanScale: number  // span decay constant in degrees (default 180)
+}
+
+export interface PPIDayPoint {
+  date: number
+  ppi: number
+  span: number
+  kind: AlignmentKind
+  planetCount: number
+  planets: CelestialBodyId[]
+  brightness: number
+  elongVisibility: number
+}
+
+export interface PPIResult {
+  ppiSeries: { date: number; ppi: number }[]
+  ppiPeaks: PPIDayPoint[]
+}

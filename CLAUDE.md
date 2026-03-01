@@ -32,7 +32,7 @@ The app uses three distinct state layers to bridge React and Three.js:
 
 2. **Module-level singleton store** (`hooks/useSimulationStore.ts`) — A plain mutable object (`simulationStore`) that mirrors simulation time state. Three.js Canvas components import this directly instead of using Context, because React Context doesn't reliably cross the R3F Canvas boundary. Mutations are synchronous.
 
-3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns `activeTab` (combination size), `bestPerKind` (best combo per AM/PM/Straddling), and feeds both SkyView and AlignmentCones via props.
+3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns `activeTab` (combination size), `bestPerKind` (best combo per AM/PM/Straddling), PPI weights/results, and feeds SkyView, AlignmentCones, and the peaks table via props.
 
 ### Animation Loop
 
@@ -55,6 +55,7 @@ astronomy-engine (J2000 equatorial) → ecliptic rotation (23.44° obliquity) �
 ### Key Libraries
 
 - `lib/alignment.ts` — Combination-based alignment computation (`computeAlignmentTabs`, `findBestPerKind`), classification (`classifyCombination`), local minima detection, ecliptic span math. Uses a FIFO ephemeris cache (200k entries) keyed by `"bodyId:dateMs"`.
+- `lib/ppiScoring.ts` — Planet Parade Index computation (`computePPIResults`, `computeComboPPI`). Scores combos by count, compactness, brightness, and visibility. Excludes straddling combos; uses min-elongation visibility gate. See `docs/planet-parade-index.md` for formula and design decisions.
 - `lib/astronomy.ts` — Heliocentric/geocentric positions, alt-az, moon phase, magnitude via astronomy-engine.
 - `lib/coordinateConversion.ts` — EQJ↔scene, RA/Dec↔XYZ, ecliptic transforms.
 

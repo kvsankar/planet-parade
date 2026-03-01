@@ -227,7 +227,6 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
       return { spanInfos: [] as SpanInfo[], shadingBands: [] as { kind: AlignmentKind; rects: { left: number; right: number }[] }[], comboSet: new Set<string>() }
     }
 
-    const k = Math.min(activeTab, planets.length)
     const spans: SpanInfo[] = []
     const bands: { kind: AlignmentKind; rects: { left: number; right: number }[] }[] = []
 
@@ -245,13 +244,13 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
           const rects = arcToRects(arc, refLon)
           bands.push({ kind, rects })
           const kindLabel = kind === 'straddling' ? 'Straddle' : kind === 'morning' ? 'AM' : 'PM'
-          spans.push({ label: `${kindLabel} (${k})`, span: best.span, rects, color: SERIES_COLORS[kind] })
+          spans.push({ label: `${kindLabel} (${best.bodies.length})`, span: best.span, rects, color: SERIES_COLORS[kind] })
         }
       }
     }
 
     return { spanInfos: spans, shadingBands: bands, comboSet: allComboIds }
-  }, [plotData, refLon, activeTab, bestPerKind])
+  }, [plotData, refLon, bestPerKind])
 
   // Separator: click toggles table, drag resizes split
   const handleSepMouseDown = useCallback((e: React.MouseEvent) => {

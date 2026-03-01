@@ -1,7 +1,7 @@
 import PlanetPicker from '../alignment/PlanetPicker'
 import TimeRangeSelector from '../alignment/TimeRangeSelector'
-import SeriesToggle from '../alignment/SeriesToggle'
 import MinimaTable from '../alignment/MinimaTable'
+import PPISliders from '../alignment/PPISliders'
 import { AlignmentState } from '../../hooks/useAlignmentState'
 
 interface AlignmentPanelProps {
@@ -14,11 +14,10 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
     durationDays, setDurationDays,
-    visibleSeries, setVisibleSeries,
     minPlanets, setMinPlanets,
     effectiveMin,
-    allMinima,
-    availableTabs,
+    ppiWeights, setPPIWeights,
+    ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     currentDateMs,
     handleDateSelect,
     setActiveTab,
@@ -26,44 +25,42 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
 
   const controls = (
     <>
-      <PlanetPicker selected={selectedBodies} onChange={setSelectedBodies} />
       <TimeRangeSelector
         startDate={startDate}
         durationDays={durationDays}
         onStartDateChange={setStartDate}
         onDurationChange={setDurationDays}
       />
-      <SeriesToggle visible={visibleSeries} onChange={setVisibleSeries} />
+      <PlanetPicker selected={selectedBodies} onChange={setSelectedBodies} />
       {selectedBodies.length > 2 && (
         <div className="min-planets-control">
           <label className="control-label">Min planets</label>
           <div className="min-planets-chips">
-            {Array.from({ length: selectedBodies.length - 1 }, (_, i) => i + 2).map((n) => {
-              const disabled = n < selectedBodies.length - 3
-              return (
-                <button
-                  key={n}
-                  className={`min-planet-chip ${effectiveMin === n ? 'active' : ''}`}
-                  disabled={disabled}
-                  onClick={() => setMinPlanets(n)}
-                >
-                  {n}
-                </button>
-              )
-            })}
+            {Array.from({ length: selectedBodies.length - 1 }, (_, i) => i + 2).map((n) => (
+              <button
+                key={n}
+                className={`min-planet-chip ${effectiveMin === n ? 'active' : ''}`}
+                onClick={() => setMinPlanets(n)}
+              >
+                {n}
+              </button>
+            ))}
           </div>
         </div>
       )}
+      <PPISliders weights={ppiWeights} onChange={setPPIWeights} />
     </>
   )
 
   const minimaTable = (
     <MinimaTable
-      minima={allMinima}
-      availableTabs={availableTabs}
+      ppiPeaks={ppiResult.ppiPeaks}
       currentDate={currentDateMs}
       onSelect={handleDateSelect}
       onTabChange={setActiveTab}
+      dayDetailCombos={dayDetailCombos}
+      selectedDayComboIdx={selectedDayComboIdx}
+      onDayComboSelect={setSelectedDayComboIdx}
     />
   )
 

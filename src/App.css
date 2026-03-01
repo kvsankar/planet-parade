@@ -93,6 +93,8 @@ html, body, #root {
   overflow-x: hidden;
   padding: 6px 8px;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-body::-webkit-scrollbar {
@@ -352,6 +354,8 @@ select option {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Planet picker */
@@ -532,6 +536,85 @@ select option {
 .min-planet-chip:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+/* ====== PPI Sliders ====== */
+.ppi-reset-btn {
+  background: none;
+  border: none;
+  color: #6b93d6;
+  font-size: 9px;
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.ppi-reset-btn:hover {
+  opacity: 1;
+}
+
+.ppi-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ppi-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ppi-slider-label {
+  font-size: 9px;
+  color: #888;
+  min-width: 48px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ppi-slider-label:first-child {
+  text-align: right;
+}
+
+.ppi-slider-label:last-child {
+  text-align: left;
+}
+
+.ppi-slider {
+  flex: 1;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  outline: none;
+}
+
+.ppi-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #c8a84e;
+  cursor: pointer;
+}
+
+.ppi-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #c8a84e;
+  border: none;
+  cursor: pointer;
+}
+
+.ppi-cell {
+  color: #c8a84e;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 /* ====== Chart Panel ====== */
@@ -761,6 +844,8 @@ select option {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-height: 0;
 }
 
 .minima-count-filter {
@@ -771,6 +856,7 @@ select option {
 .minima-scroll {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .minima-scroll::-webkit-scrollbar {
@@ -838,6 +924,79 @@ select option {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+/* Day-detail subtable */
+.day-detail-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 6px;
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+
+.day-detail-section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+
+.day-detail-section th {
+  text-align: left;
+  padding: 2px 5px;
+  color: #888;
+  font-size: 9px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.day-detail-section td {
+  padding: 2px 5px;
+  font-family: monospace;
+  font-size: 9px;
+}
+
+.day-detail-section tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.day-detail-section tbody tr:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.day-detail-section tbody tr.active {
+  background: rgba(107, 147, 214, 0.15);
+  color: #fff;
+}
+
+.day-detail-expand-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 10px;
+  width: 16px;
+  padding: 0;
+  font-family: monospace;
+  line-height: 1;
+}
+
+.day-detail-expand-btn:hover {
+  color: #ccc;
+}
+
+.day-detail-child td {
+  opacity: 0.75;
+}
+
+.day-detail-section th:first-child,
+.day-detail-section td:first-child {
+  width: 16px;
+  padding: 0 2px;
+  text-align: center;
 }
 
 /* ====== Sky View ====== */
@@ -1718,6 +1877,12 @@ select option {
     padding: 5px 6px;
   }
 
+  .day-detail-section th,
+  .day-detail-section td {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
   .skyview-table th,
   .skyview-table td {
     font-size: 11px;
@@ -1779,6 +1944,21 @@ select option {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* PPI slider touch targets */
+  .ppi-slider::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ppi-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ppi-slider-label {
+    font-size: 10px;
   }
 
   /* Duration inputs */

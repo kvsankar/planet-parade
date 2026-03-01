@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
-import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult } from '../types'
-import { computeAlignmentTabs, findBestPerKind, BestPerKind } from '../lib/alignment'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint } from '../types'
+import { MS_PER_DAY } from '../constants'
+import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
+import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos } from '../lib/ppiScoring'
 import { SkyViewCenter } from '../components/alignment/SkyView'
 
 export interface AlignmentState {
@@ -26,6 +28,13 @@ export interface AlignmentState {
   activeTabData: AlignmentTabDataPoint[]
   allMinima: AlignmentMinimum[]
   bestPerKind: BestPerKind
+  // PPI
+  ppiWeights: PPIWeights
+  setPPIWeights: (w: PPIWeights) => void
+  ppiResult: PPIResult
+  dayDetailCombos: PPIDayPoint[]
+  selectedDayComboIdx: number | null
+  setSelectedDayComboIdx: (idx: number | null) => void
   // Derived from currentDate
   currentDateMs: number
   hasPrev: boolean
@@ -48,7 +57,7 @@ export function useAlignmentState(
   const [visibleSeries, setVisibleSeries] = useState<Set<AlignmentKind>>(
     () => new Set(['morning', 'evening', 'straddling']),
   )
-  const [minPlanets, setMinPlanets] = useState(6)
+  const [minPlanets, setMinPlanets] = useState(2)
   const [activeTab, setActiveTabRaw] = useState(() => selectedBodies.length)
 
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
@@ -81,6 +90,8 @@ export function useAlignmentState(
     setActiveTabRaw(selectedBodies.length)
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [ppiWeights, setPPIWeights] = useState<PPIWeights>(() => ({ ...DEFAULT_PPI_WEIGHTS }))
+
   const alignmentResult = useMemo((): AlignmentResult => {
     if (selectedBodies.length < 2) {
       return {
@@ -90,6 +101,30 @@ export function useAlignmentState(
     }
     return computeAlignmentTabs(selectedBodies, startDate, durationDays, effectiveMin)
   }, [selectedBodies, startDate, durationDays, effectiveMin])
+
+  const ppiResult = useMemo((): PPIResult => {
+    if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [] }
+    return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights)
+  }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights])
+
+  const [selectedDayComboIdx, setSelectedDayComboIdx] = useState<number | null>(null)
+
+  const currentDay = Math.floor(currentDate.getTime() / MS_PER_DAY)
+
+  // Reset combo selection when day changes
+  const prevDayRef = useRef(currentDay)
+  useEffect(() => {
+    if (prevDayRef.current !== currentDay) {
+      prevDayRef.current = currentDay
+      setSelectedDayComboIdx(null)
+    }
+  }, [currentDay])
+
+  const dayDetailCombos = useMemo((): PPIDayPoint[] => {
+    if (selectedBodies.length < 2) return []
+    const dayDate = new Date(currentDay * MS_PER_DAY)
+    return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights)
+  }, [selectedBodies, currentDay, effectiveMin, ppiWeights])
 
   const activeTabData = useMemo(() => {
     return alignmentResult.tabs.get(validActiveTab) ?? []
@@ -111,16 +146,35 @@ export function useAlignmentState(
     return tabMinima.filter((m) => visibleSeries.has(m.kind)).sort((a, b) => a.date - b.date)
   }, [alignmentResult, validActiveTab, visibleSeries])
 
-  // Best combo per kind for the active tab at the current date — shared by SkyView + AlignmentCones
-  const MS_PER_HOUR = 3_600_000
-  const currentHour = Math.round(currentDate.getTime() / MS_PER_HOUR)
+  // Best combo per kind for the current day — derived from dayDetailCombos (tab-independent)
+  // When a specific combo is selected, show only that combo
   const bestPerKind = useMemo((): BestPerKind => {
-    if (selectedBodies.length < 2 || validActiveTab < 2) {
-      return { morning: null, evening: null, straddling: null }
+    const result: BestPerKind = { morning: null, evening: null, straddling: null }
+    if (dayDetailCombos.length === 0) return result
+
+    const dayDate = new Date(currentDay * MS_PER_DAY)
+    const sunLon = getGeocentricEclipticCoords('Sun', dayDate).lon
+
+    const combosToShow = selectedDayComboIdx !== null && selectedDayComboIdx < dayDetailCombos.length
+      ? [dayDetailCombos[selectedDayComboIdx]]
+      : dayDetailCombos
+
+    for (const combo of combosToShow) {
+      if (result[combo.kind]) continue
+      const longitudes = combo.planets.map((p) => getGeocentricEclipticCoords(p, dayDate).lon)
+      const elongations = combo.planets.map((p) => wrap180(getGeocentricEclipticCoords(p, dayDate).lon - sunLon))
+      result[combo.kind] = {
+        indices: combo.planets.map((p) => selectedBodies.indexOf(p)),
+        bodies: combo.planets,
+        longitudes,
+        elongations,
+        span: combo.span,
+        kind: combo.kind,
+      }
     }
-    const quantized = new Date(currentHour * MS_PER_HOUR)
-    return findBestPerKind(selectedBodies, quantized, Math.min(validActiveTab, selectedBodies.length))
-  }, [selectedBodies, validActiveTab, currentHour])
+
+    return result
+  }, [dayDetailCombos, currentDay, selectedBodies, selectedDayComboIdx])
 
   const handleDateSelect = useCallback(
     (dateMs: number) => onDateChange(new Date(dateMs)),
@@ -157,6 +211,8 @@ export function useAlignmentState(
     skyCenter, setSkyCenter,
     visibleSeries, setVisibleSeries,
     minPlanets, setMinPlanets,
+    ppiWeights, setPPIWeights,
+    ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     activeTab: validActiveTab, setActiveTab,
     availableTabs,
     effectiveMin,
