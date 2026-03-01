@@ -460,7 +460,7 @@ export default function SeparationChart({
     if (span > 0 && currentDate >= xDomain[0] && currentDate <= xDomain[1]) {
       indicatorPct = ((currentDate - xDomain[0]) / span) * 100
       // Find closest data point by date
-      const idx = Math.round((currentDate - (data[0].date as number)) / MS_PER_DAY)
+      const idx = Math.floor((currentDate - (data[0].date as number)) / MS_PER_DAY)
       if (idx >= 0 && idx < data.length) {
         const pt = data[idx]
         indicatorPpi = pt.best_ppi as number | null
