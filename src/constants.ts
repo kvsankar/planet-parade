@@ -29,6 +29,16 @@ export const ANALYZABLE_BODIES: CelestialBodyId[] = [
   'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
 
+/** Per-count colors for the timeline chart */
+export const COUNT_COLORS: Record<number, string> = {
+  7: '#e8d44d',  // gold
+  6: '#4fc3f7',  // sky blue
+  5: '#66bb6a',  // green
+  4: '#ff8a65',  // coral
+  3: '#ce93d8',  // purple
+  2: '#90a4ae',  // gray
+}
+
 /** Alignment series colors — single source of truth */
 export const SERIES_COLORS = {
   straddling: '#CC6666', // light red — cluster straddles the Sun

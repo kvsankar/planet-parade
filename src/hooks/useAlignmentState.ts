@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint } from '../types'
+import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric } from '../types'
 import { MS_PER_DAY } from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
 import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos } from '../lib/ppiScoring'
@@ -35,13 +35,19 @@ export interface AlignmentState {
   dayDetailCombos: PPIDayPoint[]
   selectedDayComboIdx: number | null
   setSelectedDayComboIdx: (idx: number | null) => void
+  // Chart controls
+  visibleCounts: Set<number>
+  setVisibleCounts: (v: Set<number>) => void
+  visibleMetrics: Set<ChartMetric>
+  setVisibleMetrics: (v: Set<ChartMetric>) => void
+  chartData: Record<string, number | string | null>[]
   // Derived from currentDate
   currentDateMs: number
   hasPrev: boolean
   hasNext: boolean
   // Callbacks
   handleDateSelect: (dateMs: number) => void
-  jumpToMinimum: (direction: 'prev' | 'next') => void
+  jumpToPeak: (direction: 'prev' | 'next') => void
 }
 
 export function useAlignmentState(
@@ -58,6 +64,8 @@ export function useAlignmentState(
     () => new Set(['morning', 'evening', 'straddling']),
   )
   const [minPlanets, setMinPlanets] = useState(2)
+  const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
+  const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
   const [activeTab, setActiveTabRaw] = useState(() => selectedBodies.length)
 
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
@@ -90,6 +98,20 @@ export function useAlignmentState(
     setActiveTabRaw(selectedBodies.length)
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Keep visibleCounts in sync with availableTabs: add new tabs, prune removed ones
+  const availableTabsKey = availableTabs.join(',')
+  useEffect(() => {
+    if (availableTabs.length === 0) return
+    const tabSet = new Set(availableTabs)
+    const pruned = new Set([...visibleCounts].filter((k) => tabSet.has(k)))
+    // If nothing survives pruning (or first init), default to all
+    if (pruned.size === 0) {
+      setVisibleCounts(tabSet)
+    } else if (pruned.size !== visibleCounts.size) {
+      setVisibleCounts(pruned)
+    }
+  }, [availableTabsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [ppiWeights, setPPIWeights] = useState<PPIWeights>(() => ({ ...DEFAULT_PPI_WEIGHTS }))
 
   const alignmentResult = useMemo((): AlignmentResult => {
@@ -103,7 +125,7 @@ export function useAlignmentState(
   }, [selectedBodies, startDate, durationDays, effectiveMin])
 
   const ppiResult = useMemo((): PPIResult => {
-    if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [] }
+    if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [], dates: [], countBests: new Map() }
     return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights)
   }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights])
 
@@ -119,6 +141,21 @@ export function useAlignmentState(
       setSelectedDayComboIdx(null)
     }
   }, [currentDay])
+
+  const chartData = useMemo(() => {
+    return ppiResult.dates.map((dateMs, d) => {
+      const point: Record<string, number | string | null> = { date: dateMs }
+      for (const [k, bests] of ppiResult.countBests) {
+        const b = bests[d]
+        if (b) {
+          point[`ppi_${k}`] = b.ppi
+          point[`span_${k}`] = b.span
+          point[`kind_${k}`] = b.kind
+        }
+      }
+      return point
+    })
+  }, [ppiResult])
 
   const dayDetailCombos = useMemo((): PPIDayPoint[] => {
     if (selectedBodies.length < 2) return []
@@ -139,12 +176,6 @@ export function useAlignmentState(
     }
     return result.sort((a, b) => a.date - b.date)
   }, [alignmentResult, visibleSeries])
-
-  // Minima for the active tab only — used for prev/next navigation
-  const activeTabMinima = useMemo(() => {
-    const tabMinima = alignmentResult.minima.get(validActiveTab) ?? []
-    return tabMinima.filter((m) => visibleSeries.has(m.kind)).sort((a, b) => a.date - b.date)
-  }, [alignmentResult, validActiveTab, visibleSeries])
 
   // Best combo per kind for the current day — derived from dayDetailCombos (tab-independent)
   // When a specific combo is selected, show only that combo
@@ -183,25 +214,27 @@ export function useAlignmentState(
 
   const currentDateMs = currentDate.getTime()
 
-  const hasPrev = useMemo(() => activeTabMinima.some((m) => m.date < currentDateMs), [activeTabMinima, currentDateMs])
-  const hasNext = useMemo(() => activeTabMinima.some((m) => m.date > currentDateMs), [activeTabMinima, currentDateMs])
+  const ppiPeaks = ppiResult.ppiPeaks
 
-  const jumpToMinimum = useCallback(
+  const hasPrev = useMemo(() => ppiPeaks.some((m) => m.date < currentDateMs), [ppiPeaks, currentDateMs])
+  const hasNext = useMemo(() => ppiPeaks.some((m) => m.date > currentDateMs), [ppiPeaks, currentDateMs])
+
+  const jumpToPeak = useCallback(
     (direction: 'prev' | 'next') => {
-      if (activeTabMinima.length === 0) return
+      if (ppiPeaks.length === 0) return
       if (direction === 'next') {
-        const next = activeTabMinima.find((m) => m.date > currentDateMs)
+        const next = ppiPeaks.find((m) => m.date > currentDateMs)
         if (next) onDateChange(new Date(next.date))
       } else {
-        let prev: AlignmentMinimum | null = null
-        for (const m of activeTabMinima) {
+        let prev: PPIDayPoint | null = null
+        for (const m of ppiPeaks) {
           if (m.date < currentDateMs) prev = m
           else break
         }
         if (prev) onDateChange(new Date(prev.date))
       }
     },
-    [activeTabMinima, currentDateMs, onDateChange],
+    [ppiPeaks, currentDateMs, onDateChange],
   )
 
   return {
@@ -217,7 +250,10 @@ export function useAlignmentState(
     availableTabs,
     effectiveMin,
     activeTabData, allMinima, bestPerKind,
+    visibleCounts, setVisibleCounts,
+    visibleMetrics, setVisibleMetrics,
+    chartData,
     currentDateMs, hasPrev, hasNext,
-    handleDateSelect, jumpToMinimum,
+    handleDateSelect, jumpToPeak,
   }
 }

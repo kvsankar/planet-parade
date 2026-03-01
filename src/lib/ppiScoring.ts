@@ -4,6 +4,7 @@ import {
   PPIWeights,
   PPIDayPoint,
   PPIResult,
+  CountDayBest,
 } from '../types'
 import { MS_PER_DAY } from '../constants'
 import {
@@ -92,7 +93,7 @@ export function computePPIResults(
   const numDays = durationDays + 1
   const startMs = startDate.getTime()
 
-  if (N < 2) return { ppiSeries: [], ppiPeaks: [] }
+  if (N < 2) return { ppiSeries: [], ppiPeaks: [], dates: [], countBests: new Map() }
 
   // Phase 1: Pre-compute ephemeris for all days
   const ephemeris: PPIDayEphemeris[] = new Array(numDays)
@@ -128,11 +129,19 @@ export function computePPIResults(
 
   const dayBests: (DayBest | null)[] = new Array(numDays)
 
+  // Per-count tracking
+  const countBests = new Map<number, (CountDayBest | null)[]>()
+  for (let k = N; k >= lowK; k--) {
+    countBests.set(k, new Array(numDays).fill(null))
+  }
+
   for (let d = 0; d < numDays; d++) {
     const day = ephemeris[d]
     let best: DayBest | null = null
 
     for (let k = N; k >= lowK; k--) {
+      let bestForK: CountDayBest | null = null
+
       const evaluate = (combo: number[]) => {
         const lons = combo.map((i) => day.bodyLons[i])
         const elongs = combo.map((i) => day.bodyElongs[i])
@@ -155,6 +164,14 @@ export function computePPIResults(
             elongVisibility: result.elongVisibility,
           }
         }
+        if (result.ppi > (bestForK?.ppi ?? 0)) {
+          bestForK = {
+            ppi: result.ppi,
+            span,
+            kind,
+            planets: combo.map((i) => bodies[i]),
+          }
+        }
       }
 
       if (k === N) {
@@ -164,6 +181,8 @@ export function computePPIResults(
           evaluate(combo)
         }
       }
+
+      countBests.get(k)![d] = bestForK
     }
 
     dayBests[d] = best
@@ -178,7 +197,10 @@ export function computePPIResults(
   // Phase 4: Find local maxima (peaks)
   const ppiPeaks = findPPIPeaks(ppiSeries, dayBests)
 
-  return { ppiSeries, ppiPeaks }
+  // Build dates array
+  const dates = ephemeris.map((e) => e.dateMs)
+
+  return { ppiSeries, ppiPeaks, dates, countBests }
 }
 
 /** Compute ALL non-zero PPI combos for a single date */

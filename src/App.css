@@ -632,6 +632,21 @@ select option {
   flex-shrink: 0;
 }
 
+.chart-toggles-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.series-chip-line {
+  display: inline-block;
+  width: 12px;
+  height: 0;
+}
+
 .chart-tab-btn {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.15);
@@ -689,14 +704,11 @@ select option {
   touch-action: none;
 }
 
-/* Thin track aligned with the Recharts plot area */
-/* Chart margin: 5px left + YAxis 35px = 40px; 5px right */
+/* Thin track aligned with the Recharts plot area — left/right set inline */
 .chart-date-track {
   position: absolute;
   top: 5px;   /* chart margin-top */
   bottom: 0;
-  left: 40px;
-  right: 5px;
   pointer-events: none;
 }
 

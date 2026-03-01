@@ -107,7 +107,18 @@ export interface PPIDayPoint {
   elongVisibility: number
 }
 
+export type ChartMetric = 'ppi' | 'span'
+
+export interface CountDayBest {
+  ppi: number
+  span: number
+  kind: AlignmentKind
+  planets: CelestialBodyId[]
+}
+
 export interface PPIResult {
   ppiSeries: { date: number; ppi: number }[]
   ppiPeaks: PPIDayPoint[]
+  dates: number[]
+  countBests: Map<number, (CountDayBest | null)[]>
 }

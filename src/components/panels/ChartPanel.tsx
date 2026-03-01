@@ -1,48 +1,13 @@
-import { useMemo } from 'react'
 import SeparationChart from '../alignment/SeparationChart'
 import AlignmentTimeSlider from '../alignment/AlignmentTimeSlider'
-import SeriesToggle from '../alignment/SeriesToggle'
-import TabSelector from '../ui/TabSelector'
 import { AlignmentState } from '../../hooks/useAlignmentState'
-import { AlignmentTabDataPoint } from '../../types'
-import { formatDate, SERIES_COLORS } from '../../constants'
+import { COUNT_COLORS } from '../../constants'
+import { ChartMetric } from '../../types'
 
 interface ChartPanelProps {
   alignment: AlignmentState
   currentDate: Date
   onDateChange: (d: Date) => void
-}
-
-/** Find the contiguous non-null range around `dateMs` for a given field */
-function findActiveRange(
-  series: AlignmentTabDataPoint[],
-  field: 'morningSep' | 'eveningSep' | 'straddlingSep',
-  dateMs: number,
-): { from: number; to: number } | null {
-  // Build contiguous ranges of non-null data
-  const ranges: { from: number; to: number }[] = []
-  let start: number | null = null
-  let end: number | null = null
-
-  for (const d of series) {
-    if (d[field] != null) {
-      if (start === null) start = d.date
-      end = d.date
-    } else if (start !== null && end !== null) {
-      ranges.push({ from: start, to: end })
-      start = null
-      end = null
-    }
-  }
-  if (start !== null && end !== null) {
-    ranges.push({ from: start, to: end })
-  }
-
-  // Only return the range if dateMs falls within it
-  for (const r of ranges) {
-    if (dateMs >= r.from && dateMs <= r.to) return r
-  }
-  return null
 }
 
 export default function ChartPanel({
@@ -51,39 +16,87 @@ export default function ChartPanel({
   onDateChange,
 }: ChartPanelProps) {
   const {
-    activeTabData,
+    chartData,
     startDate,
     durationDays,
-    visibleSeries, setVisibleSeries,
-    activeTab, setActiveTab, availableTabs,
+    availableTabs,
+    visibleCounts, setVisibleCounts,
+    visibleMetrics, setVisibleMetrics,
     currentDateMs,
     handleDateSelect,
-    hasPrev, hasNext, jumpToMinimum,
+    hasPrev, hasNext, jumpToPeak,
   } = alignment
 
-  // Find the active contiguous range around currentDate for AM/PM/Straddling
-  const activeRanges = useMemo(() => {
-    const result: { label: string; from: number; to: number; color: string }[] = []
-    for (const [key, field, label, color] of [
-      ['morning', 'morningSep', 'AM', SERIES_COLORS.morning],
-      ['evening', 'eveningSep', 'PM', SERIES_COLORS.evening],
-      ['straddling', 'straddlingSep', 'Straddle', SERIES_COLORS.straddling],
-    ] as const) {
-      if (!visibleSeries.has(key)) continue
-      const range = findActiveRange(activeTabData, field, currentDateMs)
-      if (range) result.push({ label, ...range, color })
+  const toggleCount = (k: number) => {
+    const next = new Set(visibleCounts)
+    if (next.has(k)) {
+      if (next.size > 1) next.delete(k)
+    } else {
+      next.add(k)
     }
-    return result
-  }, [activeTabData, visibleSeries, currentDateMs])
+    setVisibleCounts(next)
+  }
+
+  const toggleMetric = (m: ChartMetric) => {
+    const next = new Set(visibleMetrics)
+    if (next.has(m)) {
+      if (next.size > 1) next.delete(m)
+    } else {
+      next.add(m)
+    }
+    setVisibleMetrics(next)
+  }
 
   return (
     <div className="chart-panel-inner">
-      <TabSelector tabs={availableTabs} activeTab={activeTab} onChange={setActiveTab} />
+      <div className="chart-toggles-row">
+        <div className="series-toggle-chips">
+          {availableTabs.map((k) => (
+            <button
+              key={k}
+              className={`series-chip ${visibleCounts.has(k) ? 'active' : ''}`}
+              style={{
+                borderColor: COUNT_COLORS[k] ?? '#888',
+                ...(visibleCounts.has(k) ? { background: (COUNT_COLORS[k] ?? '#888') + '30' } : {}),
+              }}
+              onClick={() => toggleCount(k)}
+            >
+              <span className="series-chip-dot" style={{ background: COUNT_COLORS[k] ?? '#888' }} />
+              {k}p
+            </button>
+          ))}
+        </div>
+        <div className="series-toggle-chips">
+          <button
+            className={`series-chip ${visibleMetrics.has('ppi') ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(visibleMetrics.has('ppi') ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => toggleMetric('ppi')}
+          >
+            <span className="series-chip-line" style={{ borderBottom: '2px solid #aaa' }} />
+            PPI
+          </button>
+          <button
+            className={`series-chip ${visibleMetrics.has('span') ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(visibleMetrics.has('span') ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => toggleMetric('span')}
+          >
+            <span className="series-chip-line dashed" style={{ borderBottom: '2px dashed #aaa' }} />
+            Span
+          </button>
+        </div>
+      </div>
       <SeparationChart
-        data={activeTabData}
+        data={chartData}
         currentDate={currentDateMs}
         onDateClick={handleDateSelect}
-        visibleSeries={visibleSeries}
+        visibleCounts={visibleCounts}
+        visibleMetrics={visibleMetrics}
       />
       <div className="chart-slider-row">
         <AlignmentTimeSlider
@@ -94,15 +107,7 @@ export default function ChartPanel({
         />
       </div>
       <div className="chart-controls-row">
-        <div className="chart-range-labels">
-          {activeRanges.map((r) => (
-            <span key={r.label} className="chart-date-range" style={{ color: r.color }}>
-              {r.label}: {formatDate(r.from)} — {formatDate(r.to)}
-            </span>
-          ))}
-        </div>
         <div className="chart-nav-btns">
-          <SeriesToggle visible={visibleSeries} onChange={setVisibleSeries} inline />
           <button
             className="minima-nav-btn"
             onClick={() => onDateChange(new Date())}
@@ -112,17 +117,17 @@ export default function ChartPanel({
           </button>
           <button
             className="minima-nav-btn"
-            onClick={() => jumpToMinimum('prev')}
+            onClick={() => jumpToPeak('prev')}
             disabled={!hasPrev}
-            title="Previous minimum"
+            title="Previous peak"
           >
             &#9664; Prev
           </button>
           <button
             className="minima-nav-btn"
-            onClick={() => jumpToMinimum('next')}
+            onClick={() => jumpToPeak('next')}
             disabled={!hasNext}
-            title="Next minimum"
+            title="Next peak"
           >
             Next &#9654;
           </button>

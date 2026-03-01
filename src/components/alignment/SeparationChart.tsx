@@ -8,36 +8,85 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts'
-import { AlignmentTabDataPoint, AlignmentKind } from '../../types'
-import { SERIES_COLORS, formatDate } from '../../constants'
+import { ChartMetric, AlignmentKind } from '../../types'
+import { SERIES_COLORS, COUNT_COLORS, formatDate } from '../../constants'
 
-const TOOLTIP_STYLE = {
+const TOOLTIP_STYLE: React.CSSProperties = {
   background: 'rgba(10,10,20,0.95)',
   border: '1px solid rgba(255,255,255,0.15)',
   borderRadius: 4,
   fontSize: 11,
+  padding: '6px 8px',
 }
 
-const SERIES_LABELS: Record<string, string> = {
-  morningSep: 'Morning',
-  eveningSep: 'Evening',
-  straddlingSep: 'Straddling',
+const KIND_LABELS: Record<AlignmentKind, string> = {
+  morning: 'AM',
+  evening: 'PM',
+  straddling: 'Straddle',
 }
 
 interface SeparationChartProps {
-  data: AlignmentTabDataPoint[]
+  data: Record<string, number | string | null>[]
   currentDate: number | null
   onDateClick: (dateMs: number) => void
-  visibleSeries: Set<AlignmentKind>
+  visibleCounts: Set<number>
+  visibleMetrics: Set<ChartMetric>
+}
+
+function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics }: any) {
+  if (!active || !payload || payload.length === 0) return null
+  const point = payload[0]?.payload
+  if (!point) return null
+
+  const counts = Array.from(visibleCounts as Set<number>).sort((a: number, b: number) => b - a)
+
+  return (
+    <div style={TOOLTIP_STYLE}>
+      <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number)}</div>
+      {counts.map((k: number) => {
+        const ppi = point[`ppi_${k}`]
+        const span = point[`span_${k}`]
+        const kind = point[`kind_${k}`] as AlignmentKind | undefined
+        if (ppi == null && span == null) return null
+        return (
+          <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <span style={{ color: COUNT_COLORS[k] ?? '#888', fontWeight: 600 }}>{k}p</span>
+            {visibleMetrics.has('ppi') && ppi != null && (
+              <span style={{ color: '#ddd' }}>PPI {Number(ppi).toFixed(1)}</span>
+            )}
+            {visibleMetrics.has('span') && span != null && (
+              <span style={{ color: '#aaa' }}>{Number(span).toFixed(1)}&deg;</span>
+            )}
+            {kind && (
+              <span style={{
+                fontSize: 9,
+                padding: '0 3px',
+                borderRadius: 2,
+                background: SERIES_COLORS[kind] + '40',
+                color: SERIES_COLORS[kind],
+              }}>
+                {KIND_LABELS[kind]}
+              </span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /** The heavy Recharts chart — memoized to skip re-renders when only currentDate changes */
 const ChartInner = memo(function ChartInner({
   data,
   onDateClick,
-  visibleSeries,
+  visibleCounts,
+  visibleMetrics,
   xDomain,
-}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleSeries'> & { xDomain: [number, number] }) {
+}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleCounts' | 'visibleMetrics'> & { xDomain: [number, number] }) {
+  const showPPI = visibleMetrics.has('ppi')
+  const showSpan = visibleMetrics.has('span')
+  const counts = Array.from(visibleCounts).sort((a, b) => b - a)
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -60,65 +109,90 @@ const ChartInner = memo(function ChartInner({
           fontSize={10}
           minTickGap={40}
         />
-        <YAxis
-          domain={[0, 360]}
-          ticks={[0, 60, 120, 180, 240, 300, 360]}
-          stroke="#666"
-          fontSize={10}
-          width={35}
-          tickFormatter={(v) => `${v}°`}
-        />
+        {showPPI && (
+          <YAxis
+            yAxisId="ppi"
+            orientation="left"
+            domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
+            stroke="#888"
+            fontSize={10}
+            width={32}
+            tickFormatter={(v) => `${v}`}
+            label={{ value: 'PPI', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#888' } }}
+          />
+        )}
+        {showSpan && (
+          <YAxis
+            yAxisId="span"
+            orientation="right"
+            domain={[0, 360]}
+            ticks={[0, 90, 180, 270, 360]}
+            stroke="#666"
+            fontSize={10}
+            width={35}
+            tickFormatter={(v) => `${v}°`}
+          />
+        )}
         <Tooltip
-          contentStyle={TOOLTIP_STYLE}
-          labelFormatter={(label) => formatDate(label as number)}
-          formatter={(value?: number, name?: string) =>
-            [`${Number(value ?? 0).toFixed(1)}°`, SERIES_LABELS[name ?? ''] || name]
-          }
+          content={<CustomTooltip visibleCounts={visibleCounts} visibleMetrics={visibleMetrics} />}
         />
-        {visibleSeries.has('morning') && (
-          <Line
-            type="monotone"
-            dataKey="morningSep"
-            stroke={SERIES_COLORS.morning}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 3 }}
-          />
-        )}
-        {visibleSeries.has('evening') && (
-          <Line
-            type="monotone"
-            dataKey="eveningSep"
-            stroke={SERIES_COLORS.evening}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 3 }}
-          />
-        )}
-        {visibleSeries.has('straddling') && (
-          <Line
-            type="monotone"
-            dataKey="straddlingSep"
-            stroke={SERIES_COLORS.straddling}
-            strokeWidth={1}
-            dot={false}
-            activeDot={{ r: 2 }}
-            strokeDasharray="4 2"
-          />
-        )}
+        {counts.flatMap((k) => {
+          const color = COUNT_COLORS[k] ?? '#888'
+          const lines: React.ReactElement[] = []
+          if (showPPI) {
+            lines.push(
+              <Line
+                key={`ppi_${k}`}
+                type="monotone"
+                dataKey={`ppi_${k}`}
+                yAxisId="ppi"
+                stroke={color}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={(props: any) => {
+                  const kind = props.payload?.[`kind_${k}`] as AlignmentKind | undefined
+                  const dotColor = kind ? SERIES_COLORS[kind] : color
+                  return <circle cx={props.cx} cy={props.cy} r={3} fill={dotColor} stroke="none" />
+                }}
+                connectNulls={false}
+              />
+            )
+          }
+          if (showSpan) {
+            lines.push(
+              <Line
+                key={`span_${k}`}
+                type="monotone"
+                dataKey={`span_${k}`}
+                yAxisId="span"
+                stroke={color}
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                dot={false}
+                activeDot={{ r: 2, fill: color }}
+                connectNulls={false}
+              />
+            )
+          }
+          return lines
+        })}
       </LineChart>
     </ResponsiveContainer>
   )
 })
 
-// Recharts left margin (5) + YAxis width (35) + right margin (5)
-const CHART_PAD = 45
+// Recharts left margin (5) + YAxis width (32) + right margin (5) + right YAxis (35)
+const CHART_PAD_BOTH = 77
+const CHART_PAD_LEFT = 42
+const CHART_PAD_RIGHT = 45
 
 export default function SeparationChart({
   data,
   currentDate,
   onDateClick,
-  visibleSeries,
+  visibleCounts,
+  visibleMetrics,
 }: SeparationChartProps) {
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panOffset, setPanOffset] = useState(0)
@@ -133,13 +207,19 @@ export default function SeparationChart({
   const fullSpanRef = useRef(0)
   const xSpanRef = useRef(0)
 
+  const showPPI = visibleMetrics.has('ppi')
+  const showSpan = visibleMetrics.has('span')
+  const chartPad = showPPI && showSpan ? CHART_PAD_BOTH : showPPI ? CHART_PAD_LEFT : CHART_PAD_RIGHT
+  const chartPadRef = useRef(chartPad)
+  chartPadRef.current = chartPad
+
   const zoomIn = () => setZoomLevel((z) => Math.min(z * 2, 16))
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1))
   const zoomReset = () => { setZoomLevel(1); setPanOffset(0) }
 
   // Data time bounds
-  const dataMin = data.length > 0 ? data[0].date : 0
-  const dataMax = data.length > 0 ? data[data.length - 1].date : 0
+  const dataMin = data.length > 0 ? (data[0].date as number) : 0
+  const dataMax = data.length > 0 ? (data[data.length - 1].date as number) : 0
   const fullSpan = dataMax - dataMin
   fullSpanRef.current = fullSpan
 
@@ -193,7 +273,7 @@ export default function SeparationChart({
         if (!dragRef.current) return
         if (!dragRef.current.moved && Math.abs(ev.clientX - dragRef.current.startX) < 3) return
         dragRef.current.moved = true
-        const plotW = (el.clientWidth || 400) - CHART_PAD
+        const plotW = (el.clientWidth || 400) - chartPadRef.current
         const msPerPx = xSpanRef.current / plotW
         applyPan(dragRef.current.startPan - (ev.clientX - dragRef.current.startX) * msPerPx)
       }
@@ -242,7 +322,7 @@ export default function SeparationChart({
         if (!dragRef.current.moved && Math.abs(e.touches[0].clientX - dragRef.current.startX) < 3) return
         e.preventDefault()
         dragRef.current.moved = true
-        const plotW = (el.clientWidth || 400) - CHART_PAD
+        const plotW = (el.clientWidth || 400) - chartPadRef.current
         const msPerPx = xSpanRef.current / plotW
         applyPan(dragRef.current.startPan - (e.touches[0].clientX - dragRef.current.startX) * msPerPx)
       }
@@ -276,17 +356,6 @@ export default function SeparationChart({
     return <div className="chart-empty">Select planets and a time range to see alignment data.</div>
   }
 
-  const emptyKinds: string[] = []
-  if (visibleSeries.has('morning') && !data.some((d) => d.morningSep != null)) {
-    emptyKinds.push('AM')
-  }
-  if (visibleSeries.has('evening') && !data.some((d) => d.eveningSep != null)) {
-    emptyKinds.push('PM')
-  }
-  if (visibleSeries.has('straddling') && !data.some((d) => d.straddlingSep != null)) {
-    emptyKinds.push('Straddle')
-  }
-
   // Current-date indicator within zoomed domain
   let indicatorPct: number | null = null
   if (currentDate != null && data.length >= 2) {
@@ -296,10 +365,14 @@ export default function SeparationChart({
     }
   }
 
+  // Track left/right offsets for the date indicator
+  const trackLeft = showPPI ? 37 : 5
+  const trackRight = showSpan ? 40 : 5
+
   return (
     <div className="separation-chart">
       <div className="chart-zoom-header">
-        <span className="control-label">Max Longitude Span</span>
+        <span className="control-label">PPI / Span Timeline</span>
         <div className="sky-zoom-controls">
           <button className="sky-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 1}>{'\u2212'}</button>
           <button className="sky-zoom-btn" onClick={zoomReset} disabled={zoomLevel <= 1}>
@@ -308,15 +381,16 @@ export default function SeparationChart({
           <button className="sky-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 16}>+</button>
         </div>
       </div>
-      {emptyKinds.length > 0 && (
-        <div className="chart-note">
-          No time range in this window where all selected planets are visible in {emptyKinds.join(' and ')}.
-        </div>
-      )}
       <div className={`chart-wrapper${zoomLevel > 1 ? ' sky-pannable' : ''}`} ref={chartRef}>
-        <ChartInner data={data} onDateClick={onDateClick} visibleSeries={visibleSeries} xDomain={xDomain} />
+        <ChartInner
+          data={data}
+          onDateClick={onDateClick}
+          visibleCounts={visibleCounts}
+          visibleMetrics={visibleMetrics}
+          xDomain={xDomain}
+        />
         {indicatorPct != null && (
-          <div className="chart-date-track">
+          <div className="chart-date-track" style={{ left: trackLeft, right: trackRight }}>
             <div
               className="chart-date-indicator"
               style={{ left: `${indicatorPct}%` }}
