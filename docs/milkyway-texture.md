@@ -172,3 +172,7 @@ magick starmap_2020_8k.exr \
 ```
 
 Requires ImageMagick 7 with OpenEXR delegate (`magick` command, not `convert`).
+
+## See Also
+
+- [Product Specification](specs.md) — Full feature requirements including sky chart and 3D scene rendering

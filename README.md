@@ -22,7 +22,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Per-kind alignment cones from Earth (AM/PM/Straddling) showing the best cluster for each category
 - Animated playback from 1x to 3650x speed across a 100-year range (1975–2075)
 
-### Planetary Alignments
+### Planetary Alignments ([algorithm](docs/alignment-algorithm-analysis.md))
 - Select any combination of planets and compute the tightest cluster for every combination size
 - Combination-based classification: AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun)
 - Tabbed results by combination size (e.g. best 7, best 6, best 5 from 7 selected)
@@ -30,7 +30,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Planet count filter chips, planet symbols with tooltips, click-to-navigate and switch tabs
 - Configurable time ranges from 3 months to 100 years
 
-### Parade Timeline
+### Parade Timeline ([PPI scoring](docs/planet-parade-index.md))
 - Interactive time-series chart plotting PPI and angular span over time
 - Simple mode (overall best-of-day) and Advanced mode (per-count lines with toggleable count chips)
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
@@ -46,7 +46,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Draggable separator to resize chart vs table; table toggleable
 - X-axis zoom/pan with pinch and drag support
 
-### Stereographic Sky Charts
+### Stereographic Sky Charts ([Milky Way rendering](docs/milkyway-texture.md))
 - Hemispheric projection of the sky dome at sunrise and sunset
 - Sun, Moon (with phase), planets, 192 stars, 39 constellations, ecliptic curve, and Milky Way
 - Visual magnitudes determine planet and star dot sizes
@@ -108,6 +108,15 @@ src/
   data/          Star catalog, constellation lines, Milky Way polygons
   types.ts       Shared type definitions (CelestialBodyId, AlignmentTabDataPoint, etc.)
 ```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Product Specification](docs/specs.md) | Complete feature requirements, design decisions, and project structure |
+| [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, presets, parameter sweep calibration, and design rationale |
+| [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
+| [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
 
 ## Data Sources
 

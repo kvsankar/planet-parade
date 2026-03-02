@@ -83,6 +83,11 @@ The ±5–7 day offsets on some events are expected because popular sources repo
 2. **Composite scoring** — grapeot.me uses 40% visibility + 30% linear fit + 30% longitude clustering (inherently subjective weighting)
 3. **RA-based computation** — would not improve accuracy, just shift event times slightly; less natural for this use case
 
+## See Also
+
+- [Planet Parade Index](planet-parade-index.md) — PPI scoring formula that builds on alignment spans to rank events by count, compactness, brightness, and visibility
+- [Product Specification](specs.md) — Full feature requirements and design decisions
+
 ## Key Sources
 
 - [USNO Astronomical Almanac Glossary](https://aa.usno.navy.mil/faq/asa_glossary)

@@ -57,7 +57,7 @@ Consistent across all views:
 
 ### 2.2 Parade Timeline
 
-An interactive line chart plotting PPI and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips. PPI and Span metrics can be toggled independently.
+An interactive line chart plotting PPI (Planet Parade Index — see [planet-parade-index.md](planet-parade-index.md)) and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips. PPI and Span metrics can be toggled independently.
 - Click any point to jump to that date.
 - Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
 - Current-date indicator (vertical line) shows PPI, span, and planet list.

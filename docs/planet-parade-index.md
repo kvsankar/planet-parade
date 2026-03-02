@@ -274,6 +274,11 @@ Top-50 peaks audit across 2000-2026 with three gamma settings (0, 0.25, 0.5). Te
 
 ---
 
+## See Also
+
+- [Alignment Algorithm](alignment-algorithm-analysis.md) — The underlying combination-based alignment computation that PPI scores are built on
+- [Product Specification](specs.md) — Full feature requirements and design decisions
+
 ## Future Work (Pass 2)
 
 Observer-specific refinement for a given location and date:
