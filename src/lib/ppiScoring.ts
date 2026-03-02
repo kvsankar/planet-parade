@@ -343,7 +343,7 @@ function findExtrema(
       let j = i
       while (j < n - 1 && values[j + 1] === values[i]) j++
       if (isBetter(values[i], values[i - 1]) && (j >= n - 1 || isBetter(values[i], values[j + 1]))) {
-        add(Math.floor((i + j) / 2))
+        add(i)
       }
       i = j + 1
     } else {
