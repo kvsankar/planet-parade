@@ -294,12 +294,53 @@ export function computeDayCombos(
 
 type DayDetail = PPIDayPoint | { ppi: number; span: number; kind: AlignmentKind; planets: CelestialBodyId[]; planetCount: number; brightness: number; elongVisibility: number } | null
 
-/** Generic extrema finder: maxima (mode='max') or minima (mode='min') with plateau handling */
+/** Compute topographic prominence for an extremum.
+ *  For a peak (mode='max') at index `idx` with value V:
+ *    scan left until a higher value or series start → track min value in that direction
+ *    scan right until a higher value or series end → track min value in that direction
+ *    prominence = V - max(leftMin, rightMin)
+ *  For a trough (mode='min') at index `idx` with value V:
+ *    scan left until a lower value, a zero boundary, or series start → track max
+ *    scan right until a lower value, a zero boundary, or series end → track max
+ *    prominence = min(leftMax, rightMax) - V
+ */
+function computeProminence(values: number[], idx: number, mode: 'max' | 'min'): number {
+  const v = values[idx]
+  if (mode === 'max') {
+    let leftMin = v
+    for (let i = idx - 1; i >= 0; i--) {
+      if (values[i] > v) break
+      if (values[i] < leftMin) leftMin = values[i]
+    }
+    let rightMin = v
+    for (let i = idx + 1; i < values.length; i++) {
+      if (values[i] > v) break
+      if (values[i] < rightMin) rightMin = values[i]
+    }
+    return v - Math.max(leftMin, rightMin)
+  } else {
+    let leftMax = v
+    for (let i = idx - 1; i >= 0; i--) {
+      if (values[i] < v || values[i] <= 0) break
+      if (values[i] > leftMax) leftMax = values[i]
+    }
+    let rightMax = v
+    for (let i = idx + 1; i < values.length; i++) {
+      if (values[i] < v || values[i] <= 0) break
+      if (values[i] > rightMax) rightMax = values[i]
+    }
+    return Math.min(leftMax, rightMax) - v
+  }
+}
+
+/** Generic extrema finder: maxima (mode='max') or minima (mode='min') with plateau handling.
+ *  Extrema with prominence below `minProminence` are discarded as noise. */
 function findExtrema(
   values: number[],
   dates: number[],
   dayDetails: DayDetail[],
   mode: 'max' | 'min',
+  minProminence: number = 0,
 ): PPIDayPoint[] {
   const n = values.length
   if (n < 3) return []
@@ -314,26 +355,11 @@ function findExtrema(
     ? (a: number, b: number) => a >= b
     : (a: number, b: number) => a <= b || b <= 0
 
-  const results: PPIDayPoint[] = []
-
-  const add = (i: number) => {
-    const detail = dayDetails[i]
-    if (!detail || values[i] <= 0) return
-    results.push({
-      date: dates[i],
-      ppi: detail.ppi,
-      span: detail.span,
-      kind: detail.kind,
-      planetCount: detail.planetCount,
-      planets: detail.planets,
-      brightness: detail.brightness,
-      elongVisibility: detail.elongVisibility,
-    })
-  }
+  const candidates: number[] = []
 
   // Check start
   if (values[0] > 0 && isBetterOrEq(values[0], values[1])) {
-    add(0)
+    candidates.push(0)
   }
 
   // Interior points with plateau handling
@@ -343,7 +369,7 @@ function findExtrema(
       let j = i
       while (j < n - 1 && values[j + 1] === values[i]) j++
       if (isBetter(values[i], values[i - 1]) && (j >= n - 1 || isBetter(values[i], values[j + 1]))) {
-        add(i)
+        candidates.push(i)
       }
       i = j + 1
     } else {
@@ -354,24 +380,46 @@ function findExtrema(
   // Check end
   const last = n - 1
   if (values[last] > 0 && isBetterOrEq(values[last], values[last - 1])) {
-    add(last)
+    candidates.push(last)
+  }
+
+  // Filter by prominence and build results
+  const results: PPIDayPoint[] = []
+  for (const idx of candidates) {
+    if (minProminence > 0 && computeProminence(values, idx, mode) < minProminence) continue
+    const detail = dayDetails[idx]
+    if (!detail || values[idx] <= 0) continue
+    results.push({
+      date: dates[idx],
+      ppi: detail.ppi,
+      span: detail.span,
+      kind: detail.kind,
+      planetCount: detail.planetCount,
+      planets: detail.planets,
+      brightness: detail.brightness,
+      elongVisibility: detail.elongVisibility,
+    })
   }
 
   return results
 }
 
-/** Find local maxima in the PPI time series */
+/** Find local maxima in the PPI time series.
+ *  Default minProminence=0.5 filters noise peaks (PPI range 0–100). */
 export function findPPIPeaks(
   series: { date: number; ppi: number }[],
   dayDetails: DayDetail[],
+  minProminence: number = 0.5,
 ): PPIDayPoint[] {
-  return findExtrema(series.map(s => s.ppi), series.map(s => s.date), dayDetails, 'max')
+  return findExtrema(series.map(s => s.ppi), series.map(s => s.date), dayDetails, 'max', minProminence)
 }
 
-/** Find local minima in the span time series (tightest clusters) */
+/** Find local minima in the span time series (tightest clusters).
+ *  Default minProminence=2.0 filters noise troughs (span range 0–360°). */
 export function findSpanMinima(
   series: { date: number; span: number }[],
   dayDetails: DayDetail[],
+  minProminence: number = 2.0,
 ): PPIDayPoint[] {
-  return findExtrema(series.map(s => s.span), series.map(s => s.date), dayDetails, 'min')
+  return findExtrema(series.map(s => s.span), series.map(s => s.date), dayDetails, 'min', minProminence)
 }
