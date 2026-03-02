@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useEffect, useId } from 'react'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
 import { getGeocentricEclipticCoords, computeSpanArc, wrap180, BestPerKind } from '../../lib/alignment'
+import { getBodyVisualMagnitude, SkyBodyId } from '../../lib/astronomy'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -22,6 +23,7 @@ interface BodyPlotData {
   plotLon: number
   color: string
   elongation: number // positive = east/evening, negative = west/morning
+  magnitude: number | null
 }
 
 /** Convert an arc { start, end } in absolute longitude to plotLon rects, handling ±180 wrap */
@@ -200,11 +202,12 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
 
     const items = bodies.map((id) => {
       const ecl = getGeocentricEclipticCoords(id, quantizedDate)
-      return { id, absLon: ecl.lon, lat: ecl.lat, color: BODY_META[id].color, elongation: wrap180(ecl.lon - sunLon) }
+      const mag = getBodyVisualMagnitude(id as SkyBodyId, quantizedDate)
+      return { id, absLon: ecl.lon, lat: ecl.lat, color: BODY_META[id].color, elongation: wrap180(ecl.lon - sunLon), magnitude: mag }
     })
 
     const sunEcl = getGeocentricEclipticCoords('Sun', quantizedDate)
-    items.push({ id: 'Sun' as CelestialBodyId, absLon: sunEcl.lon, lat: sunEcl.lat, color: BODY_META.Sun.color, elongation: 0 })
+    items.push({ id: 'Sun' as CelestialBodyId, absLon: sunEcl.lon, lat: sunEcl.lat, color: BODY_META.Sun.color, elongation: 0, magnitude: null })
 
     return items.map((c) => ({
       ...c,
@@ -275,7 +278,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
   const height = Math.max(isLandscape && chartAreaH > 0 ? chartAreaH : chartH, 120)
   const plotH = Math.max(10, height - MARGIN.top - MARGIN.bottom)
 
-  const halfLat = 10
+  const halfLat = 7
   const halfLon = 180 / zoomLevel
   const maxPan = 180 - halfLon
   const clampedPan = Math.max(-maxPan, Math.min(maxPan, panOffset))
@@ -315,6 +318,8 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
 
   const dotR = 5
   const sunR = 7
+  const sunPlotLon = wrap180(sunLon - refLon)
+  const twilightId = clipId + '-tw'
 
   // Y position where span annotation rows start (below X axis labels)
   const spanBaseY = MARGIN.top + plotH + 24 + SPAN_TOP_PAD
@@ -333,7 +338,29 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
           <clipPath id={clipId}>
             <rect x={MARGIN.left} y={MARGIN.top} width={plotW} height={plotH} />
           </clipPath>
+          <linearGradient id={twilightId + 'L'} x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%" stopColor="#f8a020" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#f8a020" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={twilightId + 'R'} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#f8a020" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#f8a020" stopOpacity="0" />
+          </linearGradient>
         </defs>
+
+        {/* Twilight glow — 30° on each side of the Sun, matching elongation visibility gate */}
+        <g clipPath={`url(#${clipId})`}>
+          {(() => {
+            const sunCx = xOf(sunPlotLon)
+            const edgeX = xOf(sunPlotLon + 30) - xOf(sunPlotLon)
+            return (
+              <>
+                <rect x={sunCx - edgeX} y={MARGIN.top} width={edgeX} height={plotH} fill={`url(#${twilightId}L)`} />
+                <rect x={sunCx} y={MARGIN.top} width={edgeX} height={plotH} fill={`url(#${twilightId}R)`} />
+              </>
+            )
+          })()}
+        </g>
 
         {/* Grid lines */}
         {lonTicks.map((v) => (
@@ -372,20 +399,45 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
           })}
         </g>
 
-        {/* Bodies */}
+        {/* Bodies with leader lines */}
         <g clipPath={`url(#${clipId})`}>
-          {plotData.map((b) => {
+          {plotData.map((b, idx) => {
             const isSun = b.id === 'Sun'
             const inCombo = isSun || comboSet.size === 0 || comboSet.has(b.id)
             const cx = xOf(b.plotLon)
             const cy = yOf(b.lat)
             const r = isSun ? sunR : dotR
             const opacity = isSun ? 0.7 : inCombo ? 1 : 0.3
+            if (isSun) {
+              return (
+                <g key={b.id}>
+                  <circle cx={cx} cy={cy} r={r} fill={b.color} opacity={opacity} />
+                  <text x={cx} y={cy - r - 4} textAnchor="middle" fill={b.color} fontSize={12} fontFamily="sans-serif" opacity={opacity}>
+                    Sun
+                  </text>
+                </g>
+              )
+            }
+            // Alternate leader lines up/down by body index to reduce overlap
+            const down = idx % 2 === 0
+            const lineLen = 22
+            const ly = down ? cy + r + lineLen : cy - r - lineLen
+            const magStr = b.magnitude != null ? `${b.magnitude >= 0 ? '+' : ''}${b.magnitude.toFixed(1)}` : ''
+            const elongStr = `${Math.abs(b.elongation).toFixed(0)}°${b.elongation >= 0 ? 'E' : 'W'}`
+            const nameY = down ? ly + 12 : ly - 15
+            const detailY = nameY + 12
             return (
               <g key={b.id}>
                 <circle cx={cx} cy={cy} r={r} fill={b.color} opacity={opacity} />
-                <text x={cx} y={cy - r - 3} textAnchor="middle" fill={b.color} fontSize={10} fontFamily="sans-serif" opacity={opacity}>
+                <line x1={cx} y1={down ? cy + r : cy - r} x2={cx} y2={ly}
+                  stroke={b.color} strokeWidth={0.7} opacity={opacity * 0.5} />
+                <text x={cx} y={nameY} textAnchor="middle"
+                  fill={b.color} fontSize={11} fontFamily="sans-serif" fontWeight={600} opacity={opacity}>
                   {b.id}
+                </text>
+                <text x={cx} y={detailY} textAnchor="middle"
+                  fill={b.color} fontSize={10} fontFamily="monospace" opacity={opacity * 0.8}>
+                  {magStr} {elongStr}
                 </text>
               </g>
             )
