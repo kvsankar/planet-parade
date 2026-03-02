@@ -92,9 +92,9 @@ export interface AlignmentResult {
 }
 
 export interface PPIWeights {
-  alpha: number      // count exponent (default 1.2)
-  beta: number       // compactness exponent (default 1.2); alpha + beta = 2.4
-  gamma: number      // brightness exponent (default 0.5)
+  alpha: number      // count exponent
+  beta: number       // compactness exponent
+  gamma: number      // brightness exponent
   delta: number      // elongation gate strength 0–1 (0 = pure geometry, 1 = full visibility gate)
   spanScale: number  // span decay constant in degrees (default 180)
 }

@@ -51,18 +51,17 @@ The app automatically finds local minima — dates when the selected planets clu
 #### Colors
 
 Consistent across all views:
-- **AM**: warm orange (evoking morning)
-- **PM**: deep indigo (evoking night)
-- **Straddling**: muted blue-grey
+- **AM**: warm golden orange (evoking sunrise)
+- **PM**: deep indigo blue (evoking night sky)
+- **Straddling**: light red (cluster spans the Sun)
 
 ### 2.2 Parade Timeline
 
-An interactive line chart plotting PPI and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips.
+An interactive line chart plotting PPI and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips. PPI and Span metrics can be toggled independently.
 - Click any point to jump to that date.
 - Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
-- Current-date indicator (vertical line).
-- Current-date indicator shows PPI, span, and planet list.
-- Jump-to-peak buttons (Today/Prev/Next).
+- Current-date indicator (vertical line) shows PPI, span, and planet list.
+- Navigation mode (PPI peaks or Span minima) with Today/Prev/Next buttons.
 
 ### 2.3 Ecliptic Strip (Ecliptic Projection)
 
@@ -191,7 +190,7 @@ src/
 ├── App.tsx                    Main app, context providers, desktop/mobile layout
 ├── App.css                    Global styles
 ├── types.ts                   CelestialBodyId, AlignmentTabDataPoint, AlignmentKind, etc.
-├── constants.ts               Body metadata, speed/time presets, formatting
+├── constants.ts               Body metadata, speed/time presets, colors, formatting
 ├── components/
 │   ├── scene/                 3D solar system visualization
 │   │   ├── SolarSystemScene.tsx   Canvas setup, camera, scene wrapper
@@ -200,42 +199,46 @@ src/
 │   │   ├── OrbitLine.tsx          Orbital path line segments
 │   │   ├── AlignmentCones.tsx     Per-kind 3D cones (AM/PM/Straddling) from Earth
 │   │   ├── CameraController.tsx   OrbitControls, follow mode, selection animation
+│   │   ├── InnerPlanetsInset.tsx   Zoomed-in inner-planets view
 │   │   ├── MilkyWaySphere.tsx     NASA texture background sphere
 │   │   ├── RealStars.tsx          192-star point sprites with B-V colors
 │   │   ├── ConstellationLines3D.tsx   39 constellation stick figures
 │   │   └── ConstellationBoundaries3D.tsx  IAU boundary dashed lines
 │   ├── panels/                Floating wrappers (desktop) + sheet panels (mobile)
-│   │   ├── AlignmentPanel.tsx     Planet picker, time range, series toggles, minima table
-│   │   ├── ChartPanel.tsx         Separation timeline with zoom/pan
+│   │   ├── AlignmentPanel.tsx     Planet picker, time range, PPI sliders, minima table
+│   │   ├── ChartPanel.tsx         PPI/span timeline with zoom/pan and count toggles
 │   │   ├── SkyViewPanel.tsx       Ecliptic scatter chart + planet data table
 │   │   ├── SkyChartPanel.tsx      Dual sky charts with layer toggles
 │   │   └── FloatingPanel.tsx      Desktop panel shell (react-rnd)
 │   ├── alignment/             Charts, pickers, tables, sky views
-│   │   ├── StereoSkyChart.tsx     Core stereographic projection SVG renderer
+│   │   ├── StereoSkyChart.tsx     Core azimuthal equidistant projection SVG renderer
 │   │   ├── MilkyWayTextureCanvas.tsx  Web Worker texture reprojection
-│   │   ├── SeparationChart.tsx    Recharts alignment timeline
-│   │   ├── SkyView.tsx            Ecliptic scatter + data table
+│   │   ├── SeparationChart.tsx    Recharts PPI/span timeline (per-count lines)
+│   │   ├── SkyView.tsx            Ecliptic scatter + shading bands
 │   │   ├── PlanetPicker.tsx       Multi-select planet checkboxes
 │   │   ├── TimeRangeSelector.tsx  Start date + duration presets
-│   │   ├── SeriesToggle.tsx       AM/PM/Straddling visibility toggles
-│   │   └── MinimaTable.tsx        Local minima with click-to-navigate and tab switching
+│   │   ├── PlanetCountRange.tsx   Min/max planet count range selector
+│   │   ├── PPISliders.tsx         PPI weight sliders and preset buttons
+│   │   ├── PlanetaryDataTable.tsx Ecliptic coordinates, magnitude, AM/PM table
+│   │   ├── AlignmentTimeSlider.tsx  Timeline range scrubber
+│   │   └── MinimaTable.tsx        PPI peaks with click-to-navigate and day-detail combos
 │   └── ui/                    Playback, toggles, selector, mobile tabs, help
-│       ├── PlaybackBar.tsx        Date input, play/pause, speed, navigation
+│       ├── PlaybackBar.tsx        Date input, play/pause, speed, step navigation
+│       ├── PlaybackControls.tsx   Compact playback controls (mobile)
+│       ├── TimeControls.tsx       Date picker + timeline slider
 │       ├── DisplayToggles.tsx     3D scene layer checkboxes
 │       ├── BodySelector.tsx       Quick-select planet focus buttons
 │       ├── InfoDisplay.tsx        Selection info card
-│       ├── TabSelector.tsx        Shared combination-size tab buttons
 │       ├── MobileTabBar.tsx       Bottom tab navigation
 │       └── HelpButton.tsx         Guided tour launcher
 ├── hooks/                     State management and utilities
 │   ├── useSimulationTime.ts   Date, playback, speed (context)
 │   ├── useSelection.ts        Body selection, follow mode (context)
 │   ├── useDisplaySettings.ts  Toggle states for all display layers (context)
-│   ├── useAlignmentState.ts   Alignment computation, tabs, minima, bestPerKind
+│   ├── useAlignmentState.ts   Alignment computation, PPI state, chart data, navigation
 │   ├── usePanelManager.ts     Panel layout, z-ordering, drag/resize
 │   ├── usePlanetPositions.ts  Memoized heliocentric positions
 │   ├── useOrbitPaths.ts       Memoized orbit polylines
-│   ├── useLabelRegistry.ts    Label overlap detection
 │   ├── useSimulationStore.ts  Global non-React store for R3F performance
 │   ├── useTour.ts             Guided tour state (driver.js)
 │   ├── useIsMobile.ts         Responsive breakpoint detection
@@ -243,6 +246,7 @@ src/
 ├── lib/                       Core computation libraries
 │   ├── astronomy.ts           Positions, alt-az, moon phase, magnitude, MW polygons, HOR↔EQJ
 │   ├── alignment.ts           Combination-based alignment (computeAlignmentTabs, findBestPerKind, classifyCombination), local minima, ephemeris cache
+│   ├── ppiScoring.ts          Planet Parade Index (computePPIResults, computeComboPPI), presets
 │   ├── coordinateConversion.ts EQJ↔Scene, RA/Dec↔XYZ, ecliptic transforms
 │   └── orbitSampler.ts        Orbit path sampling via Kepler
 ├── data/                      Static catalogs and data files
@@ -258,6 +262,7 @@ public/
 
 docs/
 ├── specs.md                   This file
+├── planet-parade-index.md     PPI scoring formula, presets, calibration, design decisions
 ├── milkyway-texture.md        NASA texture source, conversion, rendering pipeline
 └── alignment-algorithm-analysis.md  Alignment computation research and validation
 ```

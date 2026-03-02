@@ -28,7 +28,7 @@ The app uses three distinct state layers to bridge React and Three.js:
 1. **React Context** — UI-driven global state defined in `App.tsx` and consumed via hooks:
    - `SimulationTimeContext` (currentDate, isPlaying, speed)
    - `SelectionContext` (selectedBodyId, followMode)
-   - `DisplaySettingsContext` (8 boolean toggles for orbits, labels, stars, etc.)
+   - `DisplaySettingsContext` (9 boolean toggles for orbits, labels, inner planets, stars, Milky Way, constellations, constellation boundaries, alignment cones, PPI overlay)
 
 2. **Module-level singleton store** (`hooks/useSimulationStore.ts`) — A plain mutable object (`simulationStore`) that mirrors simulation time state. Three.js Canvas components import this directly instead of using Context, because React Context doesn't reliably cross the R3F Canvas boundary. Mutations are synchronous.
 

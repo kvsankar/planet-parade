@@ -42,7 +42,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Alignments Panel',
       description:
-        'Pick planets, set a time range, and choose the minimum group size. The app evaluates every combination and finds the dates with the tightest clusters \u2014 classified as AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun).',
+        'Pick planets, set a time range, and choose the planet count range. The app evaluates every combination and scores each date using the Planet Parade Index (PPI) \u2014 a single number combining cluster tightness, brightness, and visibility. Results are classified as AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun).',
       side: 'right',
     },
   },
@@ -64,7 +64,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Parade Timeline',
       description:
-        'Plots PPI and angular span over time. Toggle Simple/Advanced to see overall or per-count lines. Click a dip to jump to that date.',
+        'Plots the PPI score and angular span over time. Higher PPI = better parade. Toggle Simple/Advanced to see overall or per-count lines. Click any point to jump to that date.',
       side: 'left',
     },
   },
@@ -86,7 +86,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Charts',
       description:
-        'Altitude and azimuth charts showing each planet\'s path across the sky throughout the day. Use these to check if the planets are above the horizon at a convenient hour \u2014 evening, morning, or both.',
+        'Sky dome views at sunrise (morning) and sunset (evening). Shows planet and star positions, constellations, and the Milky Way. Use these to see which planets are above the horizon and how spread out they are.',
       side: 'left',
     },
   },
@@ -96,7 +96,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Playback Controls',
       description:
-        'Animate time forward or backward to watch clusters form and dissolve. Use the date picker to jump to any date, or step through alignment minima with Prev/Next.',
+        'Animate time forward or backward to watch clusters form and dissolve. Use the date picker to jump to any date. Step ±1 or ±5 days, or jump to Today.',
       side: 'top',
     },
   },
@@ -135,22 +135,22 @@ const advancedDefs: TourStepDef[] = [
     },
   },
   {
-    element: '.series-toggle-chips',
+    element: '.min-planets-chips',
     mobileTab: 'align',
     popover: {
-      title: 'Series Toggle \u2014 AM / PM / Straddle',
+      title: 'Planet Count Range',
       description:
-        'Filter alignments by visibility category. "AM" = visible before sunrise, "PM" = after sunset, "Straddle" = planets span both sides of the Sun. Colors match the chart lines and shading.',
+        'Set the min and max combination sizes to analyze. With 7 planets selected and range 5\u20137, the app computes tabs for 7-, 6-, and 5-planet combinations. Greyed-out values exceed the computation limit.',
       side: 'right',
     },
   },
   {
-    element: '.min-planets-chips',
+    element: '.ppi-sliders',
     mobileTab: 'align',
     popover: {
-      title: 'Minimum Planets',
+      title: 'PPI Scoring Weights',
       description:
-        'Set the minimum combination size. With 7 planets selected and min 5, the app computes tabs for 7-, 6-, and 5-planet combinations. Greyed-out values exceed the computation limit.',
+        'Adjust how the Planet Parade Index scores alignments. Four knobs: Count, Compactness, Brightness, and Visibility gate. Choose a preset (Visibility favors tight bright clusters; Media favors maximum planet count) or fine-tune manually.',
       side: 'right',
     },
   },
@@ -158,9 +158,19 @@ const advancedDefs: TourStepDef[] = [
     element: '.minima-table',
     mobileTab: 'align',
     popover: {
-      title: 'Closest Alignments Table',
+      title: 'PPI Peaks Table',
       description:
-        'Lists the tightest alignment events across all combination sizes. The # column shows planet count, Planets shows which ones (hover for names). Click a row to jump to that date and switch to its tab. Use the filter chips to show/hide specific counts. Sort by date, span, or count.',
+        'Lists the top Planet Parade Index peaks across all combination sizes. The # column shows planet count, Planets shows which ones (hover for names). Click a row to jump to that date; the day-detail section below expands to show all combos for that day. Sort by date, PPI, span, or count.',
+      side: 'right',
+    },
+  },
+  {
+    element: '.sky-view-table-area',
+    mobileTab: 'align',
+    popover: {
+      title: 'Planetary Data Table',
+      description:
+        'Shows each planet\'s ecliptic longitude, latitude, elongation from the Sun, visual magnitude, and AM/PM sky classification for the current date. Planets in the active combination are highlighted.',
       side: 'right',
     },
   },
@@ -201,9 +211,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.separation-chart',
     mobileTab: 'timeline',
     popover: {
-      title: 'Separation Chart',
+      title: 'Parade Timeline Chart',
       description:
-        'Plots the tightest angular span over time for each category: AM (orange), PM (blue), Straddle (red). Lower = tighter cluster. The golden line marks the current date. Click a point to jump to it.',
+        'Plots PPI score and angular span over time. In Simple mode, one line shows the best-of-day value; Advanced mode breaks out per-count lines (color-coded by planet count). The golden line marks the current date. Click a point to jump to it.',
       side: 'top',
     },
   },
@@ -222,9 +232,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.chart-controls-row',
     mobileTab: 'timeline',
     popover: {
-      title: 'Timeline Controls',
+      title: 'Timeline Navigation',
       description:
-        'Shows the active date range for each visible series. Use Prev/Next to step through minima within the current tab. The series toggles filter AM/PM/Straddle lines.',
+        'Switch navigation mode between PPI peaks (highest scores) and Span minima (tightest clusters). Use Prev/Next to step through peaks or minima. "Today" jumps to the current date.',
       side: 'top',
     },
   },
@@ -250,16 +260,6 @@ const advancedDefs: TourStepDef[] = [
       side: 'bottom',
     },
   },
-  {
-    element: '.sky-view-table-area',
-    mobileTab: 'sky',
-    popover: {
-      title: 'Position Data Table',
-      description:
-        'Lists each planet\'s ecliptic longitude, latitude, elongation from the Sun, visual magnitude, and AM/PM status. Drag the separator bar to resize the chart vs. table split.',
-      side: 'top',
-    },
-  },
   // --- Sky Charts ---
   {
     element: '.skychart-pair',
@@ -267,12 +267,12 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Morning & Evening Sky Charts',
       description:
-        'Stereographic charts for the AM (east) and PM (west) sky. Stars are sized by brightness. The curved ecliptic line shows the Sun\'s path \u2014 planets stay near it.',
+        'Sky dome charts for the AM (east) and PM (west) sky. Stars are sized by brightness. The curved ecliptic line shows the Sun\'s path \u2014 planets stay near it.',
       side: 'top',
     },
   },
   {
-    element: '.skychart-controls-bar',
+    element: '.skychart-layer-menu',
     mobileTab: 'charts',
     popover: {
       title: 'Sky Chart Controls',
