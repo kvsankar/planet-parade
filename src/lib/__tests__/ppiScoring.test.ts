@@ -37,21 +37,23 @@ describe('brightnessWeight', () => {
 // ─── elongationWeight ────────────────────────────────────────────────
 
 describe('elongationWeight', () => {
-  it('returns 0 for elongation < 10°', () => {
+  it('returns 0 for elongation ≤ 5°', () => {
     expect(elongationWeight(0)).toBe(0)
     expect(elongationWeight(5)).toBe(0)
-    expect(elongationWeight(9.9)).toBe(0)
   })
 
-  it('returns 0.3 for 10° ≤ elong < 20°', () => {
-    expect(elongationWeight(10)).toBe(0.3)
-    expect(elongationWeight(15)).toBe(0.3)
-    expect(elongationWeight(19.9)).toBe(0.3)
-  })
-
-  it('returns 0.7 for 20° ≤ elong < 30°', () => {
-    expect(elongationWeight(20)).toBe(0.7)
-    expect(elongationWeight(25)).toBe(0.7)
+  it('smoothly increases between 5° and 30°', () => {
+    const w10 = elongationWeight(10)
+    const w15 = elongationWeight(15)
+    const w20 = elongationWeight(20)
+    const w25 = elongationWeight(25)
+    expect(w10).toBeGreaterThan(0)
+    expect(w15).toBeGreaterThan(w10)
+    expect(w20).toBeGreaterThan(w15)
+    expect(w25).toBeGreaterThan(w20)
+    expect(w25).toBeLessThan(1)
+    // Midpoint of smoothstep (17.5°) should be 0.5
+    expect(elongationWeight(17.5)).toBe(0.5)
   })
 
   it('returns 1.0 for elong ≥ 30°', () => {

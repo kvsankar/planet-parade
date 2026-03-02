@@ -88,14 +88,15 @@ Geometric mean, raised to gamma.
 
 ### Elongation gate: delta parameter
 
-Per-planet elongation weight (hard-coded step function):
+Per-planet elongation weight (smoothstep 5°–30°):
 
 ```
-|elong| < 10deg  ->  0    (invisible -- lost in Sun's glare)
-        10-20deg ->  0.3  (marginal -- low in bright twilight)
-        20-30deg ->  0.7  (visible but low)
-        > 30deg  ->  1.0  (well placed)
+|elong| ≤ 5deg   ->  0    (invisible -- lost in Sun's glare)
+        5-30deg  ->  smoothstep(t), t = (elong - 5) / 25
+        ≥ 30deg  ->  1.0  (well placed)
 ```
+
+The smoothstep `t²(3-2t)` provides a continuous, differentiable transition that avoids artificial step discontinuities in the PPI time series.
 
 The raw weight uses **minimum** across all planets (bottleneck model). The delta parameter modulates how much this gate matters:
 
@@ -148,8 +149,8 @@ delta = 0.25  (mild elongation gate)
 ```
 alpha = 2.0   (count favoured -- media cares about "how many planets")
 beta  = 0.25  (very low compactness -- media parades span 90-175°)
-gamma = 0.5   (moderate brightness penalty)
-delta = 0.25  (mild elongation gate)
+gamma = 0.25  (mild brightness penalty)
+delta = 0.75  (strong elongation gate -- smooth curve needs higher delta)
 ```
 
 **Design goal**: Match the dates that media outlets (NASA, Space.com, etc.) report as "planet parade" events, finding the correct number of planets at the right time.

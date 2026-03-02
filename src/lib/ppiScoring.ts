@@ -25,21 +25,21 @@ export const DEFAULT_PPI_WEIGHTS: PPIWeights = { alpha: 1.0, beta: 2.0, gamma: 0
 /** Media preset: best match to public "planet parade" dates.
  *  Derived from count-aware parameter sweep (960 combos × 10 known events).
  *  α=2.0 favours count; β=0.25 tolerates wide spans (media parades often
- *  cover 90–175°); γ=0.5 mildly penalises dim planets; δ=0.25 mild
+ *  cover 90–175°); γ=0.25 mild brightness penalty; δ=0.75 strong
  *  visibility gate. Achieves 9/9 planet-count matches, 5/9 within ±5d. */
-export const MEDIA_PPI_WEIGHTS: PPIWeights = { alpha: 2.0, beta: 0.25, gamma: 0.5, delta: 0.25, spanScale: 180 }
+export const MEDIA_PPI_WEIGHTS: PPIWeights = { alpha: 2.0, beta: 0.25, gamma: 0.25, delta: 0.75, spanScale: 180 }
 
 /** Per-planet brightness weight: maps visual magnitude to [0.01, 1.0] */
 export function brightnessWeight(mag: number): number {
   return Math.max(0.01, Math.min(1.0, (6.5 - mag) / 6.5))
 }
 
-/** Per-planet elongation visibility gate */
+/** Per-planet elongation visibility gate (smoothstep 5°–30°) */
 export function elongationWeight(absElong: number): number {
-  if (absElong < 10) return 0
-  if (absElong < 20) return 0.3
-  if (absElong < 30) return 0.7
-  return 1.0
+  if (absElong <= 5) return 0
+  if (absElong >= 30) return 1
+  const t = (absElong - 5) / 25
+  return t * t * (3 - 2 * t)
 }
 
 export interface ComboPPIResult {

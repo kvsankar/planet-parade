@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import PlanetPicker from '../alignment/PlanetPicker'
 import TimeRangeSelector from '../alignment/TimeRangeSelector'
+import PlanetCountRange from '../alignment/PlanetCountRange'
 import MinimaTable from '../alignment/MinimaTable'
 import PPISliders from '../alignment/PPISliders'
 import PlanetaryDataTable from '../alignment/PlanetaryDataTable'
@@ -18,28 +19,13 @@ export default function AlignmentPanel({ alignment, currentDate, isLandscape }: 
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
     durationDays, setDurationDays,
-    minPlanets, setMinPlanets,
-    maxPlanets, setMaxPlanets,
+    setMinPlanets, setMaxPlanets,
     effectiveMin, effectiveMax,
     ppiWeights, setPPIWeights,
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     currentDateMs,
     handleDateSelect,
   } = alignment
-
-  const handleRangeClick = (n: number) => {
-    if (n >= effectiveMin && n <= effectiveMax) {
-      // Click inside range (including boundaries) — collapse to single value
-      setMinPlanets(n)
-      setMaxPlanets(n)
-    } else if (n < effectiveMin) {
-      // Click below range — extend min down
-      setMinPlanets(n)
-    } else {
-      // Click above range — extend max up
-      setMaxPlanets(n)
-    }
-  }
 
   const controls = (
     <>
@@ -50,25 +36,13 @@ export default function AlignmentPanel({ alignment, currentDate, isLandscape }: 
         onDurationChange={setDurationDays}
       />
       <PlanetPicker selected={selectedBodies} onChange={setSelectedBodies} />
-      {selectedBodies.length > 2 && (
-        <div className="min-planets-control">
-          <label className="control-label">
-            Planet count
-            <span className="planet-range-label">{effectiveMin === effectiveMax ? effectiveMin : `${effectiveMin}\u2013${effectiveMax}`}</span>
-          </label>
-          <div className="min-planets-chips">
-            {Array.from({ length: selectedBodies.length - 1 }, (_, i) => i + 2).map((n) => (
-              <button
-                key={n}
-                className={`min-planet-chip ${n >= effectiveMin && n <= effectiveMax ? 'active' : ''}`}
-                onClick={() => handleRangeClick(n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <PlanetCountRange
+        bodyCount={selectedBodies.length}
+        effectiveMin={effectiveMin}
+        effectiveMax={effectiveMax}
+        setMinPlanets={setMinPlanets}
+        setMaxPlanets={setMaxPlanets}
+      />
       <PPISliders weights={ppiWeights} onChange={setPPIWeights} />
     </>
   )

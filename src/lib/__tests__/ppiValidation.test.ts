@@ -138,8 +138,8 @@ const VISIBILITY_WEIGHTS: PPIWeights = { ...DEFAULT_PPI_WEIGHTS }
 const MEDIA_WEIGHTS: PPIWeights = {
   alpha: 2.0,      // count exponent — favours count (9/9 planet-count matches)
   beta: 0.25,      // compactness exponent — tolerates wide spans (media parades are 90–175°)
-  gamma: 0.5,      // moderate brightness weighting
-  delta: 0.25,     // mild visibility gate
+  gamma: 0.25,     // mild brightness weighting
+  delta: 0.75,     // strong visibility gate (smooth elongation curve needs higher delta)
   spanScale: 180,
 }
 

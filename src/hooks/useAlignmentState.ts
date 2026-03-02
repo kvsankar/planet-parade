@@ -17,11 +17,8 @@ export interface AlignmentState {
   setSkyCenter: (c: SkyViewCenter) => void
   visibleSeries: Set<AlignmentKind>
   setVisibleSeries: (v: Set<AlignmentKind>) => void
-  minPlanets: number
   setMinPlanets: (n: number) => void
-  maxPlanets: number
   setMaxPlanets: (n: number) => void
-  availableTabs: number[]
   // Computed
   effectiveMin: number
   effectiveMax: number
@@ -36,7 +33,6 @@ export interface AlignmentState {
   setSelectedDayComboIdx: (idx: number | null) => void
   // Chart controls
   visibleCounts: Set<number>
-  setVisibleCounts: (v: Set<number>) => void
   visibleMetrics: Set<ChartMetric>
   setVisibleMetrics: (v: Set<ChartMetric>) => void
   navMode: NavMode
@@ -88,18 +84,11 @@ export function useAlignmentState(
     setMaxPlanets(selectedBodies.length)
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep visibleCounts in sync with availableTabs: add new tabs, prune removed ones
+  // visibleCounts always matches the planet count range (no per-count toggles)
   const availableTabsKey = availableTabs.join(',')
   useEffect(() => {
     if (availableTabs.length === 0) return
-    const tabSet = new Set(availableTabs)
-    const pruned = new Set([...visibleCounts].filter((k) => tabSet.has(k)))
-    // If nothing survives pruning (or first init), default to all
-    if (pruned.size === 0) {
-      setVisibleCounts(tabSet)
-    } else if (pruned.size !== visibleCounts.size) {
-      setVisibleCounts(pruned)
-    }
+    setVisibleCounts(new Set(availableTabs))
   }, [availableTabsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [ppiWeights, setPPIWeights] = useState<PPIWeights>(() => ({ ...DEFAULT_PPI_WEIGHTS }))
@@ -270,14 +259,12 @@ export function useAlignmentState(
     durationDays, setDurationDays,
     skyCenter, setSkyCenter,
     visibleSeries, setVisibleSeries,
-    minPlanets, setMinPlanets,
-    maxPlanets, setMaxPlanets,
+    setMinPlanets, setMaxPlanets,
     ppiWeights, setPPIWeights,
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
-    availableTabs,
     effectiveMin, effectiveMax,
     allMinima, bestPerKind,
-    visibleCounts, setVisibleCounts,
+    visibleCounts,
     visibleMetrics, setVisibleMetrics,
     navMode, setNavMode,
     chartData,

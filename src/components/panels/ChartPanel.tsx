@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import SeparationChart from '../alignment/SeparationChart'
 import AlignmentTimeSlider from '../alignment/AlignmentTimeSlider'
+import PlanetCountRange from '../alignment/PlanetCountRange'
 import { AlignmentState } from '../../hooks/useAlignmentState'
-import { COUNT_COLORS } from '../../constants'
 import { ChartMetric } from '../../types'
 
 interface ChartPanelProps {
@@ -18,10 +18,12 @@ export default function ChartPanel({
 }: ChartPanelProps) {
   const {
     chartData,
+    selectedBodies,
     startDate,
     durationDays,
-    availableTabs,
-    visibleCounts, setVisibleCounts,
+    setMinPlanets, setMaxPlanets,
+    effectiveMin, effectiveMax,
+    visibleCounts,
     visibleMetrics, setVisibleMetrics,
     currentDateMs,
     handleDateSelect,
@@ -32,16 +34,6 @@ export default function ChartPanel({
   const [focusToken, setFocusToken] = useState(0)
   const bump = () => setFocusToken((t) => t + 1)
   const [simpleMode, setSimpleMode] = useState(true)
-
-  const toggleCount = (k: number) => {
-    const next = new Set(visibleCounts)
-    if (next.has(k)) {
-      if (next.size > 1) next.delete(k)
-    } else {
-      next.add(k)
-    }
-    setVisibleCounts(next)
-  }
 
   const toggleMetric = (m: ChartMetric) => {
     const next = new Set(visibleMetrics)
@@ -56,6 +48,14 @@ export default function ChartPanel({
   return (
     <div className="chart-panel-inner">
       <div className="chart-toggles-row">
+        <PlanetCountRange
+          bodyCount={selectedBodies.length}
+          effectiveMin={effectiveMin}
+          effectiveMax={effectiveMax}
+          setMinPlanets={setMinPlanets}
+          setMaxPlanets={setMaxPlanets}
+          compact
+        />
         <div className="series-toggle-chips">
           <button
             className={`series-chip ${simpleMode ? 'active' : ''}`}
@@ -78,24 +78,6 @@ export default function ChartPanel({
             Advanced
           </button>
         </div>
-        {!simpleMode && (
-          <div className="series-toggle-chips">
-            {availableTabs.map((k) => (
-              <button
-                key={k}
-                className={`series-chip ${visibleCounts.has(k) ? 'active' : ''}`}
-                style={{
-                  borderColor: COUNT_COLORS[k] ?? '#888',
-                  ...(visibleCounts.has(k) ? { background: (COUNT_COLORS[k] ?? '#888') + '30' } : {}),
-                }}
-                onClick={() => toggleCount(k)}
-              >
-                <span className="series-chip-dot" style={{ background: COUNT_COLORS[k] ?? '#888' }} />
-                {k}p
-              </button>
-            ))}
-          </div>
-        )}
         <div className="series-toggle-chips">
           <button
             className={`series-chip ${visibleMetrics.has('ppi') ? 'active' : ''}`}
