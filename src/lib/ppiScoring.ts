@@ -304,13 +304,15 @@ function findExtrema(
   const n = values.length
   if (n < 3) return []
 
-  // For maxima: a >= b uses >=; for minima: a <= b
+  // For maxima: a > b / a >= b (natural — positive always beats zero)
+  // For minima: treat zero/negative neighbors as segment boundaries so
+  // edge values of non-zero segments are detected as candidates
   const isBetter = mode === 'max'
     ? (a: number, b: number) => a > b
-    : (a: number, b: number) => a < b
+    : (a: number, b: number) => a < b || b <= 0
   const isBetterOrEq = mode === 'max'
     ? (a: number, b: number) => a >= b
-    : (a: number, b: number) => a <= b
+    : (a: number, b: number) => a <= b || b <= 0
 
   const results: PPIDayPoint[] = []
 

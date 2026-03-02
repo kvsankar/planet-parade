@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState, useEffect, useCallback, useId } from 'react'
+import { useMemo, useRef, useState, useEffect, useId } from 'react'
 import { CelestialBodyId, AlignmentKind } from '../../types'
 import { BODY_META, formatDate, SERIES_COLORS } from '../../constants'
-import { getGeocentricEclipticCoords, computeSpanArc, computeMaxSpan, wrap180, BestPerKind } from '../../lib/alignment'
-import { getBodyVisualMagnitude, SkyBodyId } from '../../lib/astronomy'
+import { getGeocentricEclipticCoords, computeSpanArc, wrap180, BestPerKind } from '../../lib/alignment'
 
 export type SkyViewCenter = 'lon0' | 'sun'
 
@@ -55,15 +54,12 @@ interface SpanInfo {
 
 const MS_PER_HOUR = 3_600_000
 const HEADER_H = 28
-const SEP_H = 26
 
 export default function SkyView({ bodies, date, center, onCenterChange, visibleSeries, bestPerKind, isLandscape }: SkyViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const clipId = useId()
   const [cW, setCW] = useState(400)
   const [cH, setCH] = useState(300)
-  const [showTable, setShowTable] = useState(true)
-  const [splitRatio, setSplitRatio] = useState(0.65)
   const [zoomLevel, setZoomLevel] = useState(1)
   const zoomIn = () => setZoomLevel((z) => Math.min(z * 2, 16))
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1))
@@ -248,40 +244,6 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     return { spanInfos: spans, shadingBands: bands, comboSet: allComboIds }
   }, [plotData, refLon, bestPerKind])
 
-  // Separator: click toggles table, drag resizes split
-  const handleSepMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!showTable) {
-      setShowTable(true)
-      return
-    }
-    e.preventDefault()
-    const container = containerRef.current
-    if (!container) return
-    const rect = container.getBoundingClientRect()
-    const startY = e.clientY
-    let moved = false
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!moved && Math.abs(ev.clientY - startY) > 3) moved = true
-      if (!moved) return
-      const y = ev.clientY - rect.top - HEADER_H
-      const availH = rect.height - HEADER_H - SEP_H
-      if (availH > 0) {
-        const ratio = Math.max(0.2, Math.min(0.8, y / availH))
-        setSplitRatio(ratio)
-      }
-    }
-
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
-      if (!moved) setShowTable((v) => !v)
-    }
-
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-  }, [showTable])
-
   // Observe chart area dimensions for accurate SVG sizing in landscape
   const [chartAreaW, setChartAreaW] = useState(0)
   const [chartAreaH, setChartAreaH] = useState(0)
@@ -300,10 +262,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     return () => obs.disconnect()
   }, [isLandscape])
 
-  // Compute explicit section heights from container
-  const availH = cH - HEADER_H - (isLandscape ? 0 : SEP_H)
-  const chartH = isLandscape ? availH : (showTable ? Math.floor(availH * splitRatio) : availH)
-  const tableH = isLandscape ? 0 : (showTable ? availH - chartH : 0)
+  const chartH = cH - HEADER_H
 
   // SVG layout — in landscape, use observed chart area dimensions
   const width = isLandscape && chartAreaW > 0 ? chartAreaW : cW
@@ -344,49 +303,6 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     for (let v = start; v <= range.latMax; v += step) ticks.push(v)
     return ticks
   }, [range.latMin, range.latMax, ySpan])
-
-  // In landscape, always show table
-  const effectiveShowTable = isLandscape || showTable
-
-  // Table data with magnitudes
-  const tableRows = useMemo(() => {
-    return plotData.map((b) => ({
-      ...b,
-      mag: getBodyVisualMagnitude(b.id as SkyBodyId, quantizedDate),
-    }))
-  }, [plotData, quantizedDate])
-
-  const [tableSortCol, setTableSortCol] = useState<'body' | 'lon' | 'lat' | 'elong' | 'mag'>('lon')
-  const [tableSortDir, setTableSortDir] = useState<'asc' | 'desc'>('asc')
-
-  const handleTableSort = (col: typeof tableSortCol) => {
-    if (tableSortCol === col) {
-      setTableSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setTableSortCol(col)
-      setTableSortDir('asc')
-    }
-  }
-
-  const tableSortArrow = (col: typeof tableSortCol) => {
-    if (tableSortCol !== col) return ' \u2195'
-    return tableSortDir === 'asc' ? ' \u2191' : ' \u2193'
-  }
-
-  const tableData = useMemo(() => {
-    const arr = [...tableRows]
-    const dir = tableSortDir === 'asc' ? 1 : -1
-    arr.sort((a, b) => {
-      switch (tableSortCol) {
-        case 'body': return a.id.localeCompare(b.id) * dir
-        case 'lon': return (a.absLon - b.absLon) * dir
-        case 'lat': return (a.lat - b.lat) * dir
-        case 'elong': return (a.elongation - b.elongation) * dir
-        case 'mag': return ((a.mag ?? 99) - (b.mag ?? 99)) * dir
-      }
-    })
-    return arr
-  }, [tableRows, tableSortCol, tableSortDir])
 
   if (bodies.length === 0) {
     return (
@@ -551,40 +467,6 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
     </div>
   )
 
-  const tableSection = (
-    <div className="sky-view-table-area" style={isLandscape ? undefined : { height: tableH }}>
-      <table className="skyview-table">
-        <thead>
-          <tr>
-            <th className="sortable-th" onClick={() => handleTableSort('body')}>Body{tableSortArrow('body')}</th>
-            <th className="sortable-th col-right" onClick={() => handleTableSort('lon')}>Lon{tableSortArrow('lon')}</th>
-            <th className="sortable-th col-right" onClick={() => handleTableSort('lat')}>Lat{tableSortArrow('lat')}</th>
-            <th className="sortable-th col-right" onClick={() => handleTableSort('elong')}>Elong{tableSortArrow('elong')}</th>
-            <th className="sortable-th col-right" onClick={() => handleTableSort('mag')}>Mag{tableSortArrow('mag')}</th>
-            <th>Sky</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableData.map((b) => {
-            const isSun = b.id === 'Sun'
-            const skyLabel = isSun ? '\u2014' : (b.elongation >= 0 ? 'PM' : 'AM')
-            const skyColor = isSun ? '#666' : (b.elongation >= 0 ? SERIES_COLORS.evening : SERIES_COLORS.morning)
-            return (
-              <tr key={b.id}>
-                <td style={{ color: b.color }}>{b.id}</td>
-                <td className="col-right">{b.absLon.toFixed(1)}°</td>
-                <td className="col-right">{b.lat >= 0 ? '+' : ''}{b.lat.toFixed(1)}°</td>
-                <td className="col-right">{isSun ? '\u2014' : `${b.elongation >= 0 ? '+' : ''}${b.elongation.toFixed(1)}°`}</td>
-                <td className="col-right">{b.mag !== null ? b.mag.toFixed(1) : '\u2014'}</td>
-                <td style={{ color: skyColor }}>{skyLabel}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-
   return (
     <div className={`sky-view${isLandscape ? ' sky-view-landscape' : ''}`} ref={containerRef}>
       <div className="sky-view-header">
@@ -608,23 +490,7 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
         </div>
       </div>
 
-      {isLandscape ? (
-        <div className="sky-view-landscape-body">
-          {chartSection}
-          {tableSection}
-        </div>
-      ) : (
-        <>
-          {chartSection}
-          <div
-            className="sky-view-separator"
-            onMouseDown={handleSepMouseDown}
-          >
-            <span className="control-label">Planetary Data</span>
-          </div>
-          {effectiveShowTable && tableSection}
-        </>
-      )}
+      {chartSection}
     </div>
   )
 }

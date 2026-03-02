@@ -358,6 +358,11 @@ select option {
   min-height: 0;
 }
 
+.alignment-tables {
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* Planet picker */
 .planet-chips {
   display: flex;
@@ -1091,6 +1096,10 @@ select option {
 
 .skyview-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+.skyview-table tbody tr.active {
+  background: rgba(107, 147, 214, 0.15);
 }
 
 .sky-svg {

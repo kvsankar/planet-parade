@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric, NavMode } from '../types'
 import { MS_PER_DAY } from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
-import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos } from '../lib/ppiScoring'
+import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos, findPPIPeaks, findSpanMinima } from '../lib/ppiScoring'
 import { SkyViewCenter } from '../components/alignment/SkyView'
 
 export interface AlignmentState {
@@ -207,10 +207,38 @@ export function useAlignmentState(
   const currentDateMs = currentDate.getTime()
 
   const filteredPeaks = useMemo(() => {
-    const extrema = navMode === 'span' ? ppiResult.spanMinima : ppiResult.ppiPeaks
-    if (visibleCounts.size === 0) return extrema
-    return extrema.filter((p) => visibleCounts.has(p.planetCount))
-  }, [ppiResult.ppiPeaks, ppiResult.spanMinima, visibleCounts, navMode])
+    // No count filter: use pre-computed overall-best extrema
+    if (visibleCounts.size === 0) {
+      return navMode === 'span' ? ppiResult.spanMinima : ppiResult.ppiPeaks
+    }
+    // Count filters active: find extrema within each count's own series
+    // (overall-best peaks may belong to a different count, so simple
+    // filtering misses peaks that are visible on per-count chart lines)
+    const dates = ppiResult.dates
+    const points: PPIDayPoint[] = []
+    for (const k of visibleCounts) {
+      const bests = ppiResult.countBests.get(k)
+      if (!bests) continue
+      const details = bests.map(b => b ? {
+        ppi: b.ppi, span: b.span, kind: b.kind,
+        planets: b.planets as CelestialBodyId[],
+        planetCount: k, brightness: 0, elongVisibility: 0,
+      } : null)
+      if (navMode === 'span') {
+        points.push(...findSpanMinima(
+          dates.map((d, i) => ({ date: d, span: bests[i]?.span ?? 0 })),
+          details,
+        ))
+      } else {
+        points.push(...findPPIPeaks(
+          dates.map((d, i) => ({ date: d, ppi: bests[i]?.ppi ?? 0 })),
+          details,
+        ))
+      }
+    }
+    points.sort((a, b) => a.date - b.date)
+    return points
+  }, [ppiResult, visibleCounts, navMode])
 
   const hasPrev = useMemo(() => filteredPeaks.some((m) => m.date < currentDateMs), [filteredPeaks, currentDateMs])
   const hasNext = useMemo(() => filteredPeaks.some((m) => m.date > currentDateMs), [filteredPeaks, currentDateMs])

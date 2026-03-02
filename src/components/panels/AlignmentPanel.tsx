@@ -1,15 +1,19 @@
+import { useMemo } from 'react'
 import PlanetPicker from '../alignment/PlanetPicker'
 import TimeRangeSelector from '../alignment/TimeRangeSelector'
 import MinimaTable from '../alignment/MinimaTable'
 import PPISliders from '../alignment/PPISliders'
+import PlanetaryDataTable from '../alignment/PlanetaryDataTable'
 import { AlignmentState } from '../../hooks/useAlignmentState'
+import { CelestialBodyId } from '../../types'
 
 interface AlignmentPanelProps {
   alignment: AlignmentState
+  currentDate: Date
   isLandscape?: boolean
 }
 
-export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPanelProps) {
+export default function AlignmentPanel({ alignment, currentDate, isLandscape }: AlignmentPanelProps) {
   const {
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
@@ -69,22 +73,33 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
     </>
   )
 
-  const minimaTable = (
-    <MinimaTable
-      ppiPeaks={ppiResult.ppiPeaks}
-      currentDate={currentDateMs}
-      onSelect={handleDateSelect}
-      dayDetailCombos={dayDetailCombos}
-      selectedDayComboIdx={selectedDayComboIdx}
-      onDayComboSelect={setSelectedDayComboIdx}
-    />
+  const activeCombo = dayDetailCombos.length > 0
+    ? dayDetailCombos[selectedDayComboIdx ?? 0]
+    : null
+  const highlightedPlanets = useMemo(
+    () => activeCombo ? new Set<CelestialBodyId>(activeCombo.planets) : undefined,
+    [activeCombo],
+  )
+
+  const tables = (
+    <div className="alignment-tables">
+      <MinimaTable
+        ppiPeaks={ppiResult.ppiPeaks}
+        currentDate={currentDateMs}
+        onSelect={handleDateSelect}
+        dayDetailCombos={dayDetailCombos}
+        selectedDayComboIdx={selectedDayComboIdx}
+        onDayComboSelect={setSelectedDayComboIdx}
+      />
+      <PlanetaryDataTable bodies={selectedBodies} date={currentDate} highlightedPlanets={highlightedPlanets} />
+    </div>
   )
 
   if (isLandscape) {
     return (
       <div className="alignment-panel-inner alignment-panel-landscape">
         <div className="alignment-landscape-left">{controls}</div>
-        <div className="alignment-landscape-right">{minimaTable}</div>
+        <div className="alignment-landscape-right">{tables}</div>
       </div>
     )
   }
@@ -92,7 +107,7 @@ export default function AlignmentPanel({ alignment, isLandscape }: AlignmentPane
   return (
     <div className="alignment-panel-inner">
       {controls}
-      {minimaTable}
+      {tables}
     </div>
   )
 }

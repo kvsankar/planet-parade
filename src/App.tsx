@@ -224,7 +224,7 @@ export default function App() {
         <div className={`mobile-sheet${mobileTab !== 'align' ? ' mobile-sheet-with-playback' : ''}`}>
           <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
           <div className="mobile-sheet-body">
-            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} isLandscape={isLandscape} />}
+            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={isLandscape} />}
             {mobileTab === 'timeline' && (
               <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
             )}
@@ -286,7 +286,7 @@ export default function App() {
         </FloatingPanel>
 
         <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
-          <AlignmentPanel alignment={alignment} />
+          <AlignmentPanel alignment={alignment} currentDate={currentDate} />
         </FloatingPanel>
 
         <FloatingPanel {...fp('chart')} title="Parade Timeline" minWidth={400} minHeight={160}>

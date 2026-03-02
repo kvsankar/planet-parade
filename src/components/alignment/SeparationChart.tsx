@@ -185,6 +185,7 @@ const ChartInner = memo(function ChartInner({
                 stroke="#fff"
                 strokeWidth={2}
                 dot={false}
+                isAnimationActive={false}
                 activeDot={{ r: 3, fill: '#fff' }}
                 connectNulls={false}
               />
@@ -198,6 +199,7 @@ const ChartInner = memo(function ChartInner({
                 strokeWidth={1}
                 strokeDasharray="4 2"
                 dot={false}
+                isAnimationActive={false}
                 activeDot={{ r: 2, fill: '#fff' }}
                 connectNulls={false}
               />
@@ -217,6 +219,7 @@ const ChartInner = memo(function ChartInner({
                   stroke={color}
                   strokeWidth={1.5}
                   dot={false}
+                  isAnimationActive={false}
                   activeDot={(props: any) => {
                     const kind = props.payload?.[`kind_${k}`] as AlignmentKind | undefined
                     const dotColor = kind ? SERIES_COLORS[kind] : color
@@ -237,6 +240,7 @@ const ChartInner = memo(function ChartInner({
                   strokeWidth={1}
                   strokeDasharray="4 2"
                   dot={false}
+                  isAnimationActive={false}
                   activeDot={{ r: 2, fill: color }}
                   connectNulls={false}
                 />
