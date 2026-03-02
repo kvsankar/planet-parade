@@ -111,6 +111,7 @@ export interface PPIDayPoint {
 }
 
 export type ChartMetric = 'ppi' | 'span'
+export type NavMode = 'ppi' | 'span'
 
 export interface CountDayBest {
   ppi: number
@@ -122,6 +123,7 @@ export interface CountDayBest {
 export interface PPIResult {
   ppiSeries: { date: number; ppi: number }[]
   ppiPeaks: PPIDayPoint[]
+  spanMinima: PPIDayPoint[]
   dates: number[]
   countBests: Map<number, (CountDayBest | null)[]>
 }

@@ -26,6 +26,7 @@ export default function ChartPanel({
     currentDateMs,
     handleDateSelect,
     hasPrev, hasNext, todayInRange, jumpToPeak,
+    navMode, setNavMode,
   } = alignment
 
   const [focusToken, setFocusToken] = useState(0)
@@ -138,6 +139,30 @@ export default function ChartPanel({
         />
       </div>
       <div className="chart-controls-row">
+        <div className="series-toggle-chips">
+          <button
+            className={`series-chip ${navMode === 'ppi' ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(navMode === 'ppi' ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => setNavMode('ppi')}
+            title="Navigate PPI peaks (maxima)"
+          >
+            PPI &#9650;
+          </button>
+          <button
+            className={`series-chip ${navMode === 'span' ? 'active' : ''}`}
+            style={{
+              borderColor: '#aaa',
+              ...(navMode === 'span' ? { background: 'rgba(255,255,255,0.1)' } : {}),
+            }}
+            onClick={() => setNavMode('span')}
+            title="Navigate span minima (tightest clusters)"
+          >
+            Span &#9660;
+          </button>
+        </div>
         <div className="chart-nav-btns">
           <button
             className="minima-nav-btn"
@@ -151,7 +176,7 @@ export default function ChartPanel({
             className="minima-nav-btn"
             onClick={() => { jumpToPeak('prev'); bump() }}
             disabled={!hasPrev}
-            title="Previous peak"
+            title={navMode === 'ppi' ? 'Previous PPI peak' : 'Previous span minimum'}
           >
             &#9664; Prev
           </button>
@@ -159,7 +184,7 @@ export default function ChartPanel({
             className="minima-nav-btn"
             onClick={() => { jumpToPeak('next'); bump() }}
             disabled={!hasNext}
-            title="Next peak"
+            title={navMode === 'ppi' ? 'Next PPI peak' : 'Next span minimum'}
           >
             Next &#9654;
           </button>

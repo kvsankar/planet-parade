@@ -136,10 +136,10 @@ const VISIBILITY_WEIGHTS: PPIWeights = { ...DEFAULT_PPI_WEIGHTS }
  * as much — the media counts them even though they need binoculars.
  */
 const MEDIA_WEIGHTS: PPIWeights = {
-  alpha: 1.5,      // count exponent — moderate count emphasis
-  beta: 2.0,       // compactness exponent — tightness sharpens peaks near media dates
+  alpha: 2.0,      // count exponent — favours count (9/9 planet-count matches)
+  beta: 0.25,      // compactness exponent — tolerates wide spans (media parades are 90–175°)
   gamma: 0.5,      // moderate brightness weighting
-  delta: 0.5,      // partial visibility gate — dim planets penalized but not excluded
+  delta: 0.25,     // mild visibility gate
   spanScale: 180,
 }
 
@@ -205,8 +205,8 @@ describe('PPI broad survey (2000–2026)', () => {
     console.log('='.repeat(120))
     console.log(
       'Year'.padEnd(6) +
-      '│ ' + 'Visibility (α=1.2 β=1.2 γ=0.5)'.padEnd(55) +
-      '│ ' + 'Media (α=2.0 β=0.4 γ=0.2)'.padEnd(55)
+      '│ ' + 'Visibility (α=1.0 β=2.0 γ=0.25)'.padEnd(55) +
+      '│ ' + 'Media (α=2.0 β=0.25 γ=0.5)'.padEnd(55)
     )
     console.log('─'.repeat(6) + '┼' + '─'.repeat(56) + '┼' + '─'.repeat(56))
 

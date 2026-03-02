@@ -23,8 +23,11 @@ import { getBodyVisualMagnitude, SkyBodyId } from './astronomy'
 export const DEFAULT_PPI_WEIGHTS: PPIWeights = { alpha: 1.0, beta: 2.0, gamma: 0.25, delta: 0.25, spanScale: 180 }
 
 /** Media preset: best match to public "planet parade" dates.
- *  Derived from parameter sweep minimizing date offset from 10 known events. */
-export const MEDIA_PPI_WEIGHTS: PPIWeights = { alpha: 1.5, beta: 2.0, gamma: 0.5, delta: 0.5, spanScale: 180 }
+ *  Derived from count-aware parameter sweep (960 combos × 10 known events).
+ *  α=2.0 favours count; β=0.25 tolerates wide spans (media parades often
+ *  cover 90–175°); γ=0.5 mildly penalises dim planets; δ=0.25 mild
+ *  visibility gate. Achieves 9/9 planet-count matches, 5/9 within ±5d. */
+export const MEDIA_PPI_WEIGHTS: PPIWeights = { alpha: 2.0, beta: 0.25, gamma: 0.5, delta: 0.25, spanScale: 180 }
 
 /** Per-planet brightness weight: maps visual magnitude to [0.01, 1.0] */
 export function brightnessWeight(mag: number): number {
@@ -106,7 +109,7 @@ export function computePPIResults(
   const numDays = durationDays + 1
   const startMs = startDate.getTime()
 
-  if (N < 2) return { ppiSeries: [], ppiPeaks: [], dates: [], countBests: new Map() }
+  if (N < 2) return { ppiSeries: [], ppiPeaks: [], spanMinima: [], dates: [], countBests: new Map() }
 
   // Phase 1: Pre-compute ephemeris for all days
   const ephemeris: PPIDayEphemeris[] = new Array(numDays)
@@ -207,13 +210,15 @@ export function computePPIResults(
     ppiSeries[d] = { date: ephemeris[d].dateMs, ppi: dayBests[d]?.ppi ?? 0 }
   }
 
-  // Phase 4: Find local maxima (peaks)
+  // Phase 4: Find extrema — PPI peaks and span minima from overall-best series
   const ppiPeaks = findPPIPeaks(ppiSeries, dayBests)
+  const spanSeries = dayBests.map((b, d) => ({ date: ephemeris[d].dateMs, span: b?.span ?? 0 }))
+  const spanMinima = findSpanMinima(spanSeries, dayBests)
 
   // Build dates array
   const dates = ephemeris.map((e) => e.dateMs)
 
-  return { ppiSeries, ppiPeaks, dates, countBests }
+  return { ppiSeries, ppiPeaks, spanMinima, dates, countBests }
 }
 
 /** Compute ALL non-zero PPI combos for a single date */
@@ -287,21 +292,33 @@ export function computeDayCombos(
   return results
 }
 
-/** Find local maxima in the PPI time series */
-export function findPPIPeaks(
-  series: { date: number; ppi: number }[],
-  dayDetails: (PPIDayPoint | { ppi: number; span: number; kind: AlignmentKind; planets: CelestialBodyId[]; planetCount: number; brightness: number; elongVisibility: number } | null)[],
+type DayDetail = PPIDayPoint | { ppi: number; span: number; kind: AlignmentKind; planets: CelestialBodyId[]; planetCount: number; brightness: number; elongVisibility: number } | null
+
+/** Generic extrema finder: maxima (mode='max') or minima (mode='min') with plateau handling */
+function findExtrema(
+  values: number[],
+  dates: number[],
+  dayDetails: DayDetail[],
+  mode: 'max' | 'min',
 ): PPIDayPoint[] {
-  if (series.length < 3) return []
+  const n = values.length
+  if (n < 3) return []
 
-  const val = (i: number) => series[i].ppi
-  const peaks: PPIDayPoint[] = []
+  // For maxima: a >= b uses >=; for minima: a <= b
+  const isBetter = mode === 'max'
+    ? (a: number, b: number) => a > b
+    : (a: number, b: number) => a < b
+  const isBetterOrEq = mode === 'max'
+    ? (a: number, b: number) => a >= b
+    : (a: number, b: number) => a <= b
 
-  const addPeak = (i: number) => {
+  const results: PPIDayPoint[] = []
+
+  const add = (i: number) => {
     const detail = dayDetails[i]
-    if (!detail || detail.ppi <= 0) return
-    peaks.push({
-      date: series[i].date,
+    if (!detail || values[i] <= 0) return
+    results.push({
+      date: dates[i],
       ppi: detail.ppi,
       span: detail.span,
       kind: detail.kind,
@@ -313,21 +330,18 @@ export function findPPIPeaks(
   }
 
   // Check start
-  if (val(0) > 0 && val(0) >= val(1)) {
-    addPeak(0)
+  if (values[0] > 0 && isBetterOrEq(values[0], values[1])) {
+    add(0)
   }
 
-  // Interior points
+  // Interior points with plateau handling
   let i = 1
-  while (i < series.length - 1) {
-    if (val(i) >= val(i - 1)) {
+  while (i < n - 1) {
+    if (isBetterOrEq(values[i], values[i - 1])) {
       let j = i
-      while (j < series.length - 1 && val(j + 1) === val(i)) j++
-      const leftHigher = val(i) > val(i - 1)
-      const rightHigher = j >= series.length - 1 || val(i) > val(j + 1)
-      if (leftHigher && rightHigher) {
-        const mid = Math.floor((i + j) / 2)
-        addPeak(mid)
+      while (j < n - 1 && values[j + 1] === values[i]) j++
+      if (isBetter(values[i], values[i - 1]) && (j >= n - 1 || isBetter(values[i], values[j + 1]))) {
+        add(Math.floor((i + j) / 2))
       }
       i = j + 1
     } else {
@@ -336,10 +350,26 @@ export function findPPIPeaks(
   }
 
   // Check end
-  const last = series.length - 1
-  if (val(last) > 0 && val(last) >= val(last - 1)) {
-    addPeak(last)
+  const last = n - 1
+  if (values[last] > 0 && isBetterOrEq(values[last], values[last - 1])) {
+    add(last)
   }
 
-  return peaks
+  return results
+}
+
+/** Find local maxima in the PPI time series */
+export function findPPIPeaks(
+  series: { date: number; ppi: number }[],
+  dayDetails: DayDetail[],
+): PPIDayPoint[] {
+  return findExtrema(series.map(s => s.ppi), series.map(s => s.date), dayDetails, 'max')
+}
+
+/** Find local minima in the span time series (tightest clusters) */
+export function findSpanMinima(
+  series: { date: number; span: number }[],
+  dayDetails: DayDetail[],
+): PPIDayPoint[] {
+  return findExtrema(series.map(s => s.span), series.map(s => s.date), dayDetails, 'min')
 }

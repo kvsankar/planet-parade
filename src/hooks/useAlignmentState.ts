@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric } from '../types'
+import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric, NavMode } from '../types'
 import { MS_PER_DAY } from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
 import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos } from '../lib/ppiScoring'
@@ -39,6 +39,8 @@ export interface AlignmentState {
   setVisibleCounts: (v: Set<number>) => void
   visibleMetrics: Set<ChartMetric>
   setVisibleMetrics: (v: Set<ChartMetric>) => void
+  navMode: NavMode
+  setNavMode: (m: NavMode) => void
   chartData: Record<string, number | string | null>[]
   // Derived from currentDate
   currentDateMs: number
@@ -67,6 +69,7 @@ export function useAlignmentState(
   const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
   const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
+  const [navMode, setNavMode] = useState<NavMode>('ppi')
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
   const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
 
@@ -112,7 +115,7 @@ export function useAlignmentState(
   }, [selectedBodies, startDate, durationDays, effectiveMin, effectiveMax])
 
   const ppiResult = useMemo((): PPIResult => {
-    if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [], dates: [], countBests: new Map() }
+    if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [], spanMinima: [], dates: [], countBests: new Map() }
     return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax)
   }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax])
 
@@ -204,9 +207,10 @@ export function useAlignmentState(
   const currentDateMs = currentDate.getTime()
 
   const filteredPeaks = useMemo(() => {
-    if (visibleCounts.size === 0) return ppiResult.ppiPeaks
-    return ppiResult.ppiPeaks.filter((p) => visibleCounts.has(p.planetCount))
-  }, [ppiResult.ppiPeaks, visibleCounts])
+    const extrema = navMode === 'span' ? ppiResult.spanMinima : ppiResult.ppiPeaks
+    if (visibleCounts.size === 0) return extrema
+    return extrema.filter((p) => visibleCounts.has(p.planetCount))
+  }, [ppiResult.ppiPeaks, ppiResult.spanMinima, visibleCounts, navMode])
 
   const hasPrev = useMemo(() => filteredPeaks.some((m) => m.date < currentDateMs), [filteredPeaks, currentDateMs])
   const hasNext = useMemo(() => filteredPeaks.some((m) => m.date > currentDateMs), [filteredPeaks, currentDateMs])
@@ -247,6 +251,7 @@ export function useAlignmentState(
     allMinima, bestPerKind,
     visibleCounts, setVisibleCounts,
     visibleMetrics, setVisibleMetrics,
+    navMode, setNavMode,
     chartData,
     currentDateMs, hasPrev, hasNext, todayInRange,
     handleDateSelect, jumpToPeak,
