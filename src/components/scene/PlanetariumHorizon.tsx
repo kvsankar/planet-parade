@@ -3,8 +3,9 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 
-const HORIZON_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.98
-const LABEL_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.92
+const GROUND_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.97
+const HORIZON_RADIUS = GROUND_RADIUS * 0.995
+const LABEL_RADIUS = GROUND_RADIUS * 0.94
 
 const CARDINALS: { label: string; az: number }[] = [
   { label: 'N', az: 0 },
@@ -38,7 +39,7 @@ interface Props {
 
 export default function PlanetariumHorizon({ showCardinalLabels = true }: Props) {
   const { groundGeo, groundMat } = useMemo(() => {
-    const geo = new THREE.SphereGeometry(CELESTIAL_SPHERE_RADIUS * 0.97, 64, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)
+    const geo = new THREE.SphereGeometry(GROUND_RADIUS, 64, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)
     const mat = new THREE.MeshBasicMaterial({
       color: '#0a0a0f',
       side: THREE.BackSide,

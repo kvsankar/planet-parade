@@ -4,4 +4,5 @@
 export const planetariumStore = {
   yaw: Math.PI,                           // current view azimuth (radians), start looking south
   pitch: 0.15,                            // current view altitude (radians)
+  fovDeg: 60,                             // current planetarium FoV in degrees
 }

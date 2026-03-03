@@ -9,6 +9,7 @@ import { altAzToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinat
 import { BODY_META } from '../../constants'
 
 const PLANET_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.98
+const ABOVE_HORIZON_EPS_DEG = -0.1
 
 const BODY_SIZE: Partial<Record<SkyBodyId, number>> = {
   Sun: 20,
@@ -41,7 +42,7 @@ export default function PlanetariumPlanets({ observer, showLabels = true }: Prop
         transparent: true,
         opacity: 1,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true,
         toneMapped: false,
       })
       mats.set(bodyId, mat)
@@ -54,17 +55,17 @@ export default function PlanetariumPlanets({ observer, showLabels = true }: Prop
     for (const bodyId of SKY_BODIES) {
       const altAz = getAltAz(bodyId, date, observer)
       const pos = altAzToSceneSphere(altAz.altitude, altAz.azimuth, PLANET_RADIUS)
+      const isAboveHorizon = altAz.altitude >= ABOVE_HORIZON_EPS_DEG
 
       const mesh = meshRefs.current.get(bodyId)
       if (mesh) {
         mesh.position.set(pos[0], pos[1], pos[2])
-        const mat = materials.get(bodyId)
-        if (mat) mat.opacity = altAz.altitude < 0 ? 0.25 : 1
+        mesh.visible = isAboveHorizon
       }
 
       const labelEl = labelRefs.current.get(bodyId)
       if (labelEl) {
-        labelEl.style.opacity = altAz.altitude < 0 ? '0' : '1'
+        labelEl.style.opacity = isAboveHorizon ? '1' : '0'
       }
     }
   })

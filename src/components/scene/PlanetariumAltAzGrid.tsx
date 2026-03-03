@@ -8,8 +8,8 @@ const DEG = Math.PI / 180
 const COLOR = new THREE.Color('#2a4a6a')
 const OPACITY = 0.18
 
-// Altitude circles: every 15° above the horizon.
-const ALT_STEPS = [0, 15, 30, 45, 60, 75]
+// Altitude circles: every 15° above the horizon (exclude 0°; horizon ring is separate).
+const ALT_STEPS = [15, 30, 45, 60, 75]
 // Azimuth lines: every 15° above the horizon.
 const AZ_STEPS = Array.from({ length: 24 }, (_, i) => i * 15)
 
@@ -64,6 +64,7 @@ export default function PlanetariumAltAzGrid() {
       color: COLOR,
       opacity: OPACITY,
       transparent: true,
+      depthTest: true,
       depthWrite: false,
     })
     return new THREE.LineSegments(geo, mat)

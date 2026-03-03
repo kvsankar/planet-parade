@@ -14,14 +14,14 @@ import ConstellationLines3D from './ConstellationLines3D'
 import ConstellationBoundaries3D from './ConstellationBoundaries3D'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { CelestialBodyId, ObserverLocation } from '../../types'
+import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 
 const CANVAS_STYLE = { background: '#000000' }
+const STEREOGRAPHIC_CAMERA_DISTANCE = CELESTIAL_SPHERE_RADIUS * 1.02
+const DISK_MASK_ENABLE_FOV = 120
 
 interface ContentsProps {
   observer: ObserverLocation
-  currentDate: Date
-  onAutoDateChange?: (d: Date) => void
-  targetComboBodies?: CelestialBodyId[] | null
   showAltAzGrid: boolean
   showEclipticGrid: boolean
   showStarsLocal: boolean
@@ -33,9 +33,6 @@ interface ContentsProps {
 
 function PlanetariumContents({
   observer,
-  currentDate,
-  onAutoDateChange,
-  targetComboBodies,
   showAltAzGrid,
   showEclipticGrid,
   showStarsLocal,
@@ -47,28 +44,20 @@ function PlanetariumContents({
   const { showMilkyWay, showConstellationBoundaries } = useDisplaySettings()
 
   return (
-    <>
-      <PlanetariumViewGroup>
-        <PlanetariumWorldRotation observer={observer}>
-          {showMilkyWay && <MilkyWaySphere />}
-          {showStarsLocal && <RealStars brightness={2.0} />}
-          {showStarLabelsLocal && <PlanetariumStarLabels />}
-          {showConstellationEdgesLocal && <ConstellationLines3D />}
-          {showConstellationLabelsLocal && <PlanetariumConstellationLabels />}
-          {showConstellationBoundaries && <ConstellationBoundaries3D />}
-          {showEclipticGrid && <PlanetariumEclipticGrid />}
-        </PlanetariumWorldRotation>
-        <PlanetariumPlanets observer={observer} showLabels={showPlanetLabelsLocal} />
-        <PlanetariumHorizon showCardinalLabels />
-        {showAltAzGrid && <PlanetariumAltAzGrid />}
-      </PlanetariumViewGroup>
-      <PlanetariumCameraController
-        observer={observer}
-        currentDate={currentDate}
-        targetComboBodies={targetComboBodies}
-        onAutoDateChange={onAutoDateChange}
-      />
-    </>
+    <PlanetariumViewGroup>
+      <PlanetariumWorldRotation observer={observer}>
+        {showMilkyWay && <MilkyWaySphere />}
+        {showStarsLocal && <RealStars brightness={2.0} />}
+        {showStarLabelsLocal && <PlanetariumStarLabels />}
+        {showConstellationEdgesLocal && <ConstellationLines3D />}
+        {showConstellationLabelsLocal && <PlanetariumConstellationLabels />}
+        {showConstellationBoundaries && <ConstellationBoundaries3D />}
+      </PlanetariumWorldRotation>
+      <PlanetariumPlanets observer={observer} showLabels={showPlanetLabelsLocal} />
+      {showEclipticGrid && <PlanetariumEclipticGrid observer={observer} />}
+      <PlanetariumHorizon showCardinalLabels />
+      {showAltAzGrid && <PlanetariumAltAzGrid />}
+    </PlanetariumViewGroup>
   )
 }
 
@@ -87,12 +76,16 @@ export default memo(function PlanetariumScene({ observer, currentDate, onAutoDat
   const [showPlanetLabels, setShowPlanetLabels] = useState(true)
   const [showStarLabels, setShowStarLabels] = useState(true)
   const [showConstellationLabels, setShowConstellationLabels] = useState(true)
+  const [viewFovDeg, setViewFovDeg] = useState(60)
+
+  const diskMaskOpacity = viewFovDeg >= DISK_MASK_ENABLE_FOV ? 1 : 0
 
   const cameraConfig = useMemo(() => ({
-    position: [0, 0, 0] as [number, number, number],
+    // Camera offset yields stereographic-like projection with much lower edge shape distortion.
+    position: [0, 0, STEREOGRAPHIC_CAMERA_DISTANCE] as [number, number, number],
     fov: 60,
     near: 0.1,
-    far: 2000,
+    far: 5000,
   }), [])
 
   return (
@@ -100,9 +93,6 @@ export default memo(function PlanetariumScene({ observer, currentDate, onAutoDat
       <Canvas camera={cameraConfig} style={CANVAS_STYLE}>
         <PlanetariumContents
           observer={observer}
-          currentDate={currentDate}
-          onAutoDateChange={onAutoDateChange}
-          targetComboBodies={targetComboBodies}
           showAltAzGrid={showAltAzGrid}
           showEclipticGrid={showEclipticGrid}
           showStarsLocal={showStars}
@@ -111,7 +101,15 @@ export default memo(function PlanetariumScene({ observer, currentDate, onAutoDat
           showStarLabelsLocal={showStarLabels}
           showConstellationLabelsLocal={showConstellationLabels}
         />
+        <PlanetariumCameraController
+          observer={observer}
+          currentDate={currentDate}
+          targetComboBodies={targetComboBodies}
+          onAutoDateChange={onAutoDateChange}
+          onFovChange={setViewFovDeg}
+        />
       </Canvas>
+      <div className="planetarium-disk-mask" style={{ opacity: diskMaskOpacity }} />
       <div className="planetarium-grid-toggles">
         <label className="planetarium-grid-toggle">
           <input type="checkbox" checked={showStars} onChange={() => setShowStars((v) => !v)} />

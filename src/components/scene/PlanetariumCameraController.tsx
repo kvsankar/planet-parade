@@ -3,11 +3,11 @@ import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { planetariumStore } from '../../hooks/usePlanetariumStore'
 import { simulationStore } from '../../hooks/useSimulationStore'
-import { findSunrise, findSunset, getAltAz, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAltAz, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import { CelestialBodyId, ObserverLocation } from '../../types'
 
 const MIN_FOV_DEG = 20
-const MAX_FOV_DEG = 120
+const MAX_FOV_DEG = 175
 const DEFAULT_FOV_DEG = 60
 const DEFAULT_YAW = Math.PI // face south
 const DEFAULT_PITCH = 20 * (Math.PI / 180) // fallback when no combo is available
@@ -44,6 +44,7 @@ interface Props {
   currentDate: Date
   targetComboBodies?: CelestialBodyId[] | null
   onAutoDateChange?: (d: Date) => void
+  onFovChange?: (fovDeg: number) => void
 }
 
 function toSkyBody(id: CelestialBodyId): SkyBodyId | null {
@@ -59,31 +60,63 @@ function dayStartUtc(baseDate: Date): Date {
   ))
 }
 
-function findFirstAllAboveAndSunBelow(
+interface NightViewChoice {
+  date: Date
+  visibleCount: number
+}
+
+interface NightCandidate {
+  dateMs: number
+  visibleCount: number
+  minAltitude: number
+  sumAltitude: number
+}
+
+function isBetterNightCandidate(next: NightCandidate, prev: NightCandidate | null): boolean {
+  if (!prev) return true
+  if (next.visibleCount !== prev.visibleCount) return next.visibleCount > prev.visibleCount
+  if (next.minAltitude !== prev.minAltitude) return next.minAltitude > prev.minAltitude
+  if (next.sumAltitude !== prev.sumAltitude) return next.sumAltitude > prev.sumAltitude
+  return next.dateMs < prev.dateMs
+}
+
+function findNightViewTime(
   baseDate: Date,
   observer: ObserverLocation,
   targets: SkyBodyId[],
-): Date | null {
+): NightViewChoice | null {
   const dayStart = dayStartUtc(baseDate).getTime()
   const dayEnd = dayStart + MS_PER_DAY
+  let bestPartial: NightCandidate | null = null
 
   for (let t = dayStart; t < dayEnd; t += TIME_SCAN_STEP_MS) {
     const dt = new Date(t)
     const sunAlt = getAltAz('Sun', dt, observer).altitude
     if (sunAlt >= 0) continue
 
-    let allAbove = true
+    let visibleCount = 0
+    let minAltitude = Number.POSITIVE_INFINITY
+    let sumAltitude = 0
+
     for (const bodyId of targets) {
       const { altitude } = getAltAz(bodyId, dt, observer)
-      if (altitude <= 0) {
-        allAbove = false
-        break
-      }
+      if (altitude > 0) visibleCount++
+      minAltitude = Math.min(minAltitude, altitude)
+      sumAltitude += altitude
     }
-    if (allAbove) return dt
+
+    if (visibleCount === targets.length) {
+      // Prefer earliest full-night solution (deterministic behavior).
+      return { date: dt, visibleCount }
+    }
+
+    const candidate: NightCandidate = { dateMs: t, visibleCount, minAltitude, sumAltitude }
+    if (isBetterNightCandidate(candidate, bestPartial)) {
+      bestPartial = candidate
+    }
   }
 
-  return null
+  return bestPartial ? { date: new Date(bestPartial.dateMs), visibleCount: bestPartial.visibleCount } : null
 }
 
 function findFirstSunOnHorizon(baseDate: Date, observer: ObserverLocation): Date | null {
@@ -101,13 +134,39 @@ function findFirstSunOnHorizon(baseDate: Date, observer: ObserverLocation): Date
   return candidates[0] ?? null
 }
 
-export default function PlanetariumCameraController({ observer, currentDate, targetComboBodies, onAutoDateChange }: Props) {
+interface TargetSample {
+  bodyId: SkyBodyId
+  altitude: number
+  azimuth: number
+  magnitude: number | null
+}
+
+function pickFocusTarget(samples: TargetSample[]): TargetSample | null {
+  if (samples.length === 0) return null
+  const visible = samples.filter((s) => s.altitude > 0)
+  const pool = visible.length > 0 ? visible : samples
+
+  const withMagnitude = pool.filter((s) => Number.isFinite(s.magnitude ?? NaN))
+  if (withMagnitude.length > 0) {
+    return withMagnitude.reduce((best, cur) => {
+      const bestMag = best.magnitude as number
+      const curMag = cur.magnitude as number
+      if (curMag < bestMag) return cur
+      if (curMag > bestMag) return best
+      return cur.altitude > best.altitude ? cur : best
+    })
+  }
+
+  return pool.reduce((best, cur) => (cur.altitude > best.altitude ? cur : best))
+}
+
+export default function PlanetariumCameraController({ observer, currentDate, targetComboBodies, onAutoDateChange, onFovChange }: Props) {
   const { camera, gl, size } = useThree()
   const mouseDragPointerId = useRef<number | null>(null)
   const mouseDragAxis = useRef<DragAxis>('free')
   const mouseDragAccum = useRef({ x: 0, y: 0 })
   const lastPointer = useRef({ x: 0, y: 0 })
-  const fovDegRef = useRef((camera as THREE.PerspectiveCamera).fov)
+  const fovDegRef = useRef(planetariumStore.fovDeg || (camera as THREE.PerspectiveCamera).fov)
   const touchIds = useRef<Map<number, { x: number; y: number }>>(new Map())
   const activeTouchDragId = useRef<number | null>(null)
   const touchDragAxis = useRef<DragAxis>('free')
@@ -115,6 +174,14 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
   const pinchDistanceRef = useRef<number | null>(null)
   const targetKey = (targetComboBodies ?? []).join(',')
   const dayKey = `${currentDate.getUTCFullYear()}-${currentDate.getUTCMonth()}-${currentDate.getUTCDate()}`
+
+  const setFovDeg = useCallback((nextFov: number) => {
+    const clamped = clamp(nextFov, MIN_FOV_DEG, MAX_FOV_DEG)
+    if (Math.abs(clamped - fovDegRef.current) < 1e-3) return
+    fovDegRef.current = clamped
+    planetariumStore.fovDeg = clamped
+    onFovChange?.(clamped)
+  }, [onFovChange])
 
   useFrame(() => {
     // Keep camera FOV in sync with interaction state (wheel/pinch zoom).
@@ -126,10 +193,15 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
   })
 
   useEffect(() => {
+    planetariumStore.fovDeg = fovDegRef.current
+    onFovChange?.(fovDegRef.current)
+  }, [onFovChange])
+
+  useEffect(() => {
     // Deterministic default view each time planetarium view mounts, or when
-    // selected combo/day changes: use first viable time and center centroid.
+    // selected combo/day changes: use first viable time and focus brightest target.
     const cam = camera as THREE.PerspectiveCamera
-    fovDegRef.current = DEFAULT_FOV_DEG
+    setFovDeg(DEFAULT_FOV_DEG)
     cam.fov = DEFAULT_FOV_DEG
     cam.updateProjectionMatrix()
 
@@ -140,12 +212,13 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     }
 
     if (targets.length > 0) {
-      const bestTime = findFirstAllAboveAndSunBelow(currentDate, observer, targets)
-      const fallbackSunHorizonTime = bestTime ? null : findFirstSunOnHorizon(currentDate, observer)
-      const date = bestTime ?? fallbackSunHorizonTime ?? currentDate
+      const nightChoice = findNightViewTime(currentDate, observer, targets)
+      const sunHorizonTime = findFirstSunOnHorizon(currentDate, observer)
+      const fallbackSunHorizonTime = nightChoice && nightChoice.visibleCount > 0 ? null : sunHorizonTime
+      const date = nightChoice?.date ?? fallbackSunHorizonTime ?? currentDate
 
       // Keep global simulation time in sync so UI and scene use the same instant.
-      if (bestTime || fallbackSunHorizonTime) {
+      if (nightChoice || sunHorizonTime) {
         if (onAutoDateChange) {
           if (Math.abs(date.getTime() - currentDate.getTime()) > 500) {
             onAutoDateChange(date)
@@ -155,37 +228,36 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
         }
       }
 
-      let sx = 0
-      let sy = 0
-      let sz = 0
-
-      for (const bodyId of targets) {
+      const targetSamples: TargetSample[] = targets.map((bodyId) => {
         const { altitude, azimuth } = getAltAz(bodyId, date, observer)
-        const altRad = altitude * (Math.PI / 180)
-        const azRad = azimuth * (Math.PI / 180)
-        const cosAlt = Math.cos(altRad)
-        sx += cosAlt * Math.sin(azRad)
-        sy += Math.sin(altRad)
-        sz += -cosAlt * Math.cos(azRad)
-      }
+        return {
+          bodyId,
+          altitude,
+          azimuth,
+          magnitude: getBodyVisualMagnitude(bodyId, date),
+        }
+      })
 
-      const len = Math.hypot(sx, sy, sz)
-      if (len > 1e-6) {
-        const nx = sx / len
-        const ny = sy / len
-        const nz = sz / len
-        const az = Math.atan2(nx, -nz)
-        const alt = Math.asin(clamp(ny, -1, 1))
-        planetariumStore.yaw = normalizeAngleRad(-az)
-        planetariumStore.pitch = clamp(alt, -MAX_PITCH, MAX_PITCH)
+      const focusTarget = pickFocusTarget(targetSamples)
+      if (!focusTarget) {
+        planetariumStore.yaw = DEFAULT_YAW
+        planetariumStore.pitch = DEFAULT_PITCH
         return
       }
+
+      const az = focusTarget.azimuth * (Math.PI / 180)
+      // If brightest target is below horizon, point to horizon at same azimuth.
+      const targetAltDeg = Math.max(0, focusTarget.altitude)
+      const alt = targetAltDeg * (Math.PI / 180)
+      planetariumStore.yaw = normalizeAngleRad(-az)
+      planetariumStore.pitch = clamp(alt, -MAX_PITCH, MAX_PITCH)
+      return
     }
 
     // Fallback only when combo centroid is unavailable.
     planetariumStore.yaw = DEFAULT_YAW
     planetariumStore.pitch = DEFAULT_PITCH
-  }, [camera, observer, targetKey, dayKey])
+  }, [camera, observer, targetKey, dayKey, setFovDeg])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
     try {
@@ -266,9 +338,11 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
       effectiveDx = 0
     }
 
+    // Stellarium-style stereographic sensitivity: view scale = 2*tan(fov/2)
     const fovRad = fovDegRef.current * (Math.PI / 180)
-    const yawDelta = (effectiveDx / Math.max(size.width, 1)) * fovRad * gain
-    const pitchDelta = (effectiveDy / Math.max(size.height, 1)) * fovRad * gain * PITCH_GAIN_RATIO
+    const viewScale = 2 * Math.tan(0.5 * fovRad)
+    const yawDelta = (effectiveDx / Math.max(size.width, 1)) * viewScale * gain
+    const pitchDelta = (effectiveDy / Math.max(size.height, 1)) * viewScale * gain * PITCH_GAIN_RATIO
     // Grab mode: drag direction = sky motion direction
     planetariumStore.yaw = normalizeAngleRad(planetariumStore.yaw + yawDelta)
     planetariumStore.pitch = clamp(planetariumStore.pitch + pitchDelta, -MAX_PITCH, MAX_PITCH)
@@ -284,7 +358,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
         const newDist = getTouchDistance()
         if (oldDist != null && newDist != null && oldDist > 0) {
           const zoomFactor = oldDist / newDist
-          fovDegRef.current = clamp(fovDegRef.current * zoomFactor, MIN_FOV_DEG, MAX_FOV_DEG)
+          setFovDeg(fovDegRef.current * zoomFactor)
         }
         pinchDistanceRef.current = newDist
         return
@@ -314,7 +388,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     const dy = e.clientY - lastPointer.current.y
     updateView(dx, dy, DRAG_GAIN_MOUSE, mouseDragAxis, mouseDragAccum)
     lastPointer.current = { x: e.clientX, y: e.clientY }
-  }, [getTouchDistance, updateView])
+  }, [getTouchDistance, updateView, setFovDeg])
 
   const onPointerUp = useCallback((e: PointerEvent) => {
     if (e.pointerType === 'touch') {
@@ -354,8 +428,8 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     e.preventDefault()
     const direction = Math.sign(e.deltaY)
     if (direction === 0) return
-    fovDegRef.current = clamp(fovDegRef.current + direction * FOV_STEP, MIN_FOV_DEG, MAX_FOV_DEG)
-  }, [])
+    setFovDeg(fovDegRef.current + direction * FOV_STEP)
+  }, [setFovDeg])
 
   useEffect(() => {
     const el = gl.domElement
