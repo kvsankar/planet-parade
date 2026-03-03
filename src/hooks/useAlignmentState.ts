@@ -35,11 +35,14 @@ export interface AlignmentState {
   visibleCounts: Set<number>
   visibleMetrics: Set<ChartMetric>
   setVisibleMetrics: (v: Set<ChartMetric>) => void
+  simpleMode: boolean
+  setSimpleMode: (v: boolean) => void
   navMode: NavMode
   setNavMode: (m: NavMode) => void
   chartData: Record<string, number | string | null>[]
   // Derived from currentDate
   currentDateMs: number
+  filteredPeaks: PPIDayPoint[]
   hasPrev: boolean
   hasNext: boolean
   todayInRange: boolean
@@ -65,6 +68,7 @@ export function useAlignmentState(
   const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
   const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
+  const [simpleMode, setSimpleMode] = useState(true)
   const [navMode, setNavMode] = useState<NavMode>('ppi')
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
   const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
@@ -196,13 +200,36 @@ export function useAlignmentState(
   const currentDateMs = currentDate.getTime()
 
   const filteredPeaks = useMemo(() => {
-    // No count filter: use pre-computed overall-best extrema
-    if (visibleCounts.size === 0) {
-      return navMode === 'span' ? ppiResult.spanMinima : ppiResult.ppiPeaks
+    const pickBestPerDay = (points: PPIDayPoint[]): PPIDayPoint[] => {
+      const byDay = new Map<number, PPIDayPoint>()
+      for (const p of points) {
+        const day = Math.floor(p.date / MS_PER_DAY)
+        const prev = byDay.get(day)
+        if (!prev) {
+          byDay.set(day, p)
+          continue
+        }
+        if (navMode === 'span') {
+          const better = p.span < prev.span
+            || (p.span === prev.span && p.planetCount > prev.planetCount)
+            || (p.span === prev.span && p.planetCount === prev.planetCount && p.ppi > prev.ppi)
+          if (better) byDay.set(day, p)
+        } else {
+          const better = p.ppi > prev.ppi
+            || (p.ppi === prev.ppi && p.planetCount > prev.planetCount)
+            || (p.ppi === prev.ppi && p.planetCount === prev.planetCount && p.span < prev.span)
+          if (better) byDay.set(day, p)
+        }
+      }
+      return [...byDay.values()].sort((a, b) => a.date - b.date)
     }
-    // Count filters active: find extrema within each count's own series
-    // (overall-best peaks may belong to a different count, so simple
-    // filtering misses peaks that are visible on per-count chart lines)
+
+    // Simple chart uses overall-best series only.
+    if (simpleMode || visibleCounts.size === 0) {
+      return pickBestPerDay(navMode === 'span' ? ppiResult.spanMinima : ppiResult.ppiPeaks)
+    }
+    // Advanced chart shows per-count lines, so navigation uses extrema from
+    // each visible count series.
     const dates = ppiResult.dates
     const points: PPIDayPoint[] = []
     for (const k of visibleCounts) {
@@ -225,9 +252,8 @@ export function useAlignmentState(
         ))
       }
     }
-    points.sort((a, b) => a.date - b.date)
-    return points
-  }, [ppiResult, visibleCounts, navMode])
+    return pickBestPerDay(points)
+  }, [ppiResult, visibleCounts, navMode, simpleMode])
 
   const hasPrev = useMemo(() => filteredPeaks.some((m) => m.date < currentDateMs), [filteredPeaks, currentDateMs])
   const hasNext = useMemo(() => filteredPeaks.some((m) => m.date > currentDateMs), [filteredPeaks, currentDateMs])
@@ -266,9 +292,10 @@ export function useAlignmentState(
     allMinima, bestPerKind,
     visibleCounts,
     visibleMetrics, setVisibleMetrics,
+    simpleMode, setSimpleMode,
     navMode, setNavMode,
     chartData,
-    currentDateMs, hasPrev, hasNext, todayInRange,
+    currentDateMs, filteredPeaks, hasPrev, hasNext, todayInRange,
     handleDateSelect, jumpToPeak,
   }
 }

@@ -25,6 +25,7 @@ export default function ChartPanel({
     effectiveMin, effectiveMax,
     visibleCounts,
     visibleMetrics, setVisibleMetrics,
+    simpleMode, setSimpleMode,
     currentDateMs,
     handleDateSelect,
     hasPrev, hasNext, todayInRange, jumpToPeak,
@@ -33,7 +34,6 @@ export default function ChartPanel({
 
   const [focusToken, setFocusToken] = useState(0)
   const bump = () => setFocusToken((t) => t + 1)
-  const [simpleMode, setSimpleMode] = useState(true)
 
   const toggleMetric = (m: ChartMetric) => {
     const next = new Set(visibleMetrics)

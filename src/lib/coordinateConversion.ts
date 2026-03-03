@@ -33,6 +33,21 @@ export function eqjToScene(x: number, y: number, z: number): [number, number, nu
   return eclipticToScene(eclX, eclY, eclZ)
 }
 
+/**
+ * Convert horizontal coordinates (alt-az) to 3D scene position on celestial sphere.
+ * Convention: zenith=+Y, north=−Z, east=+X
+ */
+export function altAzToSceneSphere(altDeg: number, azDeg: number, radius = CELESTIAL_SPHERE_RADIUS): [number, number, number] {
+  const altRad = altDeg * (Math.PI / 180)
+  const azRad = azDeg * (Math.PI / 180)
+  const cosAlt = Math.cos(altRad)
+  return [
+    cosAlt * Math.sin(azRad) * radius,
+    Math.sin(altRad) * radius,
+    -cosAlt * Math.cos(azRad) * radius,
+  ]
+}
+
 /** Convert RA/Dec (J2000) to 3D scene position on celestial sphere */
 export function raDecToSceneSphere(raHours: number, decDeg: number, radius = CELESTIAL_SPHERE_RADIUS): [number, number, number] {
   const raRad = raHours * (Math.PI / 12)

@@ -1,11 +1,15 @@
 import { memo, useState, useMemo, useEffect } from 'react'
 import { AlignmentKind, CelestialBodyId, PPIDayPoint } from '../../types'
-import { SERIES_COLORS, formatDate, ANALYZABLE_BODIES } from '../../constants'
+import { SERIES_COLORS, formatDate, ANALYZABLE_BODIES, MS_PER_DAY } from '../../constants'
 
 interface MinimaTableProps {
   ppiPeaks: PPIDayPoint[]
   currentDate: number | null
   onSelect: (dateMs: number) => void
+  onPrev?: () => void
+  onNext?: () => void
+  hasPrev?: boolean
+  hasNext?: boolean
   dayDetailCombos?: PPIDayPoint[]
   selectedDayComboIdx?: number | null
   onDayComboSelect?: (idx: number | null) => void
@@ -40,7 +44,18 @@ type DaySortColumn = 'ppi' | 'span' | 'count'
 interface ComboEntry { combo: PPIDayPoint; origIdx: number }
 interface ComboGroup { key: string; best: ComboEntry; children: ComboEntry[] }
 
-export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, dayDetailCombos, selectedDayComboIdx, onDayComboSelect }: MinimaTableProps) {
+export default memo(function MinimaTable({
+  ppiPeaks,
+  currentDate,
+  onSelect,
+  onPrev,
+  onNext,
+  hasPrev = false,
+  hasNext = false,
+  dayDetailCombos,
+  selectedDayComboIdx,
+  onDayComboSelect,
+}: MinimaTableProps) {
   const [sortCol, setSortCol] = useState<SortColumn>('ppi')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -71,6 +86,11 @@ export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, dayD
     return arr
   }, [ppiPeaks, sortCol, sortDir])
 
+  const currentDay = useMemo(
+    () => (currentDate == null ? null : Math.floor(currentDate / MS_PER_DAY)),
+    [currentDate],
+  )
+
   const dayGroups = useMemo(() => {
     if (!dayDetailCombos?.length) return null
     const groupMap = new Map<string, ComboGroup>()
@@ -93,10 +113,6 @@ export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, dayD
     })
     return groups
   }, [dayDetailCombos, daySortCol, daySortDir])
-
-  if (ppiPeaks.length === 0) {
-    return <div className="chart-empty">No planet parades found.</div>
-  }
 
   const arrow = (col: SortColumn) => {
     if (sortCol !== col) return ' \u2195'
@@ -162,96 +178,120 @@ export default memo(function MinimaTable({ ppiPeaks, currentDate, onSelect, dayD
 
   return (
     <div className="minima-table">
-      <span className="control-label">Best Parades</span>
-      <div className="minima-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th
-                className="sortable-th"
-                onClick={() => handleSort('date')}
-              >
-                Date{arrow('date')}
-              </th>
-              <th
-                className="sortable-th col-right"
-                onClick={() => handleSort('ppi')}
-              >
-                PPI{arrow('ppi')}
-              </th>
-              <th
-                className="sortable-th col-right"
-                onClick={() => handleSort('span')}
-              >
-                Span{arrow('span')}
-              </th>
-              <th
-                className="sortable-th col-right"
-                onClick={() => handleSort('count')}
-              >
-                #{arrow('count')}
-              </th>
-              <th>Group</th>
-              <th>Planets</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((m) => (
-              <tr
-                key={`${m.date}-${m.kind}-${m.planetCount}-${m.planets.join(',')}`}
-                className={currentDate === m.date ? 'active' : ''}
-                onClick={() => onSelect(m.date)}
-              >
-                <td>{formatDate(m.date)}</td>
-                <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>
-                <td className="col-right">{m.span.toFixed(1)}&deg;</td>
-                <td className="col-right">{m.planetCount}</td>
-                <td>
-                  <span
-                    className="kind-badge"
-                    style={{ color: SERIES_COLORS[m.kind] }}
-                  >
-                    {KIND_LABELS[m.kind]}
-                  </span>
-                </td>
-                <td className="planets-cell">
-                  {m.planets.length > 0
-                    ? (() => { const { symbols, names } = sortedPlanets(m.planets); return <span title={names}>{symbols}</span> })()
-                    : m.planetCount}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {dayGroups && (
-          <div className="day-detail-section">
-            <span className="control-label">Best combos on {formatDate(currentDate ?? dayDetailCombos![0].date)}</span>
-            <table>
-              <thead>
-                <tr>
-                  <th></th>
-                  <th className="sortable-th col-right" onClick={() => handleDaySort('ppi')}>PPI{dayArrow('ppi')}</th>
-                  <th className="sortable-th col-right" onClick={() => handleDaySort('span')}>Span{dayArrow('span')}</th>
-                  <th className="sortable-th col-right" onClick={() => handleDaySort('count')}>#{dayArrow('count')}</th>
-                  <th>Group</th>
-                  <th>Planets</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dayGroups.flatMap(({ key, best, children }) => {
-                  const rows = [renderDayRow(best.combo, best.origIdx, false, key, children.length > 0)]
-                  if (expandedGroups.has(key)) {
-                    for (const child of children) {
-                      rows.push(renderDayRow(child.combo, child.origIdx, true, key, false))
-                    }
-                  }
-                  return rows
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="minima-table-header">
+        <span className="control-label">Best Parades</span>
+        <div className="minima-table-nav">
+          <button
+            className="minima-nav-btn"
+            onClick={onPrev}
+            disabled={!onPrev || !hasPrev}
+            title="Previous parade peak"
+          >
+            &#9664; Prev
+          </button>
+          <button
+            className="minima-nav-btn"
+            onClick={onNext}
+            disabled={!onNext || !hasNext}
+            title="Next parade peak"
+          >
+            Next &#9654;
+          </button>
+        </div>
       </div>
+      {ppiPeaks.length === 0 ? (
+        <div className="chart-empty">No planet parades found.</div>
+      ) : (
+        <div className="minima-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th
+                  className="sortable-th"
+                  onClick={() => handleSort('date')}
+                >
+                  Date{arrow('date')}
+                </th>
+                <th
+                  className="sortable-th col-right"
+                  onClick={() => handleSort('ppi')}
+                >
+                  PPI{arrow('ppi')}
+                </th>
+                <th
+                  className="sortable-th col-right"
+                  onClick={() => handleSort('span')}
+                >
+                  Span{arrow('span')}
+                </th>
+                <th
+                  className="sortable-th col-right"
+                  onClick={() => handleSort('count')}
+                >
+                  #{arrow('count')}
+                </th>
+                <th>Group</th>
+                <th>Planets</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((m) => (
+                <tr
+                  key={`${m.date}-${m.kind}-${m.planetCount}-${m.planets.join(',')}`}
+                  className={currentDay !== null && currentDay === Math.floor(m.date / MS_PER_DAY) ? 'active' : ''}
+                  onClick={() => onSelect(m.date)}
+                >
+                  <td>{formatDate(m.date)}</td>
+                  <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>
+                  <td className="col-right">{m.span.toFixed(1)}&deg;</td>
+                  <td className="col-right">{m.planetCount}</td>
+                  <td>
+                    <span
+                      className="kind-badge"
+                      style={{ color: SERIES_COLORS[m.kind] }}
+                    >
+                      {KIND_LABELS[m.kind]}
+                    </span>
+                  </td>
+                  <td className="planets-cell">
+                    {m.planets.length > 0
+                      ? (() => { const { symbols, names } = sortedPlanets(m.planets); return <span title={names}>{symbols}</span> })()
+                      : m.planetCount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {dayGroups && (
+            <div className="day-detail-section">
+              <span className="control-label">Best combos on {formatDate(currentDate ?? dayDetailCombos![0].date)}</span>
+              <table>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th className="sortable-th col-right" onClick={() => handleDaySort('ppi')}>PPI{dayArrow('ppi')}</th>
+                    <th className="sortable-th col-right" onClick={() => handleDaySort('span')}>Span{dayArrow('span')}</th>
+                    <th className="sortable-th col-right" onClick={() => handleDaySort('count')}>#{dayArrow('count')}</th>
+                    <th>Group</th>
+                    <th>Planets</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dayGroups.flatMap(({ key, best, children }) => {
+                    const rows = [renderDayRow(best.combo, best.origIdx, false, key, children.length > 0)]
+                    if (expandedGroups.has(key)) {
+                      for (const child of children) {
+                        rows.push(renderDayRow(child.combo, child.origIdx, true, key, false))
+                      }
+                    }
+                    return rows
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 })

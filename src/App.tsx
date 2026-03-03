@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import SolarSystemScene from './components/scene/SolarSystemScene'
+import PlanetariumScene from './components/scene/PlanetariumScene'
+import PlanetariumTimeControls from './components/ui/PlanetariumTimeControls'
 import InnerPlanetsInset from './components/scene/InnerPlanetsInset'
 import FloatingPanel from './components/panels/FloatingPanel'
 import AlignmentPanel from './components/panels/AlignmentPanel'
@@ -41,6 +43,7 @@ export default function App() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('align')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sceneMenuOpen, setSceneMenuOpen] = useState(false)
+  const [sceneView, setSceneView] = useState<'free' | 'planetarium'>('free')
 
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -194,29 +197,50 @@ export default function App() {
     onMaximize: panel.onMaximize,
   })
 
+  const sceneViewToggle = (
+    <div className="scene-view-toggle">
+      <button className={`scene-view-tab${sceneView === 'free' ? ' active' : ''}`} onClick={() => setSceneView('free')}>Free View</button>
+      <button className={`scene-view-tab${sceneView === 'planetarium' ? ' active' : ''}`} onClick={() => setSceneView('planetarium')}>Planetarium</button>
+    </div>
+  )
+
   const mobileLayout = (
     <div className="app">
       {/* Scene — always mounted to preserve WebGL state */}
       <div className="mobile-scene">
-        <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
-        <div className="scene-overlay">
-          <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
-          {ppiOverlay}
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen((o) => !o)}
-            aria-label="Settings"
-          >
-            ☰
-          </button>
-          {mobileMenuOpen && (
-            <div className="mobile-menu-dropdown">
-              <DisplayToggles />
-              <BodySelector />
-            </div>
-          )}
+        {sceneViewToggle}
+        <div style={{ display: sceneView === 'free' ? 'contents' : 'none' }}>
+          <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
         </div>
-        <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
+        {sceneView === 'planetarium' && (
+          <PlanetariumScene
+            observer={observer}
+            currentDate={currentDate}
+            onAutoDateChange={handleSetDate}
+            targetComboBodies={activeCombo?.planets ?? null}
+          />
+        )}
+        {sceneView === 'free' && (
+          <div className="scene-overlay">
+            <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+            {ppiOverlay}
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              aria-label="Settings"
+            >
+              ☰
+            </button>
+            {mobileMenuOpen && (
+              <div className="mobile-menu-dropdown">
+                <DisplayToggles />
+                <BodySelector />
+              </div>
+            )}
+          </div>
+        )}
+        {sceneView === 'free' && <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />}
+        {sceneView === 'planetarium' && <PlanetariumTimeControls isPlaying={isPlaying} speed={speed} togglePlay={togglePlay} setSpeed={handleSetSpeed} onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
       </div>
 
       {/* Active panel sheet (overlays scene) */}
@@ -263,25 +287,41 @@ export default function App() {
       <div className="panels-layer">
         <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
           <div className="scene-panel-content">
-            <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
-            <div className="scene-overlay">
-              <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
-              {ppiOverlay}
-              <button
-                className="scene-menu-btn"
-                onClick={() => setSceneMenuOpen((o) => !o)}
-                aria-label="Settings"
-              >
-                ☰
-              </button>
-              {sceneMenuOpen && (
-                <div className="scene-menu-dropdown">
-                  <DisplayToggles />
-                  <BodySelector />
-                </div>
+            {sceneViewToggle}
+            <div className="scene-canvas-area">
+              <div style={{ display: sceneView === 'free' ? 'contents' : 'none' }}>
+                <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
+              </div>
+              {sceneView === 'planetarium' && (
+                <PlanetariumScene
+                  observer={observer}
+                  currentDate={currentDate}
+                  onAutoDateChange={handleSetDate}
+                  targetComboBodies={activeCombo?.planets ?? null}
+                />
               )}
             </div>
-            <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
+            {sceneView === 'free' && (
+              <div className="scene-overlay">
+                <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+                {ppiOverlay}
+                <button
+                  className="scene-menu-btn"
+                  onClick={() => setSceneMenuOpen((o) => !o)}
+                  aria-label="Settings"
+                >
+                  ☰
+                </button>
+                {sceneMenuOpen && (
+                  <div className="scene-menu-dropdown">
+                    <DisplayToggles />
+                    <BodySelector />
+                  </div>
+                )}
+              </div>
+            )}
+            {sceneView === 'free' && <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />}
+            {sceneView === 'planetarium' && <PlanetariumTimeControls isPlaying={isPlaying} speed={speed} togglePlay={togglePlay} setSpeed={handleSetSpeed} onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
           </div>
         </FloatingPanel>
 

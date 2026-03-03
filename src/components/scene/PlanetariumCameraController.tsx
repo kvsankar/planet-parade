@@ -1,0 +1,383 @@
+import { useRef, useEffect, useCallback } from 'react'
+import { useThree, useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { planetariumStore } from '../../hooks/usePlanetariumStore'
+import { simulationStore } from '../../hooks/useSimulationStore'
+import { findSunrise, findSunset, getAltAz, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { CelestialBodyId, ObserverLocation } from '../../types'
+
+const MIN_FOV_DEG = 20
+const MAX_FOV_DEG = 120
+const DEFAULT_FOV_DEG = 60
+const DEFAULT_YAW = Math.PI // face south
+const DEFAULT_PITCH = 20 * (Math.PI / 180) // fallback when no combo is available
+const MS_PER_DAY = 86_400_000
+const TIME_SCAN_STEP_MS = 5 * 60 * 1000 // 5 minutes
+const DRAG_GAIN_MOUSE = 1.3
+const DRAG_GAIN_TOUCH = 1.5
+const PITCH_GAIN_RATIO = 0.45
+const AXIS_LOCK_THRESHOLD_PX = 4
+const AXIS_LOCK_RATIO = 1.2
+const FOV_STEP = 4
+const TWO_PI = Math.PI * 2
+const MAX_PITCH = Math.PI / 2 - 0.01
+type DragAxis = 'free' | 'horizontal' | 'vertical'
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function normalizeAngleRad(angle: number): number {
+  // Keep yaw bounded to avoid unbounded growth over long sessions.
+  const wrapped = (angle + Math.PI) % TWO_PI
+  return wrapped < 0 ? wrapped + Math.PI : wrapped - Math.PI
+}
+
+/**
+ * Controls the planetarium view direction via drag/scroll.
+ * Does NOT rotate the camera — instead writes yaw/pitch to planetariumStore,
+ * which is read by PlanetariumViewGroup to rotate all content as a group.
+ * This guarantees sky, horizon, and planets all move together.
+ */
+interface Props {
+  observer: ObserverLocation
+  currentDate: Date
+  targetComboBodies?: CelestialBodyId[] | null
+  onAutoDateChange?: (d: Date) => void
+}
+
+function toSkyBody(id: CelestialBodyId): SkyBodyId | null {
+  return (SKY_BODIES as readonly string[]).includes(id) ? (id as SkyBodyId) : null
+}
+
+function dayStartUtc(baseDate: Date): Date {
+  return new Date(Date.UTC(
+    baseDate.getUTCFullYear(),
+    baseDate.getUTCMonth(),
+    baseDate.getUTCDate(),
+    0, 0, 0, 0,
+  ))
+}
+
+function findFirstAllAboveAndSunBelow(
+  baseDate: Date,
+  observer: ObserverLocation,
+  targets: SkyBodyId[],
+): Date | null {
+  const dayStart = dayStartUtc(baseDate).getTime()
+  const dayEnd = dayStart + MS_PER_DAY
+
+  for (let t = dayStart; t < dayEnd; t += TIME_SCAN_STEP_MS) {
+    const dt = new Date(t)
+    const sunAlt = getAltAz('Sun', dt, observer).altitude
+    if (sunAlt >= 0) continue
+
+    let allAbove = true
+    for (const bodyId of targets) {
+      const { altitude } = getAltAz(bodyId, dt, observer)
+      if (altitude <= 0) {
+        allAbove = false
+        break
+      }
+    }
+    if (allAbove) return dt
+  }
+
+  return null
+}
+
+function findFirstSunOnHorizon(baseDate: Date, observer: ObserverLocation): Date | null {
+  const start = dayStartUtc(baseDate)
+  const dayStart = start.getTime()
+  const dayEnd = dayStart + MS_PER_DAY
+
+  const sunrise = findSunrise(start, observer)
+  const sunset = findSunset(start, observer)
+  const candidates = [sunrise, sunset]
+    .filter((d): d is Date => d != null)
+    .filter((d) => d.getTime() >= dayStart && d.getTime() < dayEnd)
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  return candidates[0] ?? null
+}
+
+export default function PlanetariumCameraController({ observer, currentDate, targetComboBodies, onAutoDateChange }: Props) {
+  const { camera, gl, size } = useThree()
+  const mouseDragPointerId = useRef<number | null>(null)
+  const mouseDragAxis = useRef<DragAxis>('free')
+  const mouseDragAccum = useRef({ x: 0, y: 0 })
+  const lastPointer = useRef({ x: 0, y: 0 })
+  const fovDegRef = useRef((camera as THREE.PerspectiveCamera).fov)
+  const touchIds = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const activeTouchDragId = useRef<number | null>(null)
+  const touchDragAxis = useRef<DragAxis>('free')
+  const touchDragAccum = useRef({ x: 0, y: 0 })
+  const pinchDistanceRef = useRef<number | null>(null)
+  const targetKey = (targetComboBodies ?? []).join(',')
+  const dayKey = `${currentDate.getUTCFullYear()}-${currentDate.getUTCMonth()}-${currentDate.getUTCDate()}`
+
+  useFrame(() => {
+    // Keep camera FOV in sync with interaction state (wheel/pinch zoom).
+    const cam = camera as THREE.PerspectiveCamera
+    if (Math.abs(cam.fov - fovDegRef.current) > 0.1) {
+      cam.fov = fovDegRef.current
+      cam.updateProjectionMatrix()
+    }
+  })
+
+  useEffect(() => {
+    // Deterministic default view each time planetarium view mounts, or when
+    // selected combo/day changes: use first viable time and center centroid.
+    const cam = camera as THREE.PerspectiveCamera
+    fovDegRef.current = DEFAULT_FOV_DEG
+    cam.fov = DEFAULT_FOV_DEG
+    cam.updateProjectionMatrix()
+
+    const targets: SkyBodyId[] = []
+    for (const body of targetComboBodies ?? []) {
+      const skyBody = toSkyBody(body)
+      if (skyBody) targets.push(skyBody)
+    }
+
+    if (targets.length > 0) {
+      const bestTime = findFirstAllAboveAndSunBelow(currentDate, observer, targets)
+      const fallbackSunHorizonTime = bestTime ? null : findFirstSunOnHorizon(currentDate, observer)
+      const date = bestTime ?? fallbackSunHorizonTime ?? currentDate
+
+      // Keep global simulation time in sync so UI and scene use the same instant.
+      if (bestTime || fallbackSunHorizonTime) {
+        if (onAutoDateChange) {
+          if (Math.abs(date.getTime() - currentDate.getTime()) > 500) {
+            onAutoDateChange(date)
+          }
+        } else {
+          simulationStore.date = date
+        }
+      }
+
+      let sx = 0
+      let sy = 0
+      let sz = 0
+
+      for (const bodyId of targets) {
+        const { altitude, azimuth } = getAltAz(bodyId, date, observer)
+        const altRad = altitude * (Math.PI / 180)
+        const azRad = azimuth * (Math.PI / 180)
+        const cosAlt = Math.cos(altRad)
+        sx += cosAlt * Math.sin(azRad)
+        sy += Math.sin(altRad)
+        sz += -cosAlt * Math.cos(azRad)
+      }
+
+      const len = Math.hypot(sx, sy, sz)
+      if (len > 1e-6) {
+        const nx = sx / len
+        const ny = sy / len
+        const nz = sz / len
+        const az = Math.atan2(nx, -nz)
+        const alt = Math.asin(clamp(ny, -1, 1))
+        planetariumStore.yaw = normalizeAngleRad(-az)
+        planetariumStore.pitch = clamp(alt, -MAX_PITCH, MAX_PITCH)
+        return
+      }
+    }
+
+    // Fallback only when combo centroid is unavailable.
+    planetariumStore.yaw = DEFAULT_YAW
+    planetariumStore.pitch = DEFAULT_PITCH
+  }, [camera, observer, targetKey, dayKey])
+
+  const trySetPointerCapture = useCallback((pointerId: number) => {
+    try {
+      gl.domElement.setPointerCapture(pointerId)
+    } catch {
+      // Ignore capture errors from unsupported/ended pointers.
+    }
+  }, [gl])
+
+  const tryReleasePointerCapture = useCallback((pointerId: number) => {
+    try {
+      if (gl.domElement.hasPointerCapture(pointerId)) {
+        gl.domElement.releasePointerCapture(pointerId)
+      }
+    } catch {
+      // Ignore release errors from unsupported/ended pointers.
+    }
+  }, [gl])
+
+  const getTouchDistance = useCallback((): number | null => {
+    const points = Array.from(touchIds.current.values())
+    if (points.length < 2) return null
+    return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
+  }, [])
+
+  const onPointerDown = useCallback((e: PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touchIds.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (touchIds.current.size === 1) {
+        activeTouchDragId.current = e.pointerId
+        touchDragAxis.current = 'free'
+        touchDragAccum.current = { x: 0, y: 0 }
+        lastPointer.current = { x: e.clientX, y: e.clientY }
+        pinchDistanceRef.current = null
+      } else if (touchIds.current.size === 2) {
+        activeTouchDragId.current = null
+        touchDragAxis.current = 'free'
+        touchDragAccum.current = { x: 0, y: 0 }
+        pinchDistanceRef.current = getTouchDistance()
+      }
+
+      trySetPointerCapture(e.pointerId)
+      return
+    }
+
+    if (e.button !== 0) return
+
+    mouseDragPointerId.current = e.pointerId
+    mouseDragAxis.current = 'free'
+    mouseDragAccum.current = { x: 0, y: 0 }
+    lastPointer.current = { x: e.clientX, y: e.clientY }
+    trySetPointerCapture(e.pointerId)
+  }, [getTouchDistance, trySetPointerCapture])
+
+  const updateView = useCallback((dx: number, dy: number, gain: number, axisRef: { current: DragAxis }, accumRef: { current: { x: number; y: number } }) => {
+    accumRef.current.x += dx
+    accumRef.current.y += dy
+
+    if (axisRef.current === 'free') {
+      const absX = Math.abs(accumRef.current.x)
+      const absY = Math.abs(accumRef.current.y)
+      const dist = Math.hypot(absX, absY)
+      if (dist >= AXIS_LOCK_THRESHOLD_PX) {
+        if (absX >= absY * AXIS_LOCK_RATIO) {
+          axisRef.current = 'horizontal'
+        } else if (absY >= absX * AXIS_LOCK_RATIO) {
+          axisRef.current = 'vertical'
+        }
+      }
+    }
+
+    let effectiveDx = dx
+    let effectiveDy = dy
+    if (axisRef.current === 'horizontal') {
+      effectiveDy = 0
+    } else if (axisRef.current === 'vertical') {
+      effectiveDx = 0
+    }
+
+    const fovRad = fovDegRef.current * (Math.PI / 180)
+    const yawDelta = (effectiveDx / Math.max(size.width, 1)) * fovRad * gain
+    const pitchDelta = (effectiveDy / Math.max(size.height, 1)) * fovRad * gain * PITCH_GAIN_RATIO
+    // Grab mode: drag direction = sky motion direction
+    planetariumStore.yaw = normalizeAngleRad(planetariumStore.yaw + yawDelta)
+    planetariumStore.pitch = clamp(planetariumStore.pitch + pitchDelta, -MAX_PITCH, MAX_PITCH)
+  }, [size.height, size.width])
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      if (!touchIds.current.has(e.pointerId)) return
+      touchIds.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (touchIds.current.size >= 2) {
+        const oldDist = pinchDistanceRef.current
+        const newDist = getTouchDistance()
+        if (oldDist != null && newDist != null && oldDist > 0) {
+          const zoomFactor = oldDist / newDist
+          fovDegRef.current = clamp(fovDegRef.current * zoomFactor, MIN_FOV_DEG, MAX_FOV_DEG)
+        }
+        pinchDistanceRef.current = newDist
+        return
+      }
+
+      if (activeTouchDragId.current == null) {
+        activeTouchDragId.current = e.pointerId
+        lastPointer.current = { x: e.clientX, y: e.clientY }
+      }
+
+      if (activeTouchDragId.current === e.pointerId) {
+        const dx = e.clientX - lastPointer.current.x
+        const dy = e.clientY - lastPointer.current.y
+        updateView(dx, dy, DRAG_GAIN_TOUCH, touchDragAxis, touchDragAccum)
+        lastPointer.current = { x: e.clientX, y: e.clientY }
+      }
+      return
+    }
+
+    if (mouseDragPointerId.current !== e.pointerId) return
+    if ((e.buttons & 1) === 0) {
+      mouseDragPointerId.current = null
+      return
+    }
+
+    const dx = e.clientX - lastPointer.current.x
+    const dy = e.clientY - lastPointer.current.y
+    updateView(dx, dy, DRAG_GAIN_MOUSE, mouseDragAxis, mouseDragAccum)
+    lastPointer.current = { x: e.clientX, y: e.clientY }
+  }, [getTouchDistance, updateView])
+
+  const onPointerUp = useCallback((e: PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touchIds.current.delete(e.pointerId)
+      tryReleasePointerCapture(e.pointerId)
+
+      if (touchIds.current.size === 0) {
+        activeTouchDragId.current = null
+        touchDragAxis.current = 'free'
+        touchDragAccum.current = { x: 0, y: 0 }
+        pinchDistanceRef.current = null
+      } else if (touchIds.current.size === 1) {
+        const [id, pt] = Array.from(touchIds.current.entries())[0]
+        activeTouchDragId.current = id
+        touchDragAxis.current = 'free'
+        touchDragAccum.current = { x: 0, y: 0 }
+        lastPointer.current = { x: pt.x, y: pt.y }
+        pinchDistanceRef.current = null
+      } else {
+        activeTouchDragId.current = null
+        touchDragAxis.current = 'free'
+        touchDragAccum.current = { x: 0, y: 0 }
+        pinchDistanceRef.current = getTouchDistance()
+      }
+      return
+    }
+
+    if (mouseDragPointerId.current === e.pointerId) {
+      mouseDragPointerId.current = null
+      mouseDragAxis.current = 'free'
+      mouseDragAccum.current = { x: 0, y: 0 }
+      tryReleasePointerCapture(e.pointerId)
+    }
+  }, [getTouchDistance, tryReleasePointerCapture])
+
+  const onWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault()
+    const direction = Math.sign(e.deltaY)
+    if (direction === 0) return
+    fovDegRef.current = clamp(fovDegRef.current + direction * FOV_STEP, MIN_FOV_DEG, MAX_FOV_DEG)
+  }, [])
+
+  useEffect(() => {
+    const el = gl.domElement
+    const prevTouchAction = el.style.touchAction
+    el.style.touchAction = 'none'
+
+    el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointermove', onPointerMove)
+    el.addEventListener('pointerup', onPointerUp)
+    el.addEventListener('pointercancel', onPointerUp)
+    el.addEventListener('lostpointercapture', onPointerUp)
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      el.style.touchAction = prevTouchAction
+      el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointermove', onPointerMove)
+      el.removeEventListener('pointerup', onPointerUp)
+      el.removeEventListener('pointercancel', onPointerUp)
+      el.removeEventListener('lostpointercapture', onPointerUp)
+      el.removeEventListener('wheel', onWheel)
+    }
+  }, [gl, onPointerDown, onPointerMove, onPointerUp, onWheel])
+
+  return null
+}

@@ -22,9 +22,10 @@ export default function AlignmentPanel({ alignment, currentDate, isLandscape }: 
     setMinPlanets, setMaxPlanets,
     effectiveMin, effectiveMax,
     ppiWeights, setPPIWeights,
-    ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
+    filteredPeaks, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,
     currentDateMs,
-    handleDateSelect,
+    hasPrev, hasNext,
+    handleDateSelect, jumpToPeak,
   } = alignment
 
   const controls = (
@@ -58,9 +59,13 @@ export default function AlignmentPanel({ alignment, currentDate, isLandscape }: 
   const tables = (
     <div className="alignment-tables">
       <MinimaTable
-        ppiPeaks={ppiResult.ppiPeaks}
+        ppiPeaks={filteredPeaks}
         currentDate={currentDateMs}
         onSelect={handleDateSelect}
+        onPrev={() => jumpToPeak('prev')}
+        onNext={() => jumpToPeak('next')}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
         dayDetailCombos={dayDetailCombos}
         selectedDayComboIdx={selectedDayComboIdx}
         onDayComboSelect={setSelectedDayComboIdx}
