@@ -140,7 +140,8 @@ export default function App() {
   const togglePPIOverlay = useCallback(() => setShowPPIOverlay((p) => !p), [])
 
   // --- Computed (throttled React state — for UI only) ---
-  const positions = usePlanetPositions(currentDate)
+  const sceneEpochRef = useRef(new Date())
+  const positions = usePlanetPositions(sceneEpochRef.current)
   const orbitPaths = useOrbitPaths(currentDate)
 
   // --- Observer location (progressive, user-triggered) ---
@@ -276,7 +277,7 @@ export default function App() {
             )}
             {sceneView === 'free' && (
               <div className="scene-overlay">
-                <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+                <InfoDisplay selectedBodyId={selectedBodyId} currentDate={currentDate} />
                 {ppiOverlay}
                 <button
                   className="mobile-menu-btn"
@@ -403,7 +404,7 @@ export default function App() {
             </div>
             {sceneView === 'free' && (
               <div className="scene-overlay">
-                <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+                <InfoDisplay selectedBodyId={selectedBodyId} currentDate={currentDate} />
                 {ppiOverlay}
                 <button
                   className="scene-menu-btn"
