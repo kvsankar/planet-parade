@@ -3,7 +3,8 @@ import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { planetariumStore } from '../../hooks/usePlanetariumStore'
 import { simulationStore } from '../../hooks/useSimulationStore'
-import { findSunrise, findSunset, getAltAz, getEclipticAltAzPositions, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { getAltAz, getEclipticAltAzPositions, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { findBestPlanetariumNightTime, findFirstSunOnHorizon } from '../../lib/planetariumDefaultView'
 import { CelestialBodyId, ObserverLocation } from '../../types'
 
 const MIN_FOV_DEG = 20
@@ -20,8 +21,6 @@ const ECLIPTIC_VISIBLE_EPS_DEG = 0
 const ECLIPTIC_ARC_FOV_PAD_DEG = 8
 const ECLIPTIC_ARC_MIN_FOV_DEG = 100
 const ECLIPTIC_ARC_MAX_FOV_DEG = 118
-const MS_PER_DAY = 86_400_000
-const TIME_SCAN_STEP_MS = 5 * 60 * 1000 // 5 minutes
 const DRAG_GAIN_MOUSE = 1.3
 const DRAG_GAIN_TOUCH = 1.5
 const PITCH_GAIN_RATIO = 0.45
@@ -58,89 +57,6 @@ interface Props {
 
 function toSkyBody(id: CelestialBodyId): SkyBodyId | null {
   return (SKY_BODIES as readonly string[]).includes(id) ? (id as SkyBodyId) : null
-}
-
-function dayStartUtc(baseDate: Date): Date {
-  return new Date(Date.UTC(
-    baseDate.getUTCFullYear(),
-    baseDate.getUTCMonth(),
-    baseDate.getUTCDate(),
-    0, 0, 0, 0,
-  ))
-}
-
-interface NightViewChoice {
-  date: Date
-  visibleCount: number
-}
-
-interface NightCandidate {
-  dateMs: number
-  visibleCount: number
-  minAltitude: number
-  sumAltitude: number
-}
-
-function isBetterNightCandidate(next: NightCandidate, prev: NightCandidate | null): boolean {
-  if (!prev) return true
-  if (next.visibleCount !== prev.visibleCount) return next.visibleCount > prev.visibleCount
-  if (next.minAltitude !== prev.minAltitude) return next.minAltitude > prev.minAltitude
-  if (next.sumAltitude !== prev.sumAltitude) return next.sumAltitude > prev.sumAltitude
-  return next.dateMs < prev.dateMs
-}
-
-function findNightViewTime(
-  baseDate: Date,
-  observer: ObserverLocation,
-  targets: SkyBodyId[],
-): NightViewChoice | null {
-  const dayStart = dayStartUtc(baseDate).getTime()
-  const dayEnd = dayStart + MS_PER_DAY
-  let bestPartial: NightCandidate | null = null
-
-  for (let t = dayStart; t < dayEnd; t += TIME_SCAN_STEP_MS) {
-    const dt = new Date(t)
-    const sunAlt = getAltAz('Sun', dt, observer).altitude
-    if (sunAlt >= 0) continue
-
-    let visibleCount = 0
-    let minAltitude = Number.POSITIVE_INFINITY
-    let sumAltitude = 0
-
-    for (const bodyId of targets) {
-      const { altitude } = getAltAz(bodyId, dt, observer)
-      if (altitude > 0) visibleCount++
-      minAltitude = Math.min(minAltitude, altitude)
-      sumAltitude += altitude
-    }
-
-    if (visibleCount === targets.length) {
-      // Prefer earliest full-night solution (deterministic behavior).
-      return { date: dt, visibleCount }
-    }
-
-    const candidate: NightCandidate = { dateMs: t, visibleCount, minAltitude, sumAltitude }
-    if (isBetterNightCandidate(candidate, bestPartial)) {
-      bestPartial = candidate
-    }
-  }
-
-  return bestPartial ? { date: new Date(bestPartial.dateMs), visibleCount: bestPartial.visibleCount } : null
-}
-
-function findFirstSunOnHorizon(baseDate: Date, observer: ObserverLocation): Date | null {
-  const start = dayStartUtc(baseDate)
-  const dayStart = start.getTime()
-  const dayEnd = dayStart + MS_PER_DAY
-
-  const sunrise = findSunrise(start, observer)
-  const sunset = findSunset(start, observer)
-  const candidates = [sunrise, sunset]
-    .filter((d): d is Date => d != null)
-    .filter((d) => d.getTime() >= dayStart && d.getTime() < dayEnd)
-    .sort((a, b) => a.getTime() - b.getTime())
-
-  return candidates[0] ?? null
 }
 
 interface TargetSample {
@@ -268,8 +184,9 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
 
   useEffect(() => {
     // Deterministic default view each time planetarium view mounts, or when
-    // selected combo changes: choose a nighttime slot and frame the combo on
-    // a wide ecliptic-friendly horizon-to-horizon composition.
+    // selected combo changes: choose the best nighttime slot for the active
+    // cluster (visibility first, then solar-interference minimization), and
+    // frame the combo on a wide ecliptic-friendly horizon-to-horizon layout.
     // Intentionally does NOT run for date-only changes from the main controls,
     // so alt/az orientation remains stable while stepping +/-1d or +/-5d.
     const cam = camera as THREE.PerspectiveCamera
@@ -284,7 +201,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     }
 
     if (targets.length > 0) {
-      const nightChoice = findNightViewTime(currentDate, observer, targets)
+      const nightChoice = findBestPlanetariumNightTime(currentDate, observer, targets)
       const sunHorizonTime = findFirstSunOnHorizon(currentDate, observer)
       const fallbackSunHorizonTime = nightChoice && nightChoice.visibleCount > 0 ? null : sunHorizonTime
       const date = nightChoice?.date ?? fallbackSunHorizonTime ?? currentDate

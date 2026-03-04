@@ -117,6 +117,7 @@ src/
 | [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, presets, parameter sweep calibration, and design rationale |
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
 | [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
+| [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection algorithm for default Planetarium framing (cluster visibility vs sunlight interference) |
 
 ## Data Sources
 

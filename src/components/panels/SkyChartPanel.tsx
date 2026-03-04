@@ -44,10 +44,10 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   // --- Display toggles ---
   const [showStars, setShowStars] = useState(true)
-  const [showStarLabels, setShowStarLabels] = useState(true)
+  const [showStarLabels, setShowStarLabels] = useState(false)
   const [showPlanetLabels, setShowPlanetLabels] = useState(true)
   const [showConstellationEdges, setShowConstellationEdges] = useState(true)
-  const [showConstellationLabels, setShowConstellationLabels] = useState(true)
+  const [showConstellationLabels, setShowConstellationLabels] = useState(false)
   const [showAltAzGrid, setShowAltAzGrid] = useState(true)
   const [showEcliptic, setShowEcliptic] = useState(true)
   const [showMilkyWay, setShowMilkyWay] = useState(true)
