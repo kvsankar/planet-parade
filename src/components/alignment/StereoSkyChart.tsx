@@ -66,7 +66,6 @@ const SUN_RADIUS = 8
 const MOON_RADIUS = 7
 
 const DEG_TO_RAD = Math.PI / 180
-
 function projectAltAz(altitude: number, azimuth: number, R: number): { x: number; y: number } {
   const r = ((90 - altitude) / 90) * R
   const azRad = azimuth * DEG_TO_RAD
@@ -94,6 +93,13 @@ const SPECTRAL_COLORS: Record<string, string> = {
   O: '#9db4ff', B: '#aabfff', A: '#cad8ff', F: '#f8f7ff',
   G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
 }
+
+const CARDINALS: [string, number][] = [
+  ['N', 0],
+  ['E', 90],
+  ['S', 180],
+  ['W', 270],
+]
 
 /** SVG path for the lit portion of the Moon, centered at (0,0). */
 function moonPhasePath(r: number, illum: number, litToRight: boolean): string {
@@ -357,6 +363,21 @@ export default function StereoSkyChart({
     return offsets
   }, [projected, isPlaying])
 
+  const projectedCardinals = useMemo(() => {
+    const labelRadius = R + 12
+    return CARDINALS.map(([label, az]) => {
+      const p = projectAltAz(0, az, labelRadius)
+      return { label, x: cx + p.x, y: cy + p.y }
+    })
+  }, [R, cx, cy])
+
+  const projectedAltLabels = useMemo(() => {
+    return [30, 60].map((alt) => {
+      const labelR = ((90 - alt) / 90) * R
+      return { alt, x: cx + 4, y: cy - labelR + 3 }
+    })
+  }, [R, cx, cy])
+
   const useTexture = milkyWayStyle === 'texture' && showMilkyWay && !!horToEqjMatrix
 
   if (size < 50) return null
@@ -506,16 +527,7 @@ export default function StereoSkyChart({
         )}
 
         {/* Cardinal labels N/E/S/W */}
-        {([
-          ['N', 0],
-          ['E', 90],
-          ['S', 180],
-          ['W', 270],
-        ] as [string, number][]).map(([label, az]) => {
-          const azRad = az * DEG_TO_RAD
-          const labelR = R + 12
-          const lx = cx + -labelR * Math.sin(azRad)
-          const ly = cy + -labelR * Math.cos(azRad)
+        {projectedCardinals.map(({ label, x: lx, y: ly }) => {
           return (
             <text
               key={label}
@@ -535,20 +547,17 @@ export default function StereoSkyChart({
         {/* Altitude labels + zenith marker */}
         {showAltAzGrid && (
           <>
-            {[30, 60].map((alt) => {
-              const labelR = ((90 - alt) / 90) * R
-              return (
-                <text
-                  key={alt}
-                  x={cx + 4}
-                  y={cy - labelR + 3}
-                  fill={textColor}
-                  fontSize={8}
-                >
-                  {alt}°
-                </text>
-              )
-            })}
+            {projectedAltLabels.map(({ alt, x, y }) => (
+              <text
+                key={alt}
+                x={x}
+                y={y}
+                fill={textColor}
+                fontSize={8}
+              >
+                {alt}°
+              </text>
+            ))}
             <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
           </>
         )}

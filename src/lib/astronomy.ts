@@ -100,20 +100,31 @@ export function findSunset(startDate: Date, observer: ObserverLocation): Date | 
 
 /**
  * For a given instant and latitude, find the longitude where the Sun
- * sits exactly on the horizon (altitude ≈ 0).
+ * sits at a target altitude.
  *   rising = true  → sunrise terminator (Sun ascending, eastern sky)
  *   rising = false → sunset  terminator (Sun descending, western sky)
  * Returns longitude in degrees (−180 … +180).
  */
-export function sunHorizonLongitude(date: Date, lat: number, rising: boolean): number {
+export function sunHorizonLongitude(date: Date, lat: number, rising: boolean, sunAltitudeDeg = 0): number {
   const t = Astronomy.MakeTime(date)
   const eq = Astronomy.Equator(Astronomy.Body.Sun, t, new Astronomy.Observer(lat, 0, 0), true, true)
 
   const latRad = lat * DEG_TO_RAD
   const decRad = eq.dec * DEG_TO_RAD
-  const cosHa = -Math.tan(latRad) * Math.tan(decRad)
+  const altRad = sunAltitudeDeg * DEG_TO_RAD
+  const sinAlt = Math.sin(altRad)
+  const sinLat = Math.sin(latRad)
+  const cosLat = Math.cos(latRad)
+  const sinDec = Math.sin(decRad)
+  const cosDec = Math.cos(decRad)
+  const denom = cosLat * cosDec
 
-  // Polar day / polar night — no horizon crossing
+  // Near-pole edge cases where the target altitude may be unreachable.
+  if (Math.abs(denom) < 1e-6) return 0
+
+  const cosHa = (sinAlt - sinLat * sinDec) / denom
+
+  // Target altitude does not occur for this latitude/date.
   if (cosHa < -1 || cosHa > 1) return 0
 
   const haHours = Math.acos(cosHa) * 12 / Math.PI   // radians → hours

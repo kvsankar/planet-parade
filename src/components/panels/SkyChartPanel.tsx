@@ -15,6 +15,14 @@ const MS_PER_MW_STEP = 120_000 // 2 minutes — only for expensive MW computatio
 const MS_PER_DAY = 86_400_000
 const MAX_ZOOM = 16
 const BASE_MIN_ZOOM = 0.35
+const SUN_REFERENCE_ALTITUDES = [0, -6, -12] as const
+
+type SunReferenceAltitude = (typeof SUN_REFERENCE_ALTITUDES)[number]
+
+function formatSignedDegrees(value: number): string {
+  if (value > 0) return `+${value}°`
+  return `${value}°`
+}
 
 export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying, isLandscape }: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -54,6 +62,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   const [showAtmosphere, setShowAtmosphere] = useState(false)
   const [showMoon, setShowMoon] = useState(true)
   const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
+  const [sunReferenceAltitudeDeg, setSunReferenceAltitudeDeg] = useState<SunReferenceAltitude>(0)
 
   // --- Zoom / pan ---
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -74,16 +83,16 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   // Virtual observers: same latitude, longitude where Sun is on the horizon
   const morningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(currentDate, observer.lat, true)
+    const lon = sunHorizonLongitude(currentDate, observer.lat, true, sunReferenceAltitudeDeg)
     return { lat: observer.lat, lon, height: observer.height }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMs, observer.lat, observer.height])
+  }, [currentMs, observer.lat, observer.height, sunReferenceAltitudeDeg])
 
   const eveningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(currentDate, observer.lat, false)
+    const lon = sunHorizonLongitude(currentDate, observer.lat, false, sunReferenceAltitudeDeg)
     return { lat: observer.lat, lon, height: observer.height }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMs, observer.lat, observer.height])
+  }, [currentMs, observer.lat, observer.height, sunReferenceAltitudeDeg])
 
   // Positions computed every frame for smooth animation
   const morningPositions: AltAzPosition[] = useMemo(() => {
@@ -359,6 +368,9 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   return (
     <div className="skychart-panel">
+      <div className="skychart-reference-badge">
+        {`Reference: Sun @ ${formatSignedDegrees(sunReferenceAltitudeDeg)} (virtual longitude)`}
+      </div>
       {tabbedMode && (
         <div className="skychart-ampm-tabs">
           <button
@@ -415,6 +427,23 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
                       Tabbed View
                     </label>
                   )}
+                  <div className="skychart-reference-controls">
+                    <span className="skychart-reference-title">Sun Altitude</span>
+                    <span className="skychart-reference-pills">
+                      {SUN_REFERENCE_ALTITUDES.map((altitude) => (
+                        <button
+                          key={altitude}
+                          className={`skychart-reference-pill${sunReferenceAltitudeDeg === altitude ? ' active' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setSunReferenceAltitudeDeg(altitude)
+                          }}
+                        >
+                          {formatSignedDegrees(altitude)}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
                   {([
                     ['Stars', showStars, setShowStars],
                     ['Milky Way', showMilkyWay, setShowMilkyWay],

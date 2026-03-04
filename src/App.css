@@ -1655,6 +1655,17 @@ select option {
   background: #05070d;
 }
 
+.skychart-reference-badge {
+  flex-shrink: 0;
+  padding: 5px 10px 2px;
+  color: rgba(165, 178, 205, 0.78);
+  font-size: 10px;
+  font-family: monospace;
+  text-align: center;
+  letter-spacing: 0.2px;
+  user-select: none;
+}
+
 .skychart-chart-area {
   flex: 1;
   min-height: 0;
@@ -1831,6 +1842,42 @@ select option {
   flex-direction: column;
   gap: 4px;
   white-space: nowrap;
+}
+
+.skychart-reference-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #9aa4bc;
+  margin-bottom: 2px;
+}
+
+.skychart-reference-title {
+  opacity: 0.9;
+}
+
+.skychart-reference-pills {
+  display: inline-flex;
+  gap: 1px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.skychart-reference-pill {
+  border: none;
+  background: transparent;
+  color: #7f8798;
+  font-size: 9px;
+  padding: 1px 6px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.skychart-reference-pill.active {
+  background: rgba(107, 147, 214, 0.35);
+  color: #d2d9e8;
 }
 
 /* ====== Driver.js Dark Theme Overrides ====== */
