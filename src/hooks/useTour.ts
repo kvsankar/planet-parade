@@ -32,7 +32,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Planet Parade',
       description:
-        'When can you step outside and see most \u2014 or all \u2014 of the planets at once? This app finds those windows by computing the tightest planet clusters for every combination size across any time range you choose.',
+        'When can you step outside and see most \u2014 or all \u2014 of the planets at once? This app finds those windows by scoring and ranking planet clusters across the time range you choose.',
     },
   },
   {
@@ -42,7 +42,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Alignments Panel',
       description:
-        'Pick planets, set a time range, and choose the planet count range. The app evaluates every combination and scores each date using the Planet Parade Index (PPI) \u2014 a single number combining cluster tightness, brightness, and visibility. Results are classified as AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun).',
+        'Pick planets, set a time range, and choose the planet-count range. The app evaluates combinations and scores each date using the Planet Parade Index (PPI), then classifies each result as AM, PM, or Straddle.',
       side: 'right',
     },
   },
@@ -51,9 +51,9 @@ const basicDefs: TourStepDef[] = [
     mobileElement: '.mobile-scene',
     mobileTab: 'scene',
     popover: {
-      title: 'Solar System View',
+      title: 'Space & Sky Panel',
       description:
-        'A 3D view of the solar system showing where the planets actually are in their orbits. Colored cones show the best cluster for each visibility category. Scroll to zoom, drag to orbit.',
+        'This panel has two modes: Solar System (3D orbital view with alignment cones) and Planetarium (observer sky dome). Use the tabs at the top to switch.',
       side: 'bottom',
     },
   },
@@ -86,7 +86,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Charts',
       description:
-        'Sky dome views at sunrise (morning) and sunset (evening). Shows planet and star positions, constellations, and the Milky Way. Use these to see which planets are above the horizon and how spread out they are.',
+        'Projection sky charts for morning and evening reference frames. They show planets, stars, constellations, and Milky Way in a Sun-anchored virtual frame (with adjustable Sun altitude).',
       side: 'left',
     },
   },
@@ -94,9 +94,9 @@ const basicDefs: TourStepDef[] = [
     element: '.playback-bar',
     mobileTab: 'timeline',
     popover: {
-      title: 'Playback Controls',
+      title: 'Main Playback Controls',
       description:
-        'Animate time forward or backward to watch clusters form and dissolve. Use the date picker to jump to any date. Step ±1 or ±5 days, or jump to Today.',
+        'Animate global simulation time forward/backward to watch clusters form and dissolve. Use the date picker, ±1/±5 day steps, and Today for quick navigation.',
       side: 'top',
     },
   },
@@ -110,7 +110,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Full Feature Tour',
       description:
-        'This tour walks through every major feature across all panels. Use \u2190 \u2192 to navigate at your own pace.',
+        'This tour walks through major features across all panels. Some controls are context-specific (for example Solar System vs Planetarium mode), and notes call that out.',
     },
   },
   // --- Alignments Panel ---
@@ -158,9 +158,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.minima-table',
     mobileTab: 'align',
     popover: {
-      title: 'PPI Peaks Table',
+      title: 'Best Parades Table',
       description:
-        'Lists the top Planet Parade Index peaks across all combination sizes. The # column shows planet count, Planets shows which ones (hover for names). Click a row to jump to that date; the day-detail section below expands to show all combos for that day. Sort by date, PPI, span, or count.',
+        'Lists ranked parade dates. Use Prev/Next beside the title to navigate rows, click any row to jump to that date, and sort by date, PPI, span, or count. The day-detail section below shows best combos for the selected day.',
       side: 'right',
     },
   },
@@ -187,23 +187,25 @@ const advancedDefs: TourStepDef[] = [
     },
   },
   {
-    element: '.scene-overlay',
+    element: '.scene-view-toggle',
+    mobileElement: '.scene-view-toggle',
+    mobileTab: 'scene',
+    popover: {
+      title: 'Solar System vs Planetarium',
+      description:
+        'Use these tabs to switch viewing modes. Solar System focuses on orbital geometry; Planetarium shows the sky as an observer would see it, with its own in-panel time controls.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '.scene-view-toggle',
+    mobileElement: '.scene-view-toggle',
     mobileTab: 'scene',
     popover: {
       title: 'Display Toggles & Body Selector',
       description:
-        'Open the \u2630 menu to toggle orbits, labels, stars, constellations, and alignment cones. Click a planet name to select it and see its distance.',
+        'In Solar System mode, open the \u2630 menu to toggle orbits, labels, stars, constellations, and cones. Use Body Selector to pick a planet and inspect details.',
       side: 'right',
-    },
-  },
-  {
-    element: '.inner-planets-inset',
-    mobileTab: 'scene',
-    popover: {
-      title: 'Inner Planets Inset',
-      description:
-        'A zoomed-in view of Mercury through Mars. Shows alignment cones in the same colors as the main view. Useful when the main camera is zoomed out to see outer planets.',
-      side: 'left',
     },
   },
   // --- Parade Timeline ---
@@ -262,13 +264,25 @@ const advancedDefs: TourStepDef[] = [
   },
   // --- Sky Charts ---
   {
-    element: '.skychart-pair',
+    element: '.skychart-chart-area',
+    mobileElement: '.skychart-chart-area',
     mobileTab: 'charts',
     popover: {
       title: 'Morning & Evening Sky Charts',
       description:
-        'Sky dome charts for the AM (east) and PM (west) sky. Stars are sized by brightness. The curved ecliptic line shows the Sun\'s path \u2014 planets stay near it.',
+        'Projection charts for AM and PM reference frames. Stars are brightness-scaled, planets stay near the dashed ecliptic, and the horizon circle shows what is above/below horizon.',
       side: 'top',
+    },
+  },
+  {
+    element: '.skychart-reference-badge',
+    mobileElement: '.skychart-reference-badge',
+    mobileTab: 'charts',
+    popover: {
+      title: 'Sky Chart Reference Frame',
+      description:
+        'This line shows the active reference model: a virtual observer longitude where the Sun is at a chosen altitude. It keeps long-term comparisons stable by removing daily rotation drift.',
+      side: 'bottom',
     },
   },
   {
@@ -277,7 +291,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Chart Controls',
       description:
-        'Toggle stars, constellation lines/labels, Milky Way texture, and planet markers. Zoom in to see finer detail and the Moon with its correct phase.',
+        'Open \u2630 to toggle layers, switch Milky Way style, and set Sun-altitude presets (0°, -6°, -12°) for the reference frame. Desktop also has a Tabbed View option.',
       side: 'top',
     },
   },
@@ -286,9 +300,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.playback-bar .play-btn',
     mobileTab: 'timeline',
     popover: {
-      title: 'Play / Pause',
+      title: 'Global Play / Pause',
       description:
-        'Start or stop the time animation. While playing, all panels update in sync \u2014 watch clusters form and dissolve in the 3D view, timeline, and sky view simultaneously.',
+        'Starts/stops global simulation playback. Note: Planetarium mode also has its own mini play control for local stepping while in that view.',
       side: 'top',
     },
   },
