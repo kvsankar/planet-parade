@@ -223,6 +223,8 @@ The visibility factor uses the **minimum** elongation weight across all planets 
 
 PPI reports a single winner per day across all k values and kinds. This eliminates the need for count-based tabs in the peaks table -- PPI handles cross-k comparison naturally through the alpha exponent.
 
+For interactive navigation, "day" is keyed by observer timezone when available (`getTimeZoneDayKey`), not raw UTC timestamp. This prevents duplicate Prev/Next stops inside the same local calendar day and keeps Timeline/Minima date labels aligned with Planetarium and Sky Charts.
+
 ### Per-count tracking for the timeline chart
 
 While PPI selects a single best combo per day for the peaks table, the timeline chart tracks the best combo *per planet count* per day (`countBests` in `PPIResult`). This allows the chart to show separate lines for 7p, 6p, 5p, etc., each with its own colour, so the user can see how different grouping sizes evolve over time.

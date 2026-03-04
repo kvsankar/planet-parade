@@ -35,6 +35,7 @@ The app uses three distinct state layers to bridge React and Three.js:
 3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns `activeTab` (combination size), `bestPerKind` (best combo per AM/PM/Straddling), PPI weights/results, and feeds SkyView, AlignmentCones, and the peaks table via props.
 
 Planetarium and Sky Charts layer toggles are intentionally local component state (`PlanetariumScene`, `SkyChartPanel`) so they can diverge from Solar System display toggles.
+Observer location/timezone state is managed in `hooks/useObserverLocation.ts` and persisted via `lib/observerLocation.ts`.
 
 ### Animation Loop
 
@@ -64,6 +65,8 @@ astronomy-engine (J2000 equatorial) → ecliptic rotation (23.44° obliquity) �
 - `lib/astronomy.ts` — Heliocentric/geocentric positions, alt-az, moon phase, magnitude via astronomy-engine.
 - `lib/coordinateConversion.ts` — EQJ↔scene, RA/Dec↔XYZ, ecliptic transforms.
 - `lib/planetariumDefaultView.ts` — Nighttime default-time search for Planetarium startup framing.
+- `lib/timeZoneDay.ts` — Local day-key/day-range utilities used by Timeline/Minima navigation, Planetarium day scans, and Sky Charts day anchoring.
+- `lib/observerLocation.ts` — Sanitization and serialization for observer location source, label, accuracy, and inferred timezone.
 - `lib/skyVisibility.ts` + `lib/atmosphereColor.ts` — Shared atmosphere/visibility model used by Planetarium and Sky Charts.
 
 ### Component Organization

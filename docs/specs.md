@@ -38,7 +38,7 @@ Each combination is classified as a whole unit based on its relationship to the 
 - **Evening (PM)**: all planets in the combination are east of the Sun (visible after sunset).
 - **Straddling**: the Sun falls inside the combination's ecliptic arc — planets span both sides of the Sun and cannot all be seen in a single pre-dawn or post-sunset session.
 
-For each day and combination size, the app reports the tightest span per category across all combinations of that size.
+For each day and combination size, the app reports the tightest span per category across all combinations of that size. Day-level detail and date labels are keyed to observer-local day when a timezone is available (UTC fallback).
 
 #### Minimum planet count
 
@@ -62,6 +62,7 @@ An interactive line chart plotting PPI (Planet Parade Index — see [planet-para
 - Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
 - Current-date indicator (vertical line) shows PPI, span, and planet list.
 - Navigation mode (PPI peaks or Span minima) with Today/Prev/Next buttons.
+- Peak/minima navigation deduplicates by local day key when observer timezone is available.
 
 ### 2.3 Ecliptic Strip (Ecliptic Projection)
 
@@ -86,6 +87,7 @@ Dual hemispheric sky charts showing evening and morning reference frames from a 
 - **Toggleable layers**: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic.
 - **Layout modes**: desktop paired AM/PM charts by default with optional tabbed mode; mobile always tabbed.
 - **Zoom/Pan**: 1–16× with mouse/touch. Mobile landscape allows zooming out enough to fit the full circular sky.
+- **Local-day anchoring**: sunrise/sunset labels and moon/magnitude daily sampling are evaluated in observer-local day boundaries when timezone is known (UTC fallback).
 
 ### 2.5 Space & Sky Panel
 
@@ -111,9 +113,9 @@ The Scene panel has two tabs: **Solar System** and **Planetarium**.
 - **Observer-centric sky dome** with horizon, cardinal markers, Alt/Az grid (15° intervals), dashed ecliptic, stars, Milky Way, constellations, Sun/Moon/planets.
 - **Integrated atmosphere** shared with Sky Charts (daylight, twilight, moonlight wash and attenuation).
 - **Stable interaction model**: drag rotates the full sky frame (not independent overlays), axis-lock behavior reduces accidental horizon tilt, wheel/pinch zoom uses FoV range 20°–120°.
-- **Deterministic startup framing**: on mount or combo change, chooses a nighttime instant for the active cluster and frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
+- **Deterministic startup framing**: on mount/day-key/location/combo context changes, evaluates the observer-local day (5-minute samples), prefers nighttime slots with visible targets, and frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
 - **Observer location control**: user-invoked only; supports browser geolocation permission prompt, OpenStreetMap map/search selection, and manual coordinate entry.
-- **Timezone inference**: infer IANA timezone from observer coordinates for local sunrise/sunset and panel time labels (fallback UTC).
+- **Timezone inference**: infer IANA timezone from observer coordinates for local sunrise/sunset, panel time labels, and day-keyed date navigation (fallback UTC).
 
 ### 2.6 Time Controls
 
@@ -167,7 +169,8 @@ Two complementary control layers:
 | FR-16 | Animation shall update positions every render frame for smooth motion. |
 | FR-17 | Clicking a body shall select it and animate the camera toward it; Follow mode shall track it continuously. |
 | FR-18 | The Scene panel shall provide a Planetarium mode with horizon/cardinal framing and stable drag/zoom controls. |
-| FR-19 | Planetarium startup shall auto-select a deterministic nighttime instant that prioritizes active-cluster visibility while minimizing solar interference. |
+| FR-19 | Planetarium startup shall auto-select a deterministic best-view instant with nighttime preference, prioritizing active-cluster visibility while minimizing solar interference. |
+| FR-20 | Observer location changes shall be user-invoked only (browser permission, map/search, or manual coordinates), with inferred timezone applied to day-keyed labels/navigation and sky-day computations. |
 
 ### 3.2 Non-Functional Requirements
 
@@ -194,7 +197,9 @@ These are architectural and technology choices — not requirements. Alternative
 - **State management**: React contexts for UI state; a module-level mutable store for the live simulation date shared between React and the Three.js render loop.
 - **Animation**: time advanced in Three.js `useFrame` loop. Per-frame position updates from the shared store. React UI updated at throttled rate (~10/sec).
 - **Planetarium view model**: drag updates a shared yaw/pitch store applied to a parent scene group, so sky layers and horizon remain rigidly aligned.
-- **Planetarium default-time strategy**: daylight-rejecting UTC day scan (5-minute steps), lexicographic ranking by visibility/darkness/altitude, with Sun-on-horizon fallback. See `docs/planetarium-default-view.md`.
+- **Planetarium default-time strategy**: timezone-aware day-window scan (5-minute steps), lexicographic ranking by visibility/darkness/altitude, nighttime-preferred selection with overall-best fallback. See `docs/planetarium-default-view.md`.
+- **Observer location/timezone model**: progressive opt-in location picker (browser/OSM/manual), persisted `ObserverLocationState`, and inferred IANA timezone (`tz-lookup`) with UTC fallback.
+- **Local day-key model**: shared `timeZoneDay` helpers drive chart/minima day grouping, peak navigation, and day-bound sky computations for Planetarium/Sky Charts.
 - **Sky chart reference frame**: virtual longitudes selected via `sunHorizonLongitude` so Sun is at configurable reference altitude (`0°`, `-6°`, `-12°`) rather than fixed civil sunrise/sunset.
 - **Atmosphere rendering**: shared sky-visibility and chromatic atmosphere model used by both Planetarium and Sky Charts.
 - **Sky chart texture**: Web Worker with inline blob source, shared across chart instances with reference counting and instance-ID isolation. See `docs/milkyway-texture.md`.
@@ -261,7 +266,9 @@ src/
 │       ├── BodySelector.tsx       Quick-select planet focus buttons
 │       ├── InfoDisplay.tsx        Selection info card
 │       ├── MobileTabBar.tsx       Bottom tab navigation
-│       └── HelpButton.tsx         Guided tour launcher
+│       ├── HelpButton.tsx         Guided tour launcher
+│       ├── LocationPickerModal.tsx Observer location modal (browser/map/search/manual)
+│       └── OsmMiniMap.tsx         Leaflet OpenStreetMap picker
 ├── hooks/                     State management and utilities
 │   ├── useSimulationTime.ts   Date, playback, speed (context)
 │   ├── useSelection.ts        Body selection, follow mode (context)
@@ -273,6 +280,7 @@ src/
 │   ├── useSimulationStore.ts  Global non-React store for R3F performance
 │   ├── usePlanetariumStore.ts Shared yaw/pitch/FoV state for Planetarium view group
 │   ├── useTour.ts             Guided tour state (driver.js)
+│   ├── useObserverLocation.ts Progressive observer location + timezone inference
 │   ├── useIsMobile.ts         Responsive breakpoint detection
 │   └── useIsLandscape.ts      Orientation detection
 ├── lib/                       Core computation libraries
@@ -281,6 +289,8 @@ src/
 │   ├── ppiScoring.ts          Planet Parade Index (computePPIResults, computeComboPPI), presets
 │   ├── coordinateConversion.ts EQJ↔Scene, RA/Dec↔XYZ, ecliptic transforms
 │   ├── planetariumDefaultView.ts Planetarium default-time chooser
+│   ├── observerLocation.ts    Observer location state sanitization/serialization
+│   ├── timeZoneDay.ts         Timezone day-key/day-range helpers
 │   ├── skyVisibility.ts       Shared twilight/moon wash -> visibility factors
 │   ├── atmosphereColor.ts     Shared sky color model (day/twilight/night/moon)
 │   ├── moonGlow.ts            Moon glow strength from phase/magnitude/airmass

@@ -129,6 +129,7 @@ The texture is loaded via `import.meta.env.BASE_URL` (Vite replaces this with th
 ## Sky Chart Texture Reprojection
 
 The same `starmap_4k.jpg` texture is also used in the sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
+Sky chart timestamps (and therefore atmosphere attenuation timing inputs) are evaluated against observer-local day windows when timezone is set, with UTC fallback.
 
 ### How it works
 

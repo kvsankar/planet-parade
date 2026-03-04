@@ -53,7 +53,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Space & Sky Panel',
       description:
-        'This panel has two modes: Solar System (3D orbital view with alignment cones) and Planetarium (observer sky dome). Use the tabs at the top to switch.',
+        'This panel has two modes: Solar System (3D orbital view with alignment cones) and Planetarium (observer sky dome). In Planetarium mode you can open the location picker to use browser location, map/search, or manual coordinates.',
       side: 'bottom',
     },
   },
@@ -86,7 +86,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Charts',
       description:
-        'Projection sky charts for morning and evening reference frames. They show planets, stars, constellations, and Milky Way in a Sun-anchored virtual frame (with adjustable Sun altitude).',
+        'Projection sky charts for morning and evening reference frames. They use your selected observer location and inferred timezone for local sunrise/sunset labels, and update immediately when location changes.',
       side: 'left',
     },
   },
@@ -193,7 +193,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Solar System vs Planetarium',
       description:
-        'Use these tabs to switch viewing modes. Solar System focuses on orbital geometry; Planetarium shows the sky as an observer would see it, with its own in-panel time controls.',
+        'Use these tabs to switch viewing modes. Solar System focuses on orbital geometry; Planetarium shows the sky as an observer would see it, with its own in-panel time controls and a location button for observer/timezone updates.',
       side: 'bottom',
     },
   },
@@ -236,7 +236,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Timeline Navigation',
       description:
-        'Switch navigation mode between PPI peaks (highest scores) and Span minima (tightest clusters). Use Prev/Next to step through peaks or minima. "Today" jumps to the current date.',
+        'Switch navigation mode between PPI peaks (highest scores) and Span minima (tightest clusters). Prev/Next steps by observer local day, not raw UTC timestamps, so date navigation stays consistent with local labels.',
       side: 'top',
     },
   },
@@ -291,7 +291,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Sky Chart Controls',
       description:
-        'Open \u2630 to toggle layers, switch Milky Way style, and set Sun-altitude presets (0°, -6°, -12°) for the reference frame. Desktop also has a Tabbed View option.',
+        'Open \u2630 to toggle layers, switch Milky Way style, set Sun-altitude presets (0°, -6°, -12°), and open Set Location. Changing location/timezone recomputes morning/evening chart times for the new local day.',
       side: 'top',
     },
   },

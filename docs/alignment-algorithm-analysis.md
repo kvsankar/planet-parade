@@ -35,6 +35,16 @@ Each combination is classified as a whole unit — not per-planet. Three cases:
 
 Results are organized in tabs by combination size. Each tab contains a time series with three fields: `morningSep`, `eveningSep`, `straddlingSep` — the tightest span for each category at that date. Local minima are detected per tab and category.
 
+### Local-day semantics in the UI
+
+Core combination math is computed on the timeline date grid (`startDate + n days`). UI navigation then applies day-key normalization:
+
+- Date labels use observer timezone when available (`formatDate(..., timeZone)`), else UTC.
+- Prev/Next peak navigation deduplicates extrema by day key (`getTimeZoneDayKey`) so one local calendar day maps to one navigation stop.
+- Day-detail combo evaluation uses the start of the current local day (`getTimeZoneDayRange(...).startMs`) for stable cross-panel consistency.
+
+This keeps Timeline, Minima table highlighting, Ecliptic Strip, and Planetarium combo overlays synchronized to the same local-day definition after timezone changes.
+
 ### Per-kind best combination (`findBestPerKind`)
 
 For the current date, the app also computes the best (tightest) combination for each visibility category separately. This drives the 3D alignment cones and Ecliptic Strip shading bands — each category gets its own cone/band showing its specific best cluster.

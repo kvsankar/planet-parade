@@ -2,87 +2,100 @@
 
 ## Goal
 
-When Planetarium opens (or when the active combo changes), the app should pick a time that:
+When Planetarium opens (or the active combo/location/day context changes), the app should pick a practical viewing instant that:
 
 1. Shows as much of the target cluster as possible above the horizon.
-2. Minimizes solar/twilight interference.
-3. Keeps the target bodies at practical viewing altitudes.
-4. Remains deterministic.
-5. Supports a wide, horizon-rich framing of the ecliptic after time selection.
+2. Prefers darker sky when visibility is tied.
+3. Keeps bodies at usable altitudes.
+4. Is deterministic for a given input state.
+5. Starts with a wide horizon-rich ecliptic framing.
 
-This logic is implemented in `src/lib/planetariumDefaultView.ts` and used by `PlanetariumCameraController`.
+This behavior lives in `src/lib/planetariumDefaultView.ts` and is applied by `PlanetariumCameraController`.
 
 ## Inputs
 
-- `baseDate` (UTC date currently selected in the app)
-- `observer` (lat/lon/height)
-- `targets` (active combo bodies, mapped to `SkyBodyId`)
+- `baseDate`: current simulation instant
+- `observer`: lat/lon/height
+- `targets`: active combo bodies mapped to `SkyBodyId`
+- `timeZone` (optional): inferred IANA zone from observer coordinates
 
-## Search Window
+## Day Window
 
-- Scan the full UTC day `00:00` to `24:00` in 5-minute steps.
-- Consider only samples where `Sun altitude < 0°` (Sun below horizon).
+The search window is day-bounded by `getTimeZoneDayRange(baseDate, timeZone)`:
+
+- If `timeZone` is present and valid, scan that **local calendar day** (`00:00` to next `00:00` in that zone).
+- Otherwise, fall back to the UTC day window.
+
+Sampling cadence is fixed at 5 minutes across the whole day window.
 
 ## Candidate Metrics
 
 For each sampled instant:
 
-- `visibleCount`: number of targets with altitude `> 0°`
-- `elevatedCount`: number of targets with altitude `>= 2°` (safety margin)
+- `visibleCount`: targets with altitude `> 0°`
+- `elevatedCount`: targets with altitude `>= 2°`
 - `darknessScore`: `clamp(-sunAltitude, 0, 18)`
-  - `0` at horizon
-  - `18` at astronomical-dark threshold (`Sun <= -18°`)
 - `minAltitude`: minimum target altitude
 - `meanAltitude`: average target altitude
 
-## Ranking (Lexicographic)
+## Ranking Order (Lexicographic)
 
-Candidates are compared in this exact order:
+Candidates are compared in this order:
 
 1. Higher `visibleCount`
 2. Higher `elevatedCount`
 3. Higher `darknessScore`
 4. Higher `minAltitude`
 5. Higher `meanAltitude`
-6. Earlier timestamp (tie-break)
+6. Earlier timestamp
 
-This means:
+## Night Preference Rule
 
-- Full-cluster visibility is always preferred.
-- Given equal visibility, darker sky wins.
-- If darkness is effectively tied, higher planet placement wins.
+Two best candidates are tracked:
 
-## Fallbacks
+- `bestNight`: best sample with Sun below horizon (`sunAltitude < 0°`)
+- `bestAny`: best sample regardless of Sun altitude
 
-- If no nighttime candidate is found with any useful visibility, use the earliest Sun-horizon crossing (sunrise/sunset) in the same UTC day.
-- If even that is unavailable (extreme lat edge case), keep the existing current date.
+Final choice:
 
-## Framing Strategy (After Time Selection)
+- Use `bestNight` **only if** it has at least one visible target (`visibleCount > 0`).
+- Otherwise use `bestAny`.
 
-Implemented in `PlanetariumCameraController`:
+This keeps nighttime preferred, but avoids returning unusable nights where the target set is entirely below the horizon.
 
-1. Build a cluster frame from target azimuths (preferring targets above horizon).
-2. Build an ecliptic-arc frame from the visible ecliptic segment above the horizon.
-3. Center view on the ecliptic-arc center azimuth when available (fallback: cluster center).
-4. Choose a wide startup FoV to show horizon-to-horizon context:
+## Sun-Horizon Helper
+
+`findFirstSunOnHorizon` searches nearby sunrise/sunset crossings inside the same evaluated day window (timezone-aware) and returns the one closest to `baseDate`.
+
+`PlanetariumCameraController` keeps this helper as a fallback path, though the main selector (`findBestPlanetariumNightTime`) typically provides the chosen instant directly.
+
+## Framing Strategy After Time Selection
+
+`PlanetariumCameraController` then computes orientation/FoV:
+
+1. Build a target-cluster frame from body azimuths (prefer above-horizon targets).
+2. Build a visible ecliptic-arc frame from above-horizon ecliptic samples.
+3. Use ecliptic-arc azimuth center when available (fallback: cluster center).
+4. Select wide startup FoV:
    - baseline default: `100°`
    - startup clamp: `96°` to `118°`
-5. Keep pitch near the horizon band to preserve orientation context.
+5. Keep pitch near horizon context (roughly 8°–16° when cluster frame is available).
 
-If there is no active combo, the controller falls back to framing the visible ecliptic arc for the current date.
+If no combo targets are active, the controller frames only the visible ecliptic arc for the current date.
 
 ## Trigger Rules
 
-- Runs when Planetarium mounts.
-- Re-runs when the selected combo changes.
-- Does **not** re-run for date-only changes from global ±1d/±5d navigation, so user-selected alt/az framing stays stable while stepping dates.
+Default-time/framing effect runs on:
 
-## Why this approach
+- Planetarium mount
+- Active combo change
+- Observer location change
+- `timeZone` change
+- Day-key change (`getTimeZoneDayKey(currentDate, timeZone)`)
 
-This avoids hardcoding a single Sun-altitude target (for example, always `-15°`).
-Instead, the optimizer adapts to geometry automatically:
+It does **not** re-run for minute-level edits within the same evaluated day key, so manual camera orientation remains stable while nudging time.
 
-- If an inner-planet-heavy cluster can be shown only near twilight, it may choose a less dark but more complete view.
-- If the cluster remains visible deeper into night, it will choose the darker time.
+## Why This Design
 
-So the Mercury/Sun-elongation tradeoff is handled by the ranking itself rather than a fixed rule.
+The algorithm avoids hardcoding a single Sun-altitude target (such as always `-12°` or `-15°`).
+Instead, it optimizes visibility first, darkness second, altitude third, while respecting observer-local day boundaries when timezone is known.

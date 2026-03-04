@@ -20,16 +20,17 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Two scene modes in one panel: `Solar System` (heliocentric 3D) and `Planetarium` (observer sky dome)
 - Solar System mode shows all planets with orbit lines, labels, inner-planets inset, and per-kind alignment cones from Earth
 - Planetarium mode provides Stellarium-style drag/zoom navigation with horizon, cardinal markers, Alt/Az grid, dashed ecliptic, stars, Milky Way, and constellations
-- Planetarium startup auto-selects a nighttime instant (cluster visibility first, sunlight interference second), then frames a wide horizon-to-horizon ecliptic view
+- Planetarium startup auto-selects the best instant inside the observer-local day (nighttime preferred, then overall best visibility sample if needed), then frames a wide horizon-to-horizon ecliptic view
 - Planetarium includes independent mini time controls (play/pause, ±1/±5 min, 1 min/s to 1 hr/s), separate from the main playback bar
-- Observer location is opt-in and user-triggered: set via browser geolocation permission, OpenStreetMap map/search widget, or manual coordinates
-- Timezone is inferred from chosen observer coordinates and used in sky-time labels (with UTC fallback)
+- Observer location is progressive/opt-in and user-triggered: set via browser geolocation permission, OpenStreetMap map/search widget, or manual coordinates
+- Timezone is inferred from chosen observer coordinates, persisted with location state, and used in sky-time labels/day boundaries (UTC fallback)
 
 ### Planetary Alignments ([algorithm](docs/alignment-algorithm-analysis.md))
 - Select any combination of planets and compute the tightest cluster for every combination size
 - Combination-based classification: AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun)
 - Tabbed results by combination size (e.g. best 7, best 6, best 5 from 7 selected)
 - Automatic detection of closest-alignment dates with sortable minima table
+- Day-level combo detail and date formatting follow observer local day when a timezone is available
 - Planet count filter chips, planet symbols with tooltips, click-to-navigate and switch tabs
 - Configurable time ranges from 3 months to 100 years
 
@@ -38,7 +39,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Simple mode (overall best-of-day) and Advanced mode (per-count lines with toggleable count chips)
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
 - Click-to-navigate to any date; current-date indicator with PPI, span, and planet list
-- Jump-to-peak buttons (Today/Prev/Next)
+- Jump-to-peak buttons (Today/Prev/Next) navigate by observer-local day keys when timezone is set
 
 ### Ecliptic Strip
 - Scatter plot of planet positions in ecliptic longitude and latitude
@@ -53,6 +54,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Dual azimuthal-equidistant hemispheres for evening and morning reference frames
 - Reference frame can be anchored by Sun altitude presets (`0°`, `-6°`, `-12°`) with a visible badge
 - Observer location is shared with Planetarium and can be changed on demand from Sky Charts controls
+- Sunrise/sunset anchors and AM/PM labels are computed from the current observer-local day window
 - Sun, Moon (phase with sun-facing limb), planets, 192 stars, 39 constellations, dashed ecliptic, and Milky Way
 - Shared atmosphere model with Planetarium: sunlight/twilight/moonlight sky wash, star attenuation, and Milky Way attenuation
 - Toggleable layers: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic
@@ -95,6 +97,8 @@ npm run test:watch   # Run tests in watch mode
 | 3D Graphics | Three.js via @react-three/fiber and @react-three/drei |
 | Charts | Recharts |
 | Astronomy | astronomy-engine |
+| Maps & Geocoding | Leaflet + OpenStreetMap tiles + Nominatim |
+| Timezone Inference | tz-lookup (IANA zone from coordinates) |
 | Panel Layout | react-rnd (desktop), custom tab bar (mobile) |
 | Onboarding | driver.js |
 | Build | Vite |
@@ -124,7 +128,7 @@ src/
 | [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, presets, parameter sweep calibration, and design rationale |
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
 | [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
-| [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection algorithm for default Planetarium framing (cluster visibility vs sunlight interference) |
+| [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, visibility/darkness ranking) |
 
 ## Data Sources
 
