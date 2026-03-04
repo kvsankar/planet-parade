@@ -3,7 +3,9 @@ import * as THREE from 'three'
 import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 import { AtmosphereAppearance } from '../../lib/atmosphereColor'
 
-const ATMOSPHERE_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.995
+// Keep the atmosphere shell aligned with the visible sky dome so it does not
+// appear as a separate larger cap at wide/default FoV.
+const ATMOSPHERE_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.965
 
 const vertexShader = `
   varying vec3 vLocalDir;

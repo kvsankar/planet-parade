@@ -9,7 +9,7 @@ import { altAzToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinat
 const R = CELESTIAL_SPHERE_RADIUS * 0.99
 const COLOR = new THREE.Color('#ccaa55')
 const OPACITY = 0.3
-const HORIZON_EPS_DEG = 0.05
+const HORIZON_EPS_DEG = 0
 
 function findLongestVisibleRun(samples: { altitude: number }[]): { start: number; length: number } {
   const n = samples.length
@@ -72,6 +72,7 @@ export default function PlanetariumEclipticGrid({ observer }: Props) {
     for (let i = 0; i < Math.max(0, length - 1); i++) {
       const a = samples[(start + i) % samples.length]
       const b = samples[(start + i + 1) % samples.length]
+      if (a.altitude < HORIZON_EPS_DEG || b.altitude < HORIZON_EPS_DEG) continue
       const [ax, ay, az] = altAzToSceneSphere(a.altitude, a.azimuth, R)
       const [bx, by, bz] = altAzToSceneSphere(b.altitude, b.azimuth, R)
       positions.push(ax, ay, az, bx, by, bz)

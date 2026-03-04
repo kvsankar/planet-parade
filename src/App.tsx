@@ -29,7 +29,7 @@ import { useIsMobile } from './hooks/useIsMobile'
 import { useIsLandscape } from './hooks/useIsLandscape'
 
 const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
-  scene: 'Solar System',
+  scene: 'Space & Sky',
   align: 'Alignments',
   timeline: 'Parade Timeline',
   sky: 'Ecliptic Strip',
@@ -215,7 +215,7 @@ export default function App() {
 
   const sceneViewToggle = (
     <div className="scene-view-toggle">
-      <button className={`scene-view-tab${sceneView === 'free' ? ' active' : ''}`} onClick={() => setSceneView('free')}>Free View</button>
+      <button className={`scene-view-tab${sceneView === 'free' ? ' active' : ''}`} onClick={() => setSceneView('free')}>Solar System</button>
       <button className={`scene-view-tab${sceneView === 'planetarium' ? ' active' : ''}`} onClick={() => setSceneView('planetarium')}>Planetarium</button>
     </div>
   )
@@ -336,7 +336,7 @@ export default function App() {
     <div className="app">
       {/* Floating panels layer */}
       <div className="panels-layer">
-        <FloatingPanel {...fp('scene')} title="Solar System" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
+        <FloatingPanel {...fp('scene')} title="Space & Sky" minWidth={300} minHeight={200} bodyClassName="scene-panel-body">
           <div className="scene-panel-content">
             {sceneViewToggle}
             <div className="scene-canvas-area">

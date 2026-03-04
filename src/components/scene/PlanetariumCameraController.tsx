@@ -3,15 +3,23 @@ import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { planetariumStore } from '../../hooks/usePlanetariumStore'
 import { simulationStore } from '../../hooks/useSimulationStore'
-import { findSunrise, findSunset, getAltAz, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
+import { findSunrise, findSunset, getAltAz, getEclipticAltAzPositions, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import { CelestialBodyId, ObserverLocation } from '../../types'
 
 const MIN_FOV_DEG = 20
-const MAX_FOV_DEG = 175
-const DEFAULT_FOV_DEG = 60
+const MAX_FOV_DEG = 120
+const DEFAULT_FOV_DEG = 100
 const DEFAULT_YAW = Math.PI // face south
-const DEFAULT_PITCH = 20 * (Math.PI / 180) // fallback when no combo is available
-const DEFAULT_HORIZON_DROP_DEG = 18
+const DEFAULT_PITCH = 10 * (Math.PI / 180) // fallback keeps horizon in view
+const DEFAULT_LAYOUT_MIN_FOV_DEG = 96
+const DEFAULT_LAYOUT_MAX_FOV_DEG = 118
+const DEFAULT_LAYOUT_PAD_DEG = 18
+const DEFAULT_LAYOUT_MIN_PITCH_DEG = 8
+const DEFAULT_LAYOUT_MAX_PITCH_DEG = 16
+const ECLIPTIC_VISIBLE_EPS_DEG = 0
+const ECLIPTIC_ARC_FOV_PAD_DEG = 8
+const ECLIPTIC_ARC_MIN_FOV_DEG = 100
+const ECLIPTIC_ARC_MAX_FOV_DEG = 118
 const MS_PER_DAY = 86_400_000
 const TIME_SCAN_STEP_MS = 5 * 60 * 1000 // 5 minutes
 const DRAG_GAIN_MOUSE = 1.3
@@ -136,29 +144,90 @@ function findFirstSunOnHorizon(baseDate: Date, observer: ObserverLocation): Date
 }
 
 interface TargetSample {
-  bodyId: SkyBodyId
   altitude: number
   azimuth: number
-  magnitude: number | null
 }
 
-function pickFocusTarget(samples: TargetSample[]): TargetSample | null {
-  if (samples.length === 0) return null
-  const visible = samples.filter((s) => s.altitude > 0)
-  const pool = visible.length > 0 ? visible : samples
+interface EclipticFrame {
+  centerAzimuthDeg: number
+  centerPitchDeg: number
+  fovDeg: number
+}
 
-  const withMagnitude = pool.filter((s) => Number.isFinite(s.magnitude ?? NaN))
-  if (withMagnitude.length > 0) {
-    return withMagnitude.reduce((best, cur) => {
-      const bestMag = best.magnitude as number
-      const curMag = cur.magnitude as number
-      if (curMag < bestMag) return cur
-      if (curMag > bestMag) return best
-      return cur.altitude > best.altitude ? cur : best
-    })
+interface EclipticArcFrame {
+  centerAzimuthDeg: number
+  fovDeg: number
+}
+
+function computeWrappedAzimuthSpanDeg(azimuthDeg: number[]): { centerDeg: number; spanDeg: number } | null {
+  if (azimuthDeg.length === 0) return null
+  if (azimuthDeg.length === 1) return { centerDeg: ((azimuthDeg[0] % 360) + 360) % 360, spanDeg: 0 }
+
+  const sorted = azimuthDeg
+    .map((az) => ((az % 360) + 360) % 360)
+    .sort((a, b) => a - b)
+
+  let maxGap = -1
+  let maxGapIndex = 0
+  for (let i = 0; i < sorted.length; i++) {
+    const curr = sorted[i]
+    const next = i === sorted.length - 1 ? sorted[0] + 360 : sorted[i + 1]
+    const gap = next - curr
+    if (gap > maxGap) {
+      maxGap = gap
+      maxGapIndex = i
+    }
   }
 
-  return pool.reduce((best, cur) => (cur.altitude > best.altitude ? cur : best))
+  const span = 360 - maxGap
+  const start = sorted[(maxGapIndex + 1) % sorted.length]
+  const center = (start + span / 2) % 360
+  return { centerDeg: center, spanDeg: span }
+}
+
+function computeEclipticFrame(samples: TargetSample[]): EclipticFrame | null {
+  if (samples.length === 0) return null
+  const pool = samples.filter((s) => s.altitude > 0)
+  const use = pool.length > 0 ? pool : samples
+  const azData = computeWrappedAzimuthSpanDeg(use.map((s) => s.azimuth))
+  if (!azData) return null
+
+  const altitudes = use.map((s) => s.altitude)
+  const minAlt = Math.min(...altitudes)
+  const maxAlt = Math.max(...altitudes)
+  const centerPitch = clamp(
+    (minAlt + maxAlt) * 0.5,
+    DEFAULT_LAYOUT_MIN_PITCH_DEG,
+    DEFAULT_LAYOUT_MAX_PITCH_DEG,
+  )
+  const fov = clamp(
+    azData.spanDeg + DEFAULT_LAYOUT_PAD_DEG,
+    DEFAULT_LAYOUT_MIN_FOV_DEG,
+    DEFAULT_LAYOUT_MAX_FOV_DEG,
+  )
+
+  return {
+    centerAzimuthDeg: azData.centerDeg,
+    centerPitchDeg: centerPitch,
+    fovDeg: fov,
+  }
+}
+
+function computeVisibleEclipticArcFrame(date: Date, observer: ObserverLocation): EclipticArcFrame | null {
+  const visibleArc = getEclipticAltAzPositions(date, observer)
+    .filter((p) => p.altitude >= ECLIPTIC_VISIBLE_EPS_DEG)
+  if (visibleArc.length < 2) return null
+  const azData = computeWrappedAzimuthSpanDeg(visibleArc.map((p) => p.azimuth))
+  if (!azData) return null
+
+  return {
+    centerAzimuthDeg: azData.centerDeg,
+    fovDeg: clamp(
+      azData.spanDeg + ECLIPTIC_ARC_FOV_PAD_DEG,
+      ECLIPTIC_ARC_MIN_FOV_DEG,
+      ECLIPTIC_ARC_MAX_FOV_DEG,
+    ),
+  }
 }
 
 export default function PlanetariumCameraController({ observer, currentDate, targetComboBodies, onAutoDateChange, onFovChange }: Props) {
@@ -199,7 +268,8 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
 
   useEffect(() => {
     // Deterministic default view each time planetarium view mounts, or when
-    // selected combo changes: use first viable time and focus brightest target.
+    // selected combo changes: choose a nighttime slot and frame the combo on
+    // a wide ecliptic-friendly horizon-to-horizon composition.
     // Intentionally does NOT run for date-only changes from the main controls,
     // so alt/az orientation remains stable while stepping +/-1d or +/-5d.
     const cam = camera as THREE.PerspectiveCamera
@@ -232,34 +302,53 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
 
       const targetSamples: TargetSample[] = targets.map((bodyId) => {
         const { altitude, azimuth } = getAltAz(bodyId, date, observer)
-        return {
-          bodyId,
-          altitude,
-          azimuth,
-          magnitude: getBodyVisualMagnitude(bodyId, date),
-        }
+        return { altitude, azimuth }
       })
 
-      const focusTarget = pickFocusTarget(targetSamples)
-      if (!focusTarget) {
+      const frame = computeEclipticFrame(targetSamples)
+      const eclipticArcFrame = computeVisibleEclipticArcFrame(date, observer)
+      if (!frame && !eclipticArcFrame) {
         planetariumStore.yaw = DEFAULT_YAW
         planetariumStore.pitch = DEFAULT_PITCH
         return
       }
 
-      const az = focusTarget.azimuth * (Math.PI / 180)
-      // Keep more sky in view by lowering the horizon line toward the bottom.
-      const targetAltDeg = Math.max(0, focusTarget.altitude)
-      const framedAltDeg = clamp(targetAltDeg + DEFAULT_HORIZON_DROP_DEG, 0, 85)
-      const alt = framedAltDeg * (Math.PI / 180)
+      const frameAzimuthDeg = eclipticArcFrame?.centerAzimuthDeg ?? frame?.centerAzimuthDeg ?? 180
+      const framePitchDeg = frame?.centerPitchDeg ?? (DEFAULT_PITCH * 180 / Math.PI)
+      const frameFovDeg = clamp(
+        Math.max(frame?.fovDeg ?? DEFAULT_FOV_DEG, eclipticArcFrame?.fovDeg ?? DEFAULT_FOV_DEG),
+        DEFAULT_LAYOUT_MIN_FOV_DEG,
+        DEFAULT_LAYOUT_MAX_FOV_DEG,
+      )
+
+      const az = frameAzimuthDeg * (Math.PI / 180)
+      const alt = framePitchDeg * (Math.PI / 180)
+      setFovDeg(frameFovDeg)
+      cam.fov = frameFovDeg
+      cam.updateProjectionMatrix()
       planetariumStore.yaw = normalizeAngleRad(-az)
       planetariumStore.pitch = clamp(alt, -MAX_PITCH, MAX_PITCH)
       return
     }
 
     // Fallback only when combo centroid is unavailable.
-    planetariumStore.yaw = DEFAULT_YAW
-    planetariumStore.pitch = DEFAULT_PITCH
+    const fallbackEclipticFrame = computeVisibleEclipticArcFrame(currentDate, observer)
+    if (fallbackEclipticFrame) {
+      const az = fallbackEclipticFrame.centerAzimuthDeg * (Math.PI / 180)
+      const fov = clamp(
+        Math.max(DEFAULT_FOV_DEG, fallbackEclipticFrame.fovDeg),
+        DEFAULT_LAYOUT_MIN_FOV_DEG,
+        DEFAULT_LAYOUT_MAX_FOV_DEG,
+      )
+      setFovDeg(fov)
+      cam.fov = fov
+      cam.updateProjectionMatrix()
+      planetariumStore.yaw = normalizeAngleRad(-az)
+      planetariumStore.pitch = DEFAULT_PITCH
+    } else {
+      planetariumStore.yaw = DEFAULT_YAW
+      planetariumStore.pitch = DEFAULT_PITCH
+    }
   }, [camera, observer, targetKey, setFovDeg])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
