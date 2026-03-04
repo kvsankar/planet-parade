@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { AltAzPosition, SkyBodyId, StarAltAzPosition, AltAzPoint, MilkyWayLayer } from '../../lib/astronomy'
 import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { CONSTELLATIONS } from '../../data/constellationLines'
 import { getMoonGlowVisuals } from '../../lib/moonGlow'
-import { getNightSkyVisibility } from '../../lib/skyVisibility'
+import { getNightSkyVisibility, type NightSkyVisibility } from '../../lib/skyVisibility'
 import { effectiveStarMagnitude, limitingMagnitudeFromSkyVisibility, starContrastFactor } from '../../lib/starVisibility'
 import { colorToCss, getAtmosphereAppearance } from '../../lib/atmosphereColor'
 import MilkyWayTextureCanvas from './MilkyWayTextureCanvas'
@@ -187,6 +187,212 @@ function buildGapSplitPath(
   }
 
   return parts.join(' ')
+}
+
+interface ProjectedStarPoint {
+  x: number
+  y: number
+  starIndex: number
+  altitude: number
+  name?: string
+  mag: number
+  spectral: string
+}
+
+interface ConstellationSegmentRender {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  bothBelow: boolean
+}
+
+interface ConstellationRenderData {
+  name: string
+  segments: ConstellationSegmentRender[]
+  centroid: { x: number; y: number } | null
+}
+
+interface StarfieldCanvasLayerProps {
+  width: number
+  height: number
+  cx: number
+  cy: number
+  R: number
+  projectedStars: ProjectedStarPoint[]
+  constellationData: ConstellationRenderData[]
+  showStars: boolean
+  showStarLabels: boolean
+  showConstellationEdges: boolean
+  showConstellationLabels: boolean
+  showAtmosphere: boolean
+  limitingMagnitude: number
+  skyVisibility: NightSkyVisibility
+  sunProj: { x: number; y: number } | null
+  moonProj: { x: number; y: number } | null
+  moonGlowStrength: number
+}
+
+function StarfieldCanvasLayer({
+  width,
+  height,
+  cx,
+  cy,
+  R,
+  projectedStars,
+  constellationData,
+  showStars,
+  showStarLabels,
+  showConstellationEdges,
+  showConstellationLabels,
+  showAtmosphere,
+  limitingMagnitude,
+  skyVisibility,
+  sunProj,
+  moonProj,
+  moonGlowStrength,
+}: StarfieldCanvasLayerProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const dpr = Math.min(1.5, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)
+    const pixelW = Math.max(1, Math.round(width * dpr))
+    const pixelH = Math.max(1, Math.round(height * dpr))
+    if (canvas.width !== pixelW) canvas.width = pixelW
+    if (canvas.height !== pixelH) canvas.height = pixelH
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, width, height)
+
+    if (!showConstellationEdges && !showConstellationLabels && !showStars) return
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, R, 0, Math.PI * 2)
+    ctx.clip()
+
+    if (showConstellationEdges) {
+      ctx.lineWidth = 0.6
+
+      ctx.strokeStyle = 'rgba(100, 140, 255, 0.25)'
+      ctx.beginPath()
+      for (const c of constellationData) {
+        for (const seg of c.segments) {
+          if (seg.bothBelow) continue
+          ctx.moveTo(cx + seg.x1, cy + seg.y1)
+          ctx.lineTo(cx + seg.x2, cy + seg.y2)
+        }
+      }
+      ctx.stroke()
+
+      ctx.strokeStyle = 'rgba(100, 140, 255, 0.025)'
+      ctx.beginPath()
+      for (const c of constellationData) {
+        for (const seg of c.segments) {
+          if (!seg.bothBelow) continue
+          ctx.moveTo(cx + seg.x1, cy + seg.y1)
+          ctx.lineTo(cx + seg.x2, cy + seg.y2)
+        }
+      }
+      ctx.stroke()
+    }
+
+    if (showConstellationLabels) {
+      ctx.fillStyle = 'rgba(136, 170, 255, 0.35)'
+      ctx.font = '8px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'alphabetic'
+      for (const c of constellationData) {
+        if (!c.centroid) continue
+        ctx.fillText(c.name, cx + c.centroid.x, cy + c.centroid.y - 6)
+      }
+    }
+
+    if (showStars) {
+      for (const s of projectedStars) {
+        const sx = cx + s.x
+        const sy = cy + s.y
+        const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
+        const effMag = showAtmosphere ? effectiveStarMagnitude(s.mag, s.altitude) : s.mag
+        const contrast = showAtmosphere ? starContrastFactor(effMag, limitingMagnitude) : 1
+        const rad = magToRadius(effMag)
+        const isAbove = s.altitude >= 0
+        let opacity = (isAbove ? 0.85 : 0.3) * skyVisibility.starVisibility * contrast
+
+        // Proximity dimming for faint stars (mag > 2.0)
+        if (showAtmosphere && s.mag > 2.0) {
+          const glowRadius = R * 0.4
+          if (sunProj) {
+            const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
+            if (dSun < glowRadius) opacity *= 0.6 + 0.4 * (dSun / glowRadius)
+          }
+          if (moonProj && moonGlowStrength > 0) {
+            const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
+            if (dMoon < glowRadius) {
+              opacity *= 1 - Math.min(0.6, moonGlowStrength * 0.45) * (1 - dMoon / glowRadius)
+            }
+          }
+        }
+
+        if (opacity <= 0.001) continue
+        ctx.globalAlpha = opacity
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(sx, sy, rad, 0, Math.PI * 2)
+        ctx.fill()
+
+        if (showStarLabels && s.name) {
+          ctx.globalAlpha = Math.min(1, opacity * 0.7)
+          ctx.fillStyle = color
+          ctx.font = '7px sans-serif'
+          ctx.textAlign = 'left'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(s.name, sx + rad + 2, sy + 2.5)
+        }
+      }
+    }
+
+    ctx.restore()
+    ctx.globalAlpha = 1
+  }, [
+    width,
+    height,
+    cx,
+    cy,
+    R,
+    projectedStars,
+    constellationData,
+    showStars,
+    showStarLabels,
+    showConstellationEdges,
+    showConstellationLabels,
+    showAtmosphere,
+    limitingMagnitude,
+    skyVisibility,
+    sunProj,
+    moonProj,
+    moonGlowStrength,
+  ])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width,
+        height,
+        pointerEvents: 'none',
+      }}
+    />
+  )
 }
 
 export default function StereoSkyChart({
@@ -413,29 +619,32 @@ export default function StereoSkyChart({
   const textColor = '#666'
 
   const svgHeight = hideTitle ? size : size + 36
+  const clipId = `clip-${title}`
+  const fgClipId = `clip-fg-${title}`
 
   return (
     <div style={{ position: 'relative', width: size, height: svgHeight, overflow: 'hidden' }}>
       {useTexture && horToEqjMatrix && (
-          <MilkyWayTextureCanvas
-            rotMatrix={horToEqjMatrix}
-            cx={cx}
-            cy={cy}
-            R={R}
-            width={size}
-            height={svgHeight}
-            opacity={0.45 * skyVisibility.milkyWayVisibility}
-            sunDirection={sunDirectionHor}
-            moonDirection={moonDirectionHor}
-            twilightWash={skyVisibility.twilightWash}
-            moonWash={skyVisibility.moonWash}
-          />
+        <MilkyWayTextureCanvas
+          rotMatrix={horToEqjMatrix}
+          cx={cx}
+          cy={cy}
+          R={R}
+          width={size}
+          height={svgHeight}
+          opacity={0.45 * skyVisibility.milkyWayVisibility}
+          sunDirection={sunDirectionHor}
+          moonDirection={moonDirectionHor}
+          twilightWash={skyVisibility.twilightWash}
+          moonWash={skyVisibility.moonWash}
+        />
       )}
-    <svg
-      width={size}
-      height={svgHeight}
-      style={{ display: 'block', position: 'relative' }}
-    >
+
+      <svg
+        width={size}
+        height={svgHeight}
+        style={{ display: 'block', position: 'absolute', left: 0, top: 0 }}
+      >
         {/* Title + time */}
         {!hideTitle && (
           <>
@@ -452,7 +661,7 @@ export default function StereoSkyChart({
 
         {/* Clip path and glow gradients */}
         <defs>
-          <clipPath id={`clip-${title}`}>
+          <clipPath id={clipId}>
             <circle cx={cx} cy={cy} r={R} />
           </clipPath>
           {showAtmosphere && atmosphere.skyAlpha > 0.001 && (
@@ -589,8 +798,7 @@ export default function StereoSkyChart({
           </>
         )}
 
-        {/* Stars + body dots + labels (clipped to circle) */}
-        <g clipPath={`url(#clip-${title})`}>
+        <g clipPath={`url(#${clipId})`}>
           {/* Milky Way polygon layers (deepest background) — skip when using texture */}
           {showMilkyWay && !useTexture && milkyWayPaths.map((layer) =>
             layer.path ? (
@@ -625,83 +833,40 @@ export default function StereoSkyChart({
               </text>
             </g>
           )}
-          {/* Constellation lines + labels (behind stars) */}
-          {(showConstellationEdges || showConstellationLabels) && constellationData.map((c) => (
-            <g key={c.name}>
-              {showConstellationEdges && c.segments.map((seg, i) => (
-                <line
-                  key={i}
-                  x1={cx + seg.x1}
-                  y1={cy + seg.y1}
-                  x2={cx + seg.x2}
-                  y2={cy + seg.y2}
-                  stroke="rgba(100, 140, 255, 0.25)"
-                  strokeWidth={0.6}
-                  opacity={seg.bothBelow ? 0.1 : 1}
-                />
-              ))}
-              {showConstellationLabels && c.centroid && (
-                <text
-                  x={cx + c.centroid.x}
-                  y={cy + c.centroid.y - 6}
-                  textAnchor="middle"
-                  fill="#88aaff"
-                  fontSize={8}
-                  opacity={0.35}
-                >
-                  {c.name}
-                </text>
-              )}
-            </g>
-          ))}
-          {/* Star layer (behind planets) */}
-          {showStars && projectedStars.map((s) => {
-            const sx = cx + s.x
-            const sy = cy + s.y
-            const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
-            const effMag = showAtmosphere
-              ? effectiveStarMagnitude(s.mag, s.altitude)
-              : s.mag
-            const contrast = showAtmosphere ? starContrastFactor(effMag, limitingMagnitude) : 1
-            const rad = magToRadius(effMag)
-            const isAbove = s.altitude >= 0
-            let baseOpacity = (isAbove ? 0.85 : 0.3) * skyVisibility.starVisibility * contrast
+        </g>
+      </svg>
 
-            // Proximity dimming for faint stars (mag > 2.0)
-            if (showAtmosphere && s.mag > 2.0) {
-              const glowRadius = R * 0.4
-              if (sunProj) {
-                const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
-                if (dSun < glowRadius) {
-                  baseOpacity *= 0.6 + 0.4 * (dSun / glowRadius)
-                }
-              }
-              if (moonProj && moonGlow.opacity > 0) {
-                const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
-                if (dMoon < glowRadius) {
-                  baseOpacity *= 1 - Math.min(0.6, moonGlow.strength * 0.45) * (1 - dMoon / glowRadius)
-                }
-              }
-            }
+      <StarfieldCanvasLayer
+        width={size}
+        height={svgHeight}
+        cx={cx}
+        cy={cy}
+        R={R}
+        projectedStars={projectedStars}
+        constellationData={constellationData}
+        showStars={showStars}
+        showStarLabels={showStarLabels}
+        showConstellationEdges={showConstellationEdges}
+        showConstellationLabels={showConstellationLabels}
+        showAtmosphere={showAtmosphere}
+        limitingMagnitude={limitingMagnitude}
+        skyVisibility={skyVisibility}
+        sunProj={sunProj}
+        moonProj={moonProj}
+        moonGlowStrength={moonGlow.strength}
+      />
 
-            return (
-              <g key={s.starIndex} opacity={baseOpacity}>
-                <circle cx={sx} cy={sy} r={rad} fill={color} />
-                {showStarLabels && s.name && (
-                  <text
-                    x={sx + rad + 2}
-                    y={sy + 2.5}
-                    fill={color}
-                    fontSize={7}
-                    opacity={0.7}
-                  >
-                    {s.name}
-                  </text>
-                )}
-              </g>
-            )
-          })}
-          {/* Planet layer (on top of stars) */}
+      <svg
+        width={size}
+        height={svgHeight}
+        style={{ display: 'block', position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
+      >
+        <defs>
+          <clipPath id={fgClipId}>
+            <circle cx={cx} cy={cy} r={R} />
+          </clipPath>
+        </defs>
+        <g clipPath={`url(#${fgClipId})`}>
           {projected.map((p) => {
             const isMoon = p.bodyId === 'Moon'
             const isSun = p.bodyId === 'Sun'
@@ -810,7 +975,7 @@ export default function StereoSkyChart({
             )
           })}
         </g>
-    </svg>
+      </svg>
     </div>
   )
 }
