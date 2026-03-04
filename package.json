@@ -18,7 +18,7 @@
     "perf:profile:repeat": "node scripts/perf/run-playwright-profile-repeat.mjs",
     "perf:profile:repeat:ci": "PROFILE_OUT_DIR=test-output/perf/repeat-latest PROFILE_REPEAT=5 node scripts/perf/run-playwright-profile-repeat.mjs",
     "perf:profile:check": "node scripts/perf/check-playwright-profile-regression.mjs",
-    "perf:profile:check:ci": "PERF_MEDIAN_PATH=test-output/perf/repeat-latest/median-summary.json PERF_BASELINE_PATH=scripts/perf/baseline-median-summary.json node scripts/perf/check-playwright-profile-regression.mjs"
+    "perf:profile:check:ci": "PERF_MEDIAN_PATH=test-output/perf/repeat-latest/median-summary.json PERF_BASELINE_PATH=scripts/perf/baseline-median-summary-ci.json node scripts/perf/check-playwright-profile-regression.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

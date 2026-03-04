@@ -6,6 +6,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { extractTraceHotspots, formatTraceHotspotsMarkdown } from './extract-trace-hotspots.mjs'
 
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const DEFAULT_PORT = Number(process.env.PROFILE_PORT ?? 4173)
@@ -179,6 +180,12 @@ function diffMetrics(before, after) {
   return delta
 }
 
+function maybeMetricTimestampSeconds(metrics) {
+  const raw = Number(metrics?.Timestamp)
+  if (!Number.isFinite(raw)) return null
+  return Number(raw.toFixed(6))
+}
+
 function aggregateSegments(segments) {
   const totalMs = segments.reduce((sum, s) => sum + s.durationMs, 0)
   const weightedFps = segments.reduce((sum, s) => sum + (s.fps * s.durationMs), 0) / Math.max(totalMs, 1)
@@ -222,6 +229,7 @@ function formatSummaryMarkdown({ startedAt, endedAt, config, gitCommit, segments
   lines.push('## Notes')
   lines.push('')
   lines.push('- Chrome trace is saved as `chrome-trace.json` in this artifact folder.')
+  lines.push('- Derived long-task hotspots are saved as `hotspots.json` and `hotspots.md`.')
   lines.push('- Playwright interaction trace is saved as `playwright-trace.zip`.')
   return `${lines.join('\n')}\n`
 }
@@ -331,6 +339,19 @@ async function dismissDriverOverlay(page) {
   })
 }
 
+async function markSegmentBoundary(page, phase, label) {
+  await page.evaluate(({ phaseName, segmentLabel }) => {
+    try {
+      performance.mark(`perf.segment.${phaseName}:${segmentLabel}`)
+    } catch {
+      // Ignore user-timing failures in restricted environments.
+    }
+  }, {
+    phaseName: phase,
+    segmentLabel: label,
+  })
+}
+
 async function runScenario(page, cdp, segments) {
   const results = []
 
@@ -357,8 +378,10 @@ async function runScenario(page, cdp, segments) {
       await safeClick(page.locator('.playback-bar .play-btn'))
     }
 
+    await markSegmentBoundary(page, 'start', segment.label)
     const beforeMetrics = metricsToMap((await cdp.send('Performance.getMetrics')).metrics)
     const frameStats = await captureFrameStats(page, segment.durationMs)
+    await markSegmentBoundary(page, 'end', segment.label)
     const afterMetrics = metricsToMap((await cdp.send('Performance.getMetrics')).metrics)
 
     results.push({
@@ -372,6 +395,8 @@ async function runScenario(page, cdp, segments) {
       maxFrameMs: Number(frameStats.maxFrameMs.toFixed(2)),
       longTaskCount: frameStats.longTaskCount,
       longTaskMaxMs: Number(frameStats.longTaskMaxMs.toFixed(2)),
+      metricTimestampStartSec: maybeMetricTimestampSeconds(beforeMetrics),
+      metricTimestampEndSec: maybeMetricTimestampSeconds(afterMetrics),
       cdpDelta: diffMetrics(beforeMetrics, afterMetrics),
     })
   }
@@ -490,6 +515,8 @@ async function main() {
       aggregate,
       artifacts: {
         chromeTrace: 'chrome-trace.json',
+        hotspotsJson: 'hotspots.json',
+        hotspotsMarkdown: 'hotspots.md',
         playwrightTrace: 'playwright-trace.zip',
       },
     }
@@ -497,7 +524,24 @@ async function main() {
     const summaryPath = path.join(OUT_ROOT, 'summary.json')
     const markdownPath = path.join(OUT_ROOT, 'summary.md')
     const chromeTracePath = path.join(OUT_ROOT, 'chrome-trace.json')
+    const hotspotsJsonPath = path.join(OUT_ROOT, 'hotspots.json')
+    const hotspotsMarkdownPath = path.join(OUT_ROOT, 'hotspots.md')
     const screenshotPath = path.join(OUT_ROOT, 'final-screen.png')
+
+    let hotspots = null
+    try {
+      hotspots = extractTraceHotspots({
+        trace: JSON.parse(traceContent),
+        summary,
+      })
+      await writeFile(hotspotsJsonPath, `${JSON.stringify(hotspots, null, 2)}\n`, 'utf8')
+      await writeFile(hotspotsMarkdownPath, formatTraceHotspotsMarkdown(hotspots), 'utf8')
+    } catch (error) {
+      // Keep the profiling run usable even if hotspot derivation fails.
+      console.warn('[profile] Hotspot extraction failed:', error instanceof Error ? error.message : String(error))
+      delete summary.artifacts.hotspotsJson
+      delete summary.artifacts.hotspotsMarkdown
+    }
 
     await page.screenshot({ path: screenshotPath, fullPage: true })
     await writeFile(chromeTracePath, traceContent, 'utf8')
@@ -510,6 +554,9 @@ async function main() {
     console.log(`[profile] Weighted FPS: ${aggregate.weightedAvgFps}`)
     console.log(`[profile] Worst p99 frame: ${aggregate.worstP99FrameMs} ms`)
     console.log(`[profile] Long tasks: ${aggregate.longTaskCount}`)
+    if (hotspots) {
+      console.log(`[profile] Hotspots: ${hotspotsJsonPath}`)
+    }
   } finally {
     if (context && !playwrightTraceStopped) {
       try {

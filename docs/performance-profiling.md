@@ -60,6 +60,8 @@ Each run emits:
 - `summary.json`: machine-readable segment metrics and aggregate metrics
 - `summary.md`: quick human summary table
 - `chrome-trace.json`: Chrome DevTools trace (load in `chrome://tracing` or DevTools Performance)
+- `hotspots.json`: per-segment long-task hotspot attribution extracted from trace
+- `hotspots.md`: readable per-segment hotspot tables (top offenders)
 - `playwright-trace.zip`: Playwright trace (open via `npx playwright show-trace`)
 - `final-screen.png`: final UI screenshot
 
@@ -72,6 +74,7 @@ Repeat mode additionally emits:
 Regression checking uses:
 
 - `scripts/perf/baseline-median-summary.json`: committed baseline reference
+- `scripts/perf/baseline-median-summary-ci.json`: CI baseline reference for GitHub-hosted runners
 
 ## Tunables (Environment Variables)
 

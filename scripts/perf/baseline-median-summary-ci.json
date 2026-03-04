@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-03-04T16:51:48.608Z",
+  "gitCommit": "826adb6",
+  "repeat": 5,
+  "notes": "CI baseline for GitHub-hosted Ubuntu runner. Update only after intentional CI perf shifts.",
+  "median": {
+    "aggregate": {
+      "totalProfileMs": 37000,
+      "weightedAvgFps": 7.73,
+      "worstP99FrameMs": 183.4,
+      "worstMaxFrameMs": 216.6,
+      "longTaskCount": 888
+    },
+    "segments": [
+      {
+        "label": "skychart_texture_playback",
+        "fps": 7.49,
+        "p99FrameMs": 150.1
+      },
+      {
+        "label": "planetarium_playback",
+        "fps": 7.74,
+        "p99FrameMs": 183.4
+      },
+      {
+        "label": "idle_final",
+        "fps": 8.37,
+        "p99FrameMs": 133.4
+      }
+    ]
+  }
+}
