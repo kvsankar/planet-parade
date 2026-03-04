@@ -116,8 +116,14 @@ export function useAlignmentState(
 
   const [selectedDayComboIdx, setSelectedDayComboIdx] = useState<number | null>(null)
 
-  const currentDayKey = getTimeZoneDayKey(currentDate, timeZone)
-  const currentDayRange = getTimeZoneDayRange(currentDate, timeZone)
+  const currentDayKey = useMemo(
+    () => getTimeZoneDayKey(currentDate, timeZone),
+    [currentDate, timeZone],
+  )
+  const currentDayRange = useMemo(
+    () => getTimeZoneDayRange(currentDate, timeZone),
+    [currentDayKey, timeZone],
+  )
 
   // Reset combo selection when day changes
   const prevDayRef = useRef(currentDayKey)

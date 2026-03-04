@@ -38,6 +38,8 @@ const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
   charts: 'Sky Charts',
 }
 
+const PLAYBACK_UI_UPDATE_INTERVAL_MS = 150
+
 export default function App() {
   // --- Mobile ---
   const isMobile = useIsMobile()
@@ -64,8 +66,9 @@ export default function App() {
   }, [])
 
   const handleSetDate = useCallback((d: Date) => {
-    simulationStore.date = d
-    setCurrentDate(d)
+    const next = new Date(d.getTime())
+    simulationStore.date = next
+    setCurrentDate(next)
   }, [])
 
   const handleSetSpeed = useCallback((s: number) => {
@@ -86,15 +89,15 @@ export default function App() {
           const elapsedSec = (now - lastFrameRef.current) / 1000
           const capped = Math.min(elapsedSec, 0.1)
           const newMs = simulationStore.date.getTime() + simulationStore.speed * capped * MS_PER_DAY
-          simulationStore.date = new Date(newMs)
+          simulationStore.date.setTime(newMs)
         }
         lastFrameRef.current = now
 
-        // Update React state every frame for smooth chart/slider animation
-        // R3F reads simulationStore directly, this drives the React UI
-        if (now - throttleRef.current > 100) {
+        // Keep React-side panels responsive without forcing excessive global rerenders.
+        // R3F scenes read simulationStore directly for per-frame motion.
+        if (now - throttleRef.current > PLAYBACK_UI_UPDATE_INTERVAL_MS) {
           throttleRef.current = now
-          setCurrentDate(simulationStore.date)
+          setCurrentDate(new Date(simulationStore.date.getTime()))
         }
       } else {
         lastFrameRef.current = null

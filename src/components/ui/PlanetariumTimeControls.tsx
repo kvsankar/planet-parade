@@ -97,9 +97,8 @@ export default function PlanetariumTimeControls({
 
   const stepMinutes = useCallback((minutes: number) => {
     const newMs = simulationStore.date.getTime() + minutes * 60 * 1000
-    const newDate = new Date(newMs)
-    simulationStore.date = newDate
-    onDateChange(newDate)
+    simulationStore.date.setTime(newMs)
+    onDateChange(new Date(newMs))
   }, [onDateChange])
 
   useEffect(() => {
@@ -114,13 +113,12 @@ export default function PlanetariumTimeControls({
         const elapsedSec = (now - lastFrameRef.current) / 1000
         const capped = Math.min(elapsedSec, 0.1)
         const newMs = simulationStore.date.getTime() + speed * capped * MS_PER_DAY
-        const newDate = new Date(newMs)
-        simulationStore.date = newDate
+        simulationStore.date.setTime(newMs)
 
         // Keep UI updates lightweight while playing.
         if (now - uiUpdateRef.current > 100) {
           uiUpdateRef.current = now
-          onDateChange(newDate)
+          onDateChange(new Date(newMs))
         }
       }
       lastFrameRef.current = now
@@ -176,13 +174,14 @@ export default function PlanetariumTimeControls({
     if (rootRef.current) resizeObs.observe(rootRef.current)
     document.querySelectorAll<HTMLElement>('.playback-bar, .mobile-tab-bar').forEach((el) => resizeObs.observe(el))
 
-    const intervalId = window.setInterval(updateBottomOffset, 250)
+    const handlePointerUp = () => updateBottomOffset()
     window.addEventListener('resize', updateBottomOffset)
+    window.addEventListener('pointerup', handlePointerUp, true)
 
     return () => {
       resizeObs.disconnect()
-      window.clearInterval(intervalId)
       window.removeEventListener('resize', updateBottomOffset)
+      window.removeEventListener('pointerup', handlePointerUp, true)
     }
   }, [updateBottomOffset])
 

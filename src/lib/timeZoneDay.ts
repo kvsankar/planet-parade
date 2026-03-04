@@ -30,6 +30,8 @@ const utcDayFormatter = new Intl.DateTimeFormat('en-CA', {
 
 const dayFormatterCache = new Map<string, Intl.DateTimeFormat>()
 const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>()
+const dayRangeCache = new Map<string, { startMs: number; endMs: number }>()
+const DAY_RANGE_CACHE_LIMIT = 512
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0')
@@ -99,6 +101,19 @@ function getDateTimeFormatter(timeZone: string): Intl.DateTimeFormat {
   })
   dateTimeFormatterCache.set(timeZone, formatter)
   return formatter
+}
+
+function getCachedDayRange(dayKey: string, timeZone?: string | null): { startMs: number; endMs: number } | null {
+  const cacheKey = `${timeZone ?? 'UTC'}|${dayKey}`
+  return dayRangeCache.get(cacheKey) ?? null
+}
+
+function cacheDayRange(dayKey: string, timeZone: string | null | undefined, startMs: number, endMs: number): void {
+  if (dayRangeCache.size >= DAY_RANGE_CACHE_LIMIT) {
+    dayRangeCache.clear()
+  }
+  const cacheKey = `${timeZone ?? 'UTC'}|${dayKey}`
+  dayRangeCache.set(cacheKey, { startMs, endMs })
 }
 
 function readDateTimeParts(formatter: Intl.DateTimeFormat, date: Date): DateParts | null {
@@ -177,6 +192,11 @@ export function getTimeZoneDayKey(date: Date, timeZone?: string | null): string 
 
 export function getTimeZoneDayRange(baseDate: Date, timeZone?: string | null): TimeZoneDayRange {
   const dayKey = getTimeZoneDayKey(baseDate, timeZone)
+  const cached = getCachedDayRange(dayKey, timeZone)
+  if (cached) {
+    return { dayKey, startMs: cached.startMs, endMs: cached.endMs }
+  }
+
   const parsed = parseDayKey(dayKey)
   if (!parsed || !timeZone) {
     const startMs = Date.UTC(
@@ -185,7 +205,9 @@ export function getTimeZoneDayRange(baseDate: Date, timeZone?: string | null): T
       baseDate.getUTCDate(),
       0, 0, 0, 0,
     )
-    return { dayKey, startMs, endMs: startMs + MS_PER_DAY }
+    const endMs = startMs + MS_PER_DAY
+    cacheDayRange(dayKey, timeZone, startMs, endMs)
+    return { dayKey, startMs, endMs }
   }
 
   try {
@@ -199,7 +221,10 @@ export function getTimeZoneDayRange(baseDate: Date, timeZone?: string | null): T
       0, 0, 0,
       timeZone,
     )
-    if (endMs > startMs) return { dayKey, startMs, endMs }
+    if (endMs > startMs) {
+      cacheDayRange(dayKey, timeZone, startMs, endMs)
+      return { dayKey, startMs, endMs }
+    }
   } catch {
     // Fall back to UTC day boundaries below.
   }
@@ -210,6 +235,8 @@ export function getTimeZoneDayRange(baseDate: Date, timeZone?: string | null): T
     baseDate.getUTCDate(),
     0, 0, 0, 0,
   )
-  return { dayKey: getUtcDayKey(baseDate), startMs: fallbackStartMs, endMs: fallbackStartMs + MS_PER_DAY }
+  const fallbackDayKey = getUtcDayKey(baseDate)
+  const fallbackEndMs = fallbackStartMs + MS_PER_DAY
+  cacheDayRange(fallbackDayKey, timeZone, fallbackStartMs, fallbackEndMs)
+  return { dayKey: fallbackDayKey, startMs: fallbackStartMs, endMs: fallbackEndMs }
 }
-

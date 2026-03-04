@@ -213,7 +213,8 @@ export default function SkyChartPanel({
   [currentMs, eveningObserver, milkyWayStyle])
 
   // --- Daily quantities (labels, moon phase, magnitudes) ---
-  const dayKey = useMemo(() => getTimeZoneDayKey(renderDate, timeZone), [renderDate, timeZone])
+  const renderSecondBucket = Math.floor(currentMs / 1000)
+  const dayKey = useMemo(() => getTimeZoneDayKey(renderDate, timeZone), [renderSecondBucket, timeZone])
   const dayStart = useMemo(() => {
     const dayRange = getTimeZoneDayRange(renderDate, timeZone)
     return new Date(dayRange.startMs)

@@ -68,11 +68,14 @@ function makeObserver(loc: ObserverLocation): Astronomy.Observer {
   return new Astronomy.Observer(loc.lat, loc.lon, loc.height)
 }
 
-export function getAltAz(bodyId: SkyBodyId, date: Date, observer: ObserverLocation): AltAzPosition {
-  const obs = makeObserver(observer)
+function computeAltAzFromPrepared(
+  bodyId: SkyBodyId,
+  astroTime: Astronomy.AstroTime,
+  observer: Astronomy.Observer,
+): AltAzPosition {
   const body = SKY_BODY_MAP[bodyId]
-  const eq = Astronomy.Equator(body, date, obs, true, true)
-  const hor = Astronomy.Horizon(date, obs, eq.ra, eq.dec, 'normal')
+  const eq = Astronomy.Equator(body, astroTime, observer, true, true)
+  const hor = Astronomy.Horizon(astroTime, observer, eq.ra, eq.dec, 'normal')
   return {
     bodyId,
     altitude: hor.altitude,
@@ -80,8 +83,20 @@ export function getAltAz(bodyId: SkyBodyId, date: Date, observer: ObserverLocati
   }
 }
 
+export function getAltAz(bodyId: SkyBodyId, date: Date, observer: ObserverLocation): AltAzPosition {
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  return computeAltAzFromPrepared(bodyId, astroTime, obs)
+}
+
 export function getAllAltAz(date: Date, observer: ObserverLocation): AltAzPosition[] {
-  return SKY_BODIES.map((id) => getAltAz(id, date, observer))
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  const out = new Array<AltAzPosition>(SKY_BODIES.length)
+  for (let i = 0; i < SKY_BODIES.length; i++) {
+    out[i] = computeAltAzFromPrepared(SKY_BODIES[i], astroTime, obs)
+  }
+  return out
 }
 
 export function findSunrise(startDate: Date, observer: ObserverLocation): Date | null {
