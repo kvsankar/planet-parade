@@ -96,10 +96,13 @@ export default function SkyChartPanel({
   }, [mwPolygonMs])
 
   useEffect(() => {
+    // During playback, local render clocks are driven from simulationStore.
+    // This avoids duplicate updates from parent `currentDate` throttling.
+    if (isPlaying) return
     const nextMs = currentDate.getTime()
     setRenderMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
     setMwPolygonMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
-  }, [currentDate])
+  }, [currentDate, isPlaying])
 
   useEffect(() => {
     if (!isPlaying) return

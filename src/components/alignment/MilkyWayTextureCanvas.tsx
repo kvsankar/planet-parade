@@ -110,7 +110,11 @@ interface GlState {
   geometry: THREE.BufferGeometry
   sunVec: THREE.Vector3
   moonVec: THREE.Vector3
+  renderWidth: number
+  renderHeight: number
 }
+
+const INTERNAL_RENDER_SCALE = 0.75
 
 let sharedTexture: THREE.Texture | null = null
 let sharedTexturePromise: Promise<THREE.Texture> | null = null
@@ -226,6 +230,8 @@ export default function MilkyWayTextureCanvas({
       geometry,
       sunVec: new THREE.Vector3(),
       moonVec: new THREE.Vector3(),
+      renderWidth: 0,
+      renderHeight: 0,
     }
     glRef.current = state
 
@@ -234,13 +240,23 @@ export default function MilkyWayTextureCanvas({
       if (!gl) return
       const p = propsRef.current
       if (p.width <= 0 || p.height <= 0) return
+      if (!gl.material.uniforms.map.value) return
 
-      gl.renderer.setSize(p.width, p.height, false)
+      const renderWidth = Math.max(1, Math.round(p.width * INTERNAL_RENDER_SCALE))
+      const renderHeight = Math.max(1, Math.round(p.height * INTERNAL_RENDER_SCALE))
+      const sx = renderWidth / p.width
+      const sy = renderHeight / p.height
 
-      gl.material.uniforms.resolution.value.set(p.width, p.height)
-      gl.material.uniforms.cx.value = p.cx
-      gl.material.uniforms.cy.value = p.cy
-      gl.material.uniforms.R.value = p.R
+      if (gl.renderWidth !== renderWidth || gl.renderHeight !== renderHeight) {
+        gl.renderer.setSize(renderWidth, renderHeight, false)
+        gl.renderWidth = renderWidth
+        gl.renderHeight = renderHeight
+      }
+
+      gl.material.uniforms.resolution.value.set(renderWidth, renderHeight)
+      gl.material.uniforms.cx.value = p.cx * sx
+      gl.material.uniforms.cy.value = p.cy * sy
+      gl.material.uniforms.R.value = p.R * ((sx + sy) * 0.5)
       gl.material.uniforms.opacity.value = p.opacity
       gl.material.uniforms.twilightWash.value = p.twilightWash
       gl.material.uniforms.moonWash.value = p.moonWash
@@ -262,6 +278,7 @@ export default function MilkyWayTextureCanvas({
       gl.material.uniforms.sunDir.value.copy(gl.sunVec)
       gl.material.uniforms.moonDir.value.copy(gl.moonVec)
 
+      if (p.opacity <= 0.001) return
       gl.renderer.render(gl.scene, gl.camera)
     }
 
