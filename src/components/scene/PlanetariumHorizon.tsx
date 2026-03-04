@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -99,7 +99,7 @@ export default function PlanetariumHorizon({ showCardinalLabels = true }: Props)
             key={label}
             position={[x, 0, z]}
             center
-            occlude={[groundRef]}
+            occlude={[groundRef as RefObject<THREE.Object3D>]}
             style={{ pointerEvents: 'none' }}
           >
             <div className="planetarium-horizon-label">{label}</div>

@@ -99,7 +99,8 @@ npm run test:watch   # Run tests in watch mode
 
 | Layer | Technology |
 |-------|-----------|
-| UI Framework | React 18 + TypeScript |
+| Runtime | Node 24.x LTS |
+| UI Framework | React 19 + TypeScript |
 | 3D Graphics | Three.js via @react-three/fiber and @react-three/drei |
 | Charts | Recharts |
 | Astronomy | astronomy-engine |
@@ -109,6 +110,8 @@ npm run test:watch   # Run tests in watch mode
 | Onboarding | driver.js |
 | Build | Vite |
 | Tests | Vitest |
+
+Current major versions in this repo: React 19, Three.js 0.183, `@react-three/fiber` 9, `@react-three/drei` 10, Vite 7, TypeScript 5.9.
 
 ## Project Structure
 

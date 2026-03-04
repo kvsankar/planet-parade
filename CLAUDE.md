@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 Node baseline: **24.x LTS** (see `.nvmrc`).
+Stack baseline: React 19, Three.js 0.183, `@react-three/fiber` 9, `@react-three/drei` 10, Vite 7, TypeScript 5.9.
 
 ```bash
 npm run dev          # Start Vite dev server (http://localhost:5173)
