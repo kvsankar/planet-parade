@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
 import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMilkyWayPolygons, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude, getHORtoEQJMatrix } from '../../lib/astronomy'
-import { getTimeZoneDayRange } from '../../lib/timeZoneDay'
+import { getTimeZoneDayKey, getTimeZoneDayRange } from '../../lib/timeZoneDay'
 import StereoSkyChart from '../alignment/StereoSkyChart'
+import { simulationStore } from '../../hooks/useSimulationStore'
 
 interface SkyChartPanelProps {
   currentDate: Date
@@ -14,7 +15,9 @@ interface SkyChartPanelProps {
   onOpenLocationPicker?: () => void
 }
 
-const MS_PER_MW_STEP = 120_000 // 2 minutes — only for expensive MW computations
+const SKY_CHART_TARGET_FPS = 12
+const SKY_CHART_FRAME_INTERVAL_MS = 1000 / SKY_CHART_TARGET_FPS
+const MW_POLYGON_FRAME_INTERVAL_MS = 350
 const MAX_ZOOM = 16
 const BASE_MIN_ZOOM = 0.35
 const SUN_REFERENCE_ALTITUDES = [0, -6, -12] as const
@@ -79,6 +82,51 @@ export default function SkyChartPanel({
   const [showMoon, setShowMoon] = useState(true)
   const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
   const [sunReferenceAltitudeDeg, setSunReferenceAltitudeDeg] = useState<SunReferenceAltitude>(0)
+  const [renderMs, setRenderMs] = useState(() => currentDate.getTime())
+  const [mwPolygonMs, setMwPolygonMs] = useState(() => currentDate.getTime())
+  const renderMsRef = useRef(renderMs)
+  const mwPolygonMsRef = useRef(mwPolygonMs)
+
+  useEffect(() => {
+    renderMsRef.current = renderMs
+  }, [renderMs])
+
+  useEffect(() => {
+    mwPolygonMsRef.current = mwPolygonMs
+  }, [mwPolygonMs])
+
+  useEffect(() => {
+    const nextMs = currentDate.getTime()
+    setRenderMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
+    setMwPolygonMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
+  }, [currentDate])
+
+  useEffect(() => {
+    if (!isPlaying) return
+    let rafId = 0
+    let lastPaint = 0
+    let lastMwPolygonPaint = 0
+
+    const tick = (now: number) => {
+      const nextMs = simulationStore.date.getTime()
+      if (now - lastPaint >= SKY_CHART_FRAME_INTERVAL_MS) {
+        lastPaint = now
+        if (Math.abs(nextMs - renderMsRef.current) >= 1) {
+          setRenderMs(nextMs)
+        }
+      }
+      if (now - lastMwPolygonPaint >= MW_POLYGON_FRAME_INTERVAL_MS) {
+        lastMwPolygonPaint = now
+        if (Math.abs(nextMs - mwPolygonMsRef.current) >= 1) {
+          setMwPolygonMs(nextMs)
+        }
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [isPlaying])
 
   // --- Zoom / pan ---
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -93,77 +141,80 @@ export default function SkyChartPanel({
   const dragRef = useRef<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null)
 
   // --- Smooth animation ---
-  // Stars, planets, ecliptic, and observers update every frame (cheap).
+  // Stars, planets, ecliptic, and observers follow a local high-frequency clock.
   // MW polygons and texture use coarser quantization (expensive).
-  const currentMs = currentDate.getTime()
+  const currentMs = renderMs
+  const renderDate = useMemo(() => new Date(currentMs), [currentMs])
 
   // Virtual observers: same latitude, longitude where Sun is on the horizon
   const morningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(currentDate, observer.lat, true, sunReferenceAltitudeDeg)
+    const lon = sunHorizonLongitude(renderDate, observer.lat, true, sunReferenceAltitudeDeg)
     return { lat: observer.lat, lon, height: observer.height }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMs, observer.lat, observer.height, sunReferenceAltitudeDeg])
 
   const eveningObserver = useMemo((): ObserverLocation => {
-    const lon = sunHorizonLongitude(currentDate, observer.lat, false, sunReferenceAltitudeDeg)
+    const lon = sunHorizonLongitude(renderDate, observer.lat, false, sunReferenceAltitudeDeg)
     return { lat: observer.lat, lon, height: observer.height }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMs, observer.lat, observer.height, sunReferenceAltitudeDeg])
 
   // Positions computed every frame for smooth animation
   const morningPositions: AltAzPosition[] = useMemo(() => {
-    return getAllAltAz(currentDate, morningObserver)
+    return getAllAltAz(renderDate, morningObserver)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMs, morningObserver])
 
   const eveningPositions: AltAzPosition[] = useMemo(() => {
-    return getAllAltAz(currentDate, eveningObserver)
+    return getAllAltAz(renderDate, eveningObserver)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMs, eveningObserver])
 
   const morningStars = useMemo(() =>
-    getStarAltAzPositions(currentDate, morningObserver),
+    getStarAltAzPositions(renderDate, morningObserver),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, morningObserver])
   const eveningStars = useMemo(() =>
-    getStarAltAzPositions(currentDate, eveningObserver),
+    getStarAltAzPositions(renderDate, eveningObserver),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, eveningObserver])
 
   const morningEcliptic = useMemo(() =>
-    getEclipticAltAzPositions(currentDate, morningObserver),
+    getEclipticAltAzPositions(renderDate, morningObserver),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, morningObserver])
   const eveningEcliptic = useMemo(() =>
-    getEclipticAltAzPositions(currentDate, eveningObserver),
+    getEclipticAltAzPositions(renderDate, eveningObserver),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, eveningObserver])
 
   // Coarser quantization only for expensive MW computations
-  const mwStep = Math.round(currentMs / MS_PER_MW_STEP)
-  const mwDate = useMemo(() => new Date(mwStep * MS_PER_MW_STEP), [mwStep])
+  const mwDate = useMemo(() => new Date(mwPolygonMs), [mwPolygonMs])
 
+  const shouldComputeMwPolygons = showMilkyWay && milkyWayStyle === 'polygons'
   const morningMilkyWay = useMemo(() =>
-    getMilkyWayPolygons(mwDate, morningObserver), [mwDate, morningObserver])
+    shouldComputeMwPolygons ? getMilkyWayPolygons(mwDate, morningObserver) : [],
+  [shouldComputeMwPolygons, mwDate, morningObserver])
   const eveningMilkyWay = useMemo(() =>
-    getMilkyWayPolygons(mwDate, eveningObserver), [mwDate, eveningObserver])
+    shouldComputeMwPolygons ? getMilkyWayPolygons(mwDate, eveningObserver) : [],
+  [shouldComputeMwPolygons, mwDate, eveningObserver])
 
-  // HOR→EQJ rotation matrices — updated every frame (cheap: single matrix call).
-  // The worker self-throttles via seq; it always works on the latest request.
+  // HOR→EQJ rotation matrices — updated with the chart render clock.
   const morningRotMatrix = useMemo(() =>
-    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(currentDate, morningObserver) : undefined,
+    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(renderDate, morningObserver) : undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, morningObserver, milkyWayStyle])
   const eveningRotMatrix = useMemo(() =>
-    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(currentDate, eveningObserver) : undefined,
+    milkyWayStyle === 'texture' ? getHORtoEQJMatrix(renderDate, eveningObserver) : undefined,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [currentMs, eveningObserver, milkyWayStyle])
 
   // --- Daily quantities (labels, moon phase, magnitudes) ---
+  const dayKey = useMemo(() => getTimeZoneDayKey(renderDate, timeZone), [renderDate, timeZone])
   const dayStart = useMemo(() => {
-    const dayRange = getTimeZoneDayRange(currentDate, timeZone)
+    const dayRange = getTimeZoneDayRange(renderDate, timeZone)
     return new Date(dayRange.startMs)
-  }, [currentMs, timeZone])
+  }, [dayKey, timeZone])
 
   const sunriseTime = useMemo(() => findSunrise(dayStart, observer), [dayStart, observer])
   const sunsetTime = useMemo(() => findSunset(dayStart, observer), [dayStart, observer])

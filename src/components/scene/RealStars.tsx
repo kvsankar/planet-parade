@@ -1,8 +1,10 @@
-import { useMemo, memo, useEffect } from 'react'
+import { useMemo, memo, useEffect, type MutableRefObject } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 import { DEFAULT_EXTINCTION_COEFF } from '../../lib/starVisibility'
+import { PlanetariumSkyState } from './planetariumSkyState'
 
 // Approximate B-V color index for each spectral class (main sequence averages)
 const SPECTRAL_BV: Record<string, number> = {
@@ -159,6 +161,7 @@ interface Props {
   moonGlowStrength?: number
   moonDirection?: [number, number, number]
   extinctionCoeff?: number
+  skyStateRef?: MutableRefObject<PlanetariumSkyState>
 }
 
 export default memo(function RealStars({
@@ -167,6 +170,7 @@ export default memo(function RealStars({
   moonGlowStrength = 0,
   moonDirection = [0, 1, 0],
   extinctionCoeff = DEFAULT_EXTINCTION_COEFF,
+  skyStateRef,
 }: Props) {
   const { geometry, material } = useMemo(() => {
     const geo = getSharedGeometry()
@@ -211,6 +215,19 @@ export default memo(function RealStars({
   useEffect(() => {
     material.uniforms.uExtinctionCoeff.value = extinctionCoeff
   }, [material, extinctionCoeff])
+
+  useFrame(() => {
+    const sky = skyStateRef?.current
+    if (!sky) return
+    material.uniforms.uVisibility.value = sky.starVisibility
+    material.uniforms.uMoonGlowStrength.value = sky.moonGlowStrength
+    material.uniforms.uMoonDir.value.set(
+      sky.moonDirection[0],
+      sky.moonDirection[1],
+      sky.moonDirection[2],
+    ).normalize()
+    material.uniforms.uExtinctionCoeff.value = sky.starExtinctionCoeff
+  })
 
   return <points geometry={geometry} material={material} />
 })

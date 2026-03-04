@@ -1,7 +1,9 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo, type MutableRefObject } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 import { AtmosphereAppearance } from '../../lib/atmosphereColor'
+import { PlanetariumSkyState } from './planetariumSkyState'
 
 // Keep the atmosphere shell aligned with the visible sky dome so it does not
 // appear as a separate larger cap at wide/default FoV.
@@ -54,11 +56,13 @@ const NO_RAYCAST: THREE.Object3D['raycast'] = () => {
 interface Props {
   appearance: AtmosphereAppearance
   sunDirectionLocal: [number, number, number]
+  skyStateRef?: MutableRefObject<PlanetariumSkyState>
 }
 
 export default memo(function PlanetariumAtmosphere({
   appearance,
   sunDirectionLocal,
+  skyStateRef,
 }: Props) {
   const { geometry, material } = useMemo(() => {
     const geo = new THREE.SphereGeometry(
@@ -116,6 +120,22 @@ export default memo(function PlanetariumAtmosphere({
       material.dispose()
     }
   }, [geometry, material])
+
+  useFrame(() => {
+    const sky = skyStateRef?.current
+    if (!sky) return
+    material.uniforms.uZenithColor.value.setRGB(...sky.atmosphere.zenithColor)
+    material.uniforms.uHorizonColor.value.setRGB(...sky.atmosphere.horizonColor)
+    material.uniforms.uSunCoreColor.value.setRGB(...sky.atmosphere.sunCoreColor)
+    material.uniforms.uSunGlowColor.value.setRGB(...sky.atmosphere.sunGlowColor)
+    material.uniforms.uSkyAlpha.value = sky.atmosphere.skyAlpha
+    material.uniforms.uSunGlowStrength.value = sky.atmosphere.sunGlowStrength
+    material.uniforms.uSunDir.value.set(
+      sky.sunDirection[0],
+      sky.sunDirection[1],
+      sky.sunDirection[2],
+    ).normalize()
+  })
 
   return <mesh geometry={geometry} material={material} renderOrder={-20} raycast={NO_RAYCAST} />
 })

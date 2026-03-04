@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import PlanetariumCameraController from './PlanetariumCameraController'
 import PlanetariumWorldRotation from './PlanetariumWorldRotation'
 import PlanetariumPlanets from './PlanetariumPlanets'
@@ -15,12 +15,10 @@ import ConstellationLines3D from './ConstellationLines3D'
 import ConstellationBoundaries3D from './ConstellationBoundaries3D'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
 import { CelestialBodyId, ObserverLocation } from '../../types'
-import { altAzToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
-import { getAltAz, getBodyVisualMagnitude, getMoonIllumination } from '../../lib/astronomy'
-import { getMoonGlowVisuals } from '../../lib/moonGlow'
-import { getNightSkyVisibility } from '../../lib/skyVisibility'
-import { DEFAULT_EXTINCTION_COEFF } from '../../lib/starVisibility'
-import { AtmosphereAppearance, getAtmosphereAppearance } from '../../lib/atmosphereColor'
+import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
+import { AtmosphereAppearance } from '../../lib/atmosphereColor'
+import { simulationStore } from '../../hooks/useSimulationStore'
+import { PlanetariumSkyState, computePlanetariumSkyState } from './planetariumSkyState'
 
 const CANVAS_STYLE = { background: '#000000' }
 const STEREOGRAPHIC_CAMERA_DISTANCE = CELESTIAL_SPHERE_RADIUS * 1.02
@@ -29,6 +27,7 @@ const PLANETARIUM_MW_BASE_OPACITY = 0.45
 
 interface ContentsProps {
   observer: ObserverLocation
+  skyStateRef: MutableRefObject<PlanetariumSkyState>
   showMilkyWayLocal: boolean
   milkyWayVisibilityLocal: number
   twilightWashLocal: number
@@ -52,6 +51,7 @@ interface ContentsProps {
 
 function PlanetariumContents({
   observer,
+  skyStateRef,
   showMilkyWayLocal,
   milkyWayVisibilityLocal,
   twilightWashLocal,
@@ -80,6 +80,7 @@ function PlanetariumContents({
         <PlanetariumAtmosphere
           appearance={atmosphereLocal}
           sunDirectionLocal={sunDirectionLocal}
+          skyStateRef={skyStateRef}
         />
       )}
       <PlanetariumWorldRotation observer={observer}>
@@ -91,6 +92,7 @@ function PlanetariumContents({
             moonDirectionLocal={moonDirectionLocal}
             twilightWash={twilightWashLocal}
             moonWash={moonWashLocal}
+            skyStateRef={skyStateRef}
           />
         )}
         {showStarsLocal && (
@@ -100,6 +102,7 @@ function PlanetariumContents({
             moonGlowStrength={moonGlowStrengthLocal}
             moonDirection={moonDirectionLocal}
             extinctionCoeff={starExtinctionCoeffLocal}
+            skyStateRef={skyStateRef}
           />
         )}
         {showStarLabelsLocal && <PlanetariumStarLabels />}
@@ -120,6 +123,31 @@ function PlanetariumContents({
   )
 }
 
+interface SkyDriverProps {
+  observer: ObserverLocation
+  showAtmosphere: boolean
+  showMoon: boolean
+  skyStateRef: MutableRefObject<PlanetariumSkyState>
+}
+
+function PlanetariumSkyStateDriver({
+  observer,
+  showAtmosphere,
+  showMoon,
+  skyStateRef,
+}: SkyDriverProps) {
+  useFrame(() => {
+    skyStateRef.current = computePlanetariumSkyState(
+      simulationStore.date,
+      observer,
+      showAtmosphere,
+      showMoon,
+    )
+  })
+
+  return null
+}
+
 interface Props {
   observer: ObserverLocation
   currentDate: Date
@@ -129,7 +157,7 @@ interface Props {
   targetComboBodies?: CelestialBodyId[] | null
 }
 
-export default memo(function PlanetariumScene({
+function PlanetariumScene({
   observer,
   currentDate,
   timeZone,
@@ -153,49 +181,23 @@ export default memo(function PlanetariumScene({
 
   const diskMaskOpacity = viewFovDeg >= DISK_MASK_ENABLE_FOV ? 1 : 0
 
-  const skyVisibility = useMemo(() => {
-    const sunAltAz = getAltAz('Sun', currentDate, observer)
-    const sunAlt = sunAltAz.altitude
-    const moonAltAz = getAltAz('Moon', currentDate, observer)
-    const moonIllumination = getMoonIllumination(currentDate)
-    const moonMagnitude = getBodyVisualMagnitude('Moon', currentDate)
-    const moonGlow = getMoonGlowVisuals({
-      moonIllumination,
-      moonAltitudeDeg: moonAltAz.altitude,
-      moonMagnitude,
-    })
-    const visibility = getNightSkyVisibility({
-      sunAltitudeDeg: sunAlt,
-      moonGlowStrength: moonGlow.strength,
-      includeSunlight: showAtmosphere,
-      includeMoonlight: showAtmosphere && showMoon,
-    })
-    const atmosphere = getAtmosphereAppearance({
-      sunAltitudeDeg: sunAlt,
-      moonWash: visibility.moonWash,
-      enabled: showAtmosphere,
-    })
-    const sunDir = altAzToSceneSphere(sunAltAz.altitude, sunAltAz.azimuth, 1)
-    const moonDir = altAzToSceneSphere(moonAltAz.altitude, moonAltAz.azimuth, 1)
-    return {
-      twilightWash: visibility.twilightWash,
-      moonWash: visibility.moonWash,
-      starVisibility: visibility.starVisibility,
-      milkyWayVisibility: visibility.milkyWayVisibility,
-      moonGlowStrength: showAtmosphere && showMoon ? moonGlow.strength : 0,
-      sunDirection: sunDir,
-      moonDirection: moonDir,
-      atmosphere,
-      starExtinctionCoeff: showAtmosphere ? DEFAULT_EXTINCTION_COEFF : 0,
-    }
-  }, [
-    currentDate,
+  const initialSkyState = useMemo(() => computePlanetariumSkyState(
+    simulationStore.date,
+    observer,
+    showAtmosphere,
+    showMoon,
+  ), [
     observer.lat,
     observer.lon,
     observer.height,
     showAtmosphere,
     showMoon,
   ])
+  const skyStateRef = useRef<PlanetariumSkyState>(initialSkyState)
+
+  useEffect(() => {
+    skyStateRef.current = initialSkyState
+  }, [initialSkyState])
 
   const cameraConfig = useMemo(() => ({
     // Camera offset yields stereographic-like projection with much lower edge shape distortion.
@@ -222,18 +224,25 @@ export default memo(function PlanetariumScene({
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Canvas camera={cameraConfig} style={CANVAS_STYLE}>
+        <PlanetariumSkyStateDriver
+          observer={observer}
+          showAtmosphere={showAtmosphere}
+          showMoon={showMoon}
+          skyStateRef={skyStateRef}
+        />
         <PlanetariumContents
           observer={observer}
+          skyStateRef={skyStateRef}
           showMilkyWayLocal={showMilkyWay}
-          milkyWayVisibilityLocal={skyVisibility.milkyWayVisibility}
-          twilightWashLocal={skyVisibility.twilightWash}
-          moonWashLocal={skyVisibility.moonWash}
-          starVisibilityLocal={skyVisibility.starVisibility}
-          moonGlowStrengthLocal={skyVisibility.moonGlowStrength}
-          sunDirectionLocal={skyVisibility.sunDirection}
-          moonDirectionLocal={skyVisibility.moonDirection}
-          atmosphereLocal={skyVisibility.atmosphere}
-          starExtinctionCoeffLocal={skyVisibility.starExtinctionCoeff}
+          milkyWayVisibilityLocal={skyStateRef.current.milkyWayVisibility}
+          twilightWashLocal={skyStateRef.current.twilightWash}
+          moonWashLocal={skyStateRef.current.moonWash}
+          starVisibilityLocal={skyStateRef.current.starVisibility}
+          moonGlowStrengthLocal={skyStateRef.current.moonGlowStrength}
+          sunDirectionLocal={skyStateRef.current.sunDirection}
+          moonDirectionLocal={skyStateRef.current.moonDirection}
+          atmosphereLocal={skyStateRef.current.atmosphere}
+          starExtinctionCoeffLocal={skyStateRef.current.starExtinctionCoeff}
           showAtmosphereLocal={showAtmosphere}
           showAltAzGrid={showAltAzGrid}
           showEclipticGrid={showEclipticGrid}
@@ -311,4 +320,31 @@ export default memo(function PlanetariumScene({
       </div>
     </div>
   )
-})
+}
+
+function sameTargetBodies(
+  prev: CelestialBodyId[] | null | undefined,
+  next: CelestialBodyId[] | null | undefined,
+): boolean {
+  if (prev === next) return true
+  if (!prev || !next) return !prev && !next
+  if (prev.length !== next.length) return false
+  for (let i = 0; i < prev.length; i++) {
+    if (prev[i] !== next[i]) return false
+  }
+  return true
+}
+
+function arePlanetariumScenePropsEqual(prev: Props, next: Props): boolean {
+  return (
+    prev.observer.lat === next.observer.lat
+    && prev.observer.lon === next.observer.lon
+    && prev.observer.height === next.observer.height
+    && prev.timeZone === next.timeZone
+    && prev.autoViewResetToken === next.autoViewResetToken
+    && prev.onAutoDateChange === next.onAutoDateChange
+    && sameTargetBodies(prev.targetComboBodies, next.targetComboBodies)
+  )
+}
+
+export default memo(PlanetariumScene, arePlanetariumScenePropsEqual)

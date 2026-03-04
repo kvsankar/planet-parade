@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react'
+import * as THREE from 'three'
 
 interface MilkyWayTextureCanvasProps {
   rotMatrix: number[][]
@@ -14,307 +15,282 @@ interface MilkyWayTextureCanvasProps {
   moonWash: number
 }
 
-// --------------- Web Worker (inline blob) ---------------
-
-const workerSource = `
-var texPixels = null;
-var texW = 0;
-var texH = 0;
-var TWO_PI = 2 * Math.PI;
-var HALF_PI = Math.PI / 2;
-var INV_PI = 1 / Math.PI;
-
-self.onmessage = function(e) {
-  var d = e.data;
-
-  if (d.type === 'texture') {
-    texPixels = new Uint8Array(d.pixels);
-    texW = d.texW;
-    texH = d.texH;
-    return;
+const vertexShader = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
   }
-
-  if (d.type === 'render') {
-    if (!texPixels) return;
-
-    var rot = d.rot;
-    var cx = d.cx, cy = d.cy, R = d.R;
-    var w = d.width, h = d.height;
-    var sunDir = d.sunDir;
-    var moonDir = d.moonDir;
-    var twilightWash = d.twilightWash;
-    var moonWash = d.moonWash;
-    var seq = d.seq;
-
-    var r00 = rot[0], r01 = rot[1], r02 = rot[2];
-    var r10 = rot[3], r11 = rot[4], r12 = rot[5];
-    var r20 = rot[6], r21 = rot[7], r22 = rot[8];
-
-    var sunX = sunDir[0], sunY = sunDir[1], sunZ = sunDir[2];
-    var sunLen = Math.sqrt(sunX * sunX + sunY * sunY + sunZ * sunZ);
-    if (sunLen > 0) {
-      sunX /= sunLen; sunY /= sunLen; sunZ /= sunLen;
-    } else {
-      sunX = 0; sunY = 0; sunZ = 1;
-    }
-    var moonX = moonDir[0], moonY = moonDir[1], moonZ = moonDir[2];
-    var moonLen = Math.sqrt(moonX * moonX + moonY * moonY + moonZ * moonZ);
-    if (moonLen > 0) {
-      moonX /= moonLen; moonY /= moonLen; moonZ /= moonLen;
-    } else {
-      moonX = 0; moonY = 0; moonZ = 1;
-    }
-
-    var RR = R * R;
-    var out = new Uint8ClampedArray(w * h * 4);
-    var texStride = texW * 4;
-
-    for (var py = 0; py < h; py++) {
-      var ry = py - cy;
-      for (var px = 0; px < w; px++) {
-        var rx = px - cx;
-        var rr = rx * rx + ry * ry;
-        if (rr > RR) continue;
-
-        var r = Math.sqrt(rr);
-        var hor_x, hor_y, hor_z;
-        var eqj_x, eqj_y, eqj_z;
-
-        if (r < 0.5) {
-          hor_x = 0; hor_y = 0; hor_z = 1;
-        } else {
-          var alt_rad = HALF_PI * (1 - r / R);
-          var cos_alt = Math.cos(alt_rad);
-          var sin_alt = Math.sin(alt_rad);
-          var inv_r = 1 / r;
-          hor_x = cos_alt * (-ry * inv_r);
-          hor_y = cos_alt * (rx * inv_r);
-          hor_z = sin_alt;
-        }
-        eqj_x = r00 * hor_x + r01 * hor_y + r02 * hor_z;
-        eqj_y = r10 * hor_x + r11 * hor_y + r12 * hor_z;
-        eqj_z = r20 * hor_x + r21 * hor_y + r22 * hor_z;
-
-        var dec = Math.asin(eqj_z > 1 ? 1 : eqj_z < -1 ? -1 : eqj_z);
-        var ra = Math.atan2(eqj_y, eqj_x);
-        if (ra < 0) ra += TWO_PI;
-
-        var u = 0.5 - ra / TWO_PI;
-        if (u < 0) u += 1;
-        var v = (HALF_PI - dec) * INV_PI;
-
-        // Bilinear sample
-        var fpx = u * texW - 0.5;
-        var fpy = v * texH - 0.5;
-        var x0 = fpx | 0; if (fpx < 0) x0 = x0 - 1;
-        var y0 = fpy | 0; if (fpy < 0) y0 = y0 - 1;
-        var fx = fpx - x0;
-        var fy = fpy - y0;
-        var x1 = (x0 + 1) % texW; if (x1 < 0) x1 += texW;
-        var y1 = y0 + 1; if (y1 >= texH) y1 = texH - 1;
-        var cx0 = x0 < 0 ? 0 : x0;
-        var cy0 = y0 < 0 ? 0 : y0;
-
-        var i00 = cy0 * texStride + cx0 * 4;
-        var i10 = cy0 * texStride + x1 * 4;
-        var i01 = y1 * texStride + cx0 * 4;
-        var i11 = y1 * texStride + x1 * 4;
-
-        var w00 = (1 - fx) * (1 - fy);
-        var w10 = fx * (1 - fy);
-        var w01 = (1 - fx) * fy;
-        var w11 = fx * fy;
-
-        var localVisibility = 1.0;
-
-        if (twilightWash > 0.0001) {
-          var sunDot = hor_x * sunX + hor_y * sunY + hor_z * sunZ;
-          if (sunDot > 1) sunDot = 1;
-          if (sunDot < -1) sunDot = -1;
-          var sunAng = Math.acos(sunDot);
-          var sunWide = Math.exp(-0.5 * Math.pow(sunAng / 0.85, 2.0));
-          var sunCore = Math.exp(-0.5 * Math.pow(sunAng / 0.22, 2.0));
-          var sunScatter = 0.65 * sunWide + 0.35 * sunCore;
-          localVisibility -= 0.85 * twilightWash * sunScatter;
-        }
-
-        if (moonWash > 0.0001) {
-          var moonDot = hor_x * moonX + hor_y * moonY + hor_z * moonZ;
-          if (moonDot > 1) moonDot = 1;
-          if (moonDot < -1) moonDot = -1;
-          var moonAng = Math.acos(moonDot);
-          var moonKernel = Math.exp(-0.5 * Math.pow(moonAng / 0.33, 2.0));
-          localVisibility -= 0.75 * moonWash * moonKernel;
-        }
-
-        if (localVisibility < 0.05) localVisibility = 0.05;
-        if (localVisibility > 1.0) localVisibility = 1.0;
-
-        var idx = (py * w + px) * 4;
-        out[idx]     = (texPixels[i00]     * w00 + texPixels[i10]     * w10 + texPixels[i01]     * w01 + texPixels[i11]     * w11) * localVisibility;
-        out[idx + 1] = (texPixels[i00 + 1] * w00 + texPixels[i10 + 1] * w10 + texPixels[i01 + 1] * w01 + texPixels[i11 + 1] * w11) * localVisibility;
-        out[idx + 2] = (texPixels[i00 + 2] * w00 + texPixels[i10 + 2] * w10 + texPixels[i01 + 2] * w01 + texPixels[i11 + 2] * w11) * localVisibility;
-        out[idx + 3] = 255;
-      }
-    }
-
-    self.postMessage({ type: 'result', pixels: out.buffer, width: w, height: h, cx: cx, cy: cy, R: R, seq: seq, id: d.id }, [out.buffer]);
-  }
-};
 `
 
-// --------------- Shared worker + texture cache ---------------
+const fragmentShader = `
+  uniform sampler2D map;
+  uniform mat3 rot;
+  uniform vec2 resolution;
+  uniform float cx;
+  uniform float cy;
+  uniform float R;
+  uniform float opacity;
+  uniform vec3 sunDir;
+  uniform vec3 moonDir;
+  uniform float twilightWash;
+  uniform float moonWash;
 
-let workerInstance: Worker | null = null
-let workerRefCount = 0
-let textureLoaded = false
-let textureLoadPromise: Promise<void> | null = null
+  const float PI = 3.141592653589793;
+  const float TWO_PI = 6.283185307179586;
+  const float HALF_PI = 1.5707963267948966;
 
-function acquireWorker(): Worker {
-  if (!workerInstance) {
-    const blob = new Blob([workerSource], { type: 'application/javascript' })
-    workerInstance = new Worker(URL.createObjectURL(blob))
-    textureLoaded = false
-  }
-  workerRefCount++
-  return workerInstance
-}
+  void main() {
+    // Convert to top-left pixel coordinates to match SVG/canvas layout.
+    vec2 p = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
+    float rx = p.x - cx;
+    float ry = p.y - cy;
+    float rr = rx * rx + ry * ry;
 
-function releaseWorker() {
-  workerRefCount--
-  if (workerRefCount <= 0 && workerInstance) {
-    workerInstance.terminate()
-    workerInstance = null
-    workerRefCount = 0
-    textureLoaded = false
-    textureLoadPromise = null
-  }
-}
-
-function ensureTexture(worker: Worker): Promise<void> {
-  if (textureLoaded) return Promise.resolve()
-  if (textureLoadPromise) return textureLoadPromise
-
-  textureLoadPromise = new Promise<void>((resolve) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const off = document.createElement('canvas')
-      off.width = img.width
-      off.height = img.height
-      const ctx = off.getContext('2d')!
-      ctx.drawImage(img, 0, 0)
-      const imgData = ctx.getImageData(0, 0, img.width, img.height)
-      // Copy pixels to a transferable buffer
-      const buf = imgData.data.buffer.slice(0)
-      worker.postMessage(
-        { type: 'texture', pixels: buf, texW: img.width, texH: img.height },
-        [buf],
-      )
-      textureLoaded = true
-      resolve()
+    if (rr > R * R) {
+      discard;
     }
-    img.onerror = () => resolve()
-    img.src = `${import.meta.env.BASE_URL}starmap_4k.jpg`
-  })
-  return textureLoadPromise
+
+    float r = sqrt(rr);
+    vec3 hor;
+
+    if (r < 0.5) {
+      hor = vec3(0.0, 0.0, 1.0);
+    } else {
+      float alt = HALF_PI * (1.0 - r / R);
+      float cosAlt = cos(alt);
+      float sinAlt = sin(alt);
+      float invR = 1.0 / r;
+      hor = vec3(
+        cosAlt * (-ry * invR),
+        cosAlt * (rx * invR),
+        sinAlt
+      );
+    }
+
+    vec3 eqj = rot * hor;
+    float dec = asin(clamp(eqj.z, -1.0, 1.0));
+    float ra = atan(eqj.y, eqj.x);
+    if (ra < 0.0) ra += TWO_PI;
+
+    float u = 0.5 - ra / TWO_PI;
+    u = fract(u + 1.0);
+    float v = (HALF_PI - dec) / PI;
+
+    vec4 tex = texture2D(map, vec2(u, v));
+
+    float localVisibility = 1.0;
+
+    if (twilightWash > 0.0001) {
+      float sunDot = clamp(dot(normalize(hor), normalize(sunDir)), -1.0, 1.0);
+      float sunAng = acos(sunDot);
+      float sunWide = exp(-0.5 * pow(sunAng / 0.85, 2.0));
+      float sunCore = exp(-0.5 * pow(sunAng / 0.22, 2.0));
+      float sunScatter = clamp(0.65 * sunWide + 0.35 * sunCore, 0.0, 1.0);
+      localVisibility -= 0.85 * twilightWash * sunScatter;
+    }
+
+    if (moonWash > 0.0001) {
+      float moonDot = clamp(dot(normalize(hor), normalize(moonDir)), -1.0, 1.0);
+      float moonAng = acos(moonDot);
+      float moonKernel = exp(-0.5 * pow(moonAng / 0.33, 2.0));
+      localVisibility -= 0.75 * moonWash * moonKernel;
+    }
+
+    localVisibility = clamp(localVisibility, 0.05, 1.0);
+    gl_FragColor = vec4(tex.rgb * localVisibility, opacity * localVisibility);
+  }
+`
+
+interface GlState {
+  renderer: THREE.WebGLRenderer
+  scene: THREE.Scene
+  camera: THREE.OrthographicCamera
+  material: THREE.ShaderMaterial
+  geometry: THREE.BufferGeometry
+  sunVec: THREE.Vector3
+  moonVec: THREE.Vector3
 }
 
-// --------------- React component (thin shell) ---------------
+let sharedTexture: THREE.Texture | null = null
+let sharedTexturePromise: Promise<THREE.Texture> | null = null
 
-let nextInstanceId = 0
-const TWO_PI = 2 * Math.PI
+function loadTexture(): Promise<THREE.Texture> {
+  if (sharedTexture) return Promise.resolve(sharedTexture)
+  if (sharedTexturePromise) return sharedTexturePromise
+
+  sharedTexturePromise = new Promise((resolve, reject) => {
+    const loader = new THREE.TextureLoader()
+    loader.load(
+      `${import.meta.env.BASE_URL}starmap_4k.jpg`,
+      (texture) => {
+        texture.wrapS = THREE.RepeatWrapping
+        texture.wrapT = THREE.ClampToEdgeWrapping
+        texture.minFilter = THREE.LinearFilter
+        texture.magFilter = THREE.LinearFilter
+        texture.generateMipmaps = false
+        texture.needsUpdate = true
+        sharedTexture = texture
+        resolve(texture)
+      },
+      undefined,
+      (err) => reject(err),
+    )
+  })
+
+  return sharedTexturePromise
+}
 
 export default function MilkyWayTextureCanvas({
   rotMatrix, cx, cy, R, width, height, opacity,
   sunDirection, moonDirection, twilightWash, moonWash,
 }: MilkyWayTextureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const seqRef = useRef(0)
-  const idRef = useRef(nextInstanceId++)
+  const glRef = useRef<GlState | null>(null)
+  const drawRef = useRef<(() => void) | null>(null)
+  const propsRef = useRef({
+    rotMatrix,
+    cx,
+    cy,
+    R,
+    width,
+    height,
+    opacity,
+    sunDirection,
+    moonDirection,
+    twilightWash,
+    moonWash,
+  })
+
+  propsRef.current = {
+    rotMatrix,
+    cx,
+    cy,
+    R,
+    width,
+    height,
+    opacity,
+    sunDirection,
+    moonDirection,
+    twilightWash,
+    moonWash,
+  }
 
   useEffect(() => {
-    const worker = acquireWorker()
-    let disposed = false
-    const myId = idRef.current
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-    const onMessage = (e: MessageEvent) => {
-      if (disposed) return
-      const d = e.data
-      if (d.type === 'result' && d.id === myId && d.seq === seqRef.current) {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: false,
+      powerPreference: 'high-performance',
+      premultipliedAlpha: true,
+    })
+    renderer.setPixelRatio(1)
+    renderer.setClearColor(0x000000, 0)
 
-        // Only reset dimensions when they actually change — avoids clearing
-        // the buffer (setting canvas.width always clears, even to same value)
-        if (canvas.width !== d.width || canvas.height !== d.height) {
-          canvas.width = d.width
-          canvas.height = d.height
-        } else {
-          ctx.clearRect(0, 0, d.width, d.height)
-        }
+    const scene = new THREE.Scene()
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    const geometry = new THREE.PlaneGeometry(2, 2)
 
-        const imgData = new ImageData(
-          new Uint8ClampedArray(d.pixels),
-          d.width,
-          d.height,
-        )
-        ctx.putImageData(imgData, 0, 0)
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        map: { value: null },
+        rot: { value: new THREE.Matrix3() },
+        resolution: { value: new THREE.Vector2(1, 1) },
+        cx: { value: 0 },
+        cy: { value: 0 },
+        R: { value: 1 },
+        opacity: { value: 1 },
+        sunDir: { value: new THREE.Vector3(0, 0, 1) },
+        moonDir: { value: new THREE.Vector3(0, 0, 1) },
+        twilightWash: { value: 0 },
+        moonWash: { value: 0 },
+      },
+    })
 
-        // Clip to circle (putImageData ignores clip, so mask after)
-        ctx.globalCompositeOperation = 'destination-in'
-        ctx.beginPath()
-        ctx.arc(d.cx, d.cy, d.R, 0, TWO_PI)
-        ctx.fill()
-        ctx.globalCompositeOperation = 'source-over'
-      }
+    const quad = new THREE.Mesh(geometry, material)
+    scene.add(quad)
+
+    const state: GlState = {
+      renderer,
+      scene,
+      camera,
+      material,
+      geometry,
+      sunVec: new THREE.Vector3(),
+      moonVec: new THREE.Vector3(),
+    }
+    glRef.current = state
+
+    drawRef.current = () => {
+      const gl = glRef.current
+      if (!gl) return
+      const p = propsRef.current
+      if (p.width <= 0 || p.height <= 0) return
+
+      gl.renderer.setSize(p.width, p.height, false)
+
+      gl.material.uniforms.resolution.value.set(p.width, p.height)
+      gl.material.uniforms.cx.value = p.cx
+      gl.material.uniforms.cy.value = p.cy
+      gl.material.uniforms.R.value = p.R
+      gl.material.uniforms.opacity.value = p.opacity
+      gl.material.uniforms.twilightWash.value = p.twilightWash
+      gl.material.uniforms.moonWash.value = p.moonWash
+
+      gl.material.uniforms.rot.value.set(
+        p.rotMatrix[0][0], p.rotMatrix[0][1], p.rotMatrix[0][2],
+        p.rotMatrix[1][0], p.rotMatrix[1][1], p.rotMatrix[1][2],
+        p.rotMatrix[2][0], p.rotMatrix[2][1], p.rotMatrix[2][2],
+      )
+
+      gl.sunVec.set(p.sunDirection[0], p.sunDirection[1], p.sunDirection[2])
+      if (gl.sunVec.lengthSq() < 1e-8) gl.sunVec.set(0, 0, 1)
+      else gl.sunVec.normalize()
+
+      gl.moonVec.set(p.moonDirection[0], p.moonDirection[1], p.moonDirection[2])
+      if (gl.moonVec.lengthSq() < 1e-8) gl.moonVec.set(0, 0, 1)
+      else gl.moonVec.normalize()
+
+      gl.material.uniforms.sunDir.value.copy(gl.sunVec)
+      gl.material.uniforms.moonDir.value.copy(gl.moonVec)
+
+      gl.renderer.render(gl.scene, gl.camera)
     }
 
-    worker.addEventListener('message', onMessage)
+    let cancelled = false
+    loadTexture()
+      .then((texture) => {
+        if (cancelled || !glRef.current) return
+        glRef.current.material.uniforms.map.value = texture
+        drawRef.current?.()
+      })
+      .catch(() => {
+        // Keep charts functional if texture load fails.
+      })
 
     return () => {
-      disposed = true
-      worker.removeEventListener('message', onMessage)
-      releaseWorker()
+      cancelled = true
+      drawRef.current = null
+      glRef.current = null
+      scene.remove(quad)
+      geometry.dispose()
+      material.dispose()
+      renderer.dispose()
     }
   }, [])
 
-  // Send render requests when params change
   useEffect(() => {
-    if (!workerInstance || width === 0 || height === 0) return
+    drawRef.current?.()
+  }, [rotMatrix, cx, cy, R, width, height, opacity, sunDirection, moonDirection, twilightWash, moonWash])
 
-    const seq = ++seqRef.current
-
-    ensureTexture(workerInstance).then(() => {
-      if (seq !== seqRef.current) return // stale
-      const rot = [
-        rotMatrix[0][0], rotMatrix[0][1], rotMatrix[0][2],
-        rotMatrix[1][0], rotMatrix[1][1], rotMatrix[1][2],
-        rotMatrix[2][0], rotMatrix[2][1], rotMatrix[2][2],
-      ]
-      workerInstance!.postMessage({
-        type: 'render',
-        rot,
-        cx,
-        cy,
-        R,
-        width,
-        height,
-        sunDir: sunDirection,
-        moonDir: moonDirection,
-        twilightWash,
-        moonWash,
-        seq,
-        id: idRef.current,
-      })
-    })
-  }, [rotMatrix, cx, cy, R, width, height, sunDirection, moonDirection, twilightWash, moonWash])
-
-  // Circular clip div — prevents the canvas rectangle from being visible
-  // outside the chart circle while waiting for the worker's destination-in mask.
-  // No width/height attributes on <canvas> — React must not touch the buffer.
   return (
     <div style={{
       position: 'absolute',
@@ -333,6 +309,8 @@ export default function MilkyWayTextureCanvas({
           position: 'absolute',
           left: -(cx - R),
           top: -(cy - R),
+          width,
+          height,
         }}
       />
     </div>

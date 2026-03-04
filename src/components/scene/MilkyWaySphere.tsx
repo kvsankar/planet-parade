@@ -1,6 +1,7 @@
-import { useMemo, memo, useEffect, useRef } from 'react'
+import { useMemo, memo, useEffect, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { useLoader, useFrame } from '@react-three/fiber'
+import { PlanetariumSkyState } from './planetariumSkyState'
 
 const OBLIQUITY_RAD = 23.4392911 * (Math.PI / 180)
 const MW_SPHERE_RADIUS = 949
@@ -73,6 +74,7 @@ interface Props {
   moonDirectionLocal?: [number, number, number]
   twilightWash?: number
   moonWash?: number
+  skyStateRef?: MutableRefObject<PlanetariumSkyState>
 }
 
 const NO_RAYCAST: THREE.Object3D['raycast'] = () => {
@@ -91,6 +93,7 @@ export default memo(function MilkyWaySphere({
   moonDirectionLocal = [0, 1, 0],
   twilightWash = 0,
   moonWash = 0,
+  skyStateRef,
 }: Props) {
   const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}starmap_4k.jpg`)
   const meshRef = useRef<THREE.Mesh>(null)
@@ -138,8 +141,19 @@ export default memo(function MilkyWaySphere({
     const viewGroup = mesh.parent?.parent
     if (!viewGroup) return
 
-    _localSun.set(sunDirectionLocal[0], sunDirectionLocal[1], sunDirectionLocal[2]).normalize()
-    _localMoon.set(moonDirectionLocal[0], moonDirectionLocal[1], moonDirectionLocal[2]).normalize()
+    const sky = skyStateRef?.current
+    const activeSun = sky?.sunDirection ?? sunDirectionLocal
+    const activeMoon = sky?.moonDirection ?? moonDirectionLocal
+    const activeTwilightWash = sky?.twilightWash ?? twilightWash
+    const activeMoonWash = sky?.moonWash ?? moonWash
+    const activeVisibility = sky?.milkyWayVisibility ?? visibility
+
+    material.uniforms.opacity.value = baseOpacity * activeVisibility
+    material.uniforms.twilightWash.value = activeTwilightWash
+    material.uniforms.moonWash.value = activeMoonWash
+
+    _localSun.set(activeSun[0], activeSun[1], activeSun[2]).normalize()
+    _localMoon.set(activeMoon[0], activeMoon[1], activeMoon[2]).normalize()
 
     _worldSun.copy(_localSun).transformDirection(viewGroup.matrixWorld).normalize()
     _worldMoon.copy(_localMoon).transformDirection(viewGroup.matrixWorld).normalize()
