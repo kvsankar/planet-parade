@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+Node baseline: **24.x LTS** (see `.nvmrc`).
+
 ```bash
 npm run dev          # Start Vite dev server (http://localhost:5173)
 npm run build        # Type-check (tsc) then production build

@@ -73,6 +73,12 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 
 ## Getting Started
 
+Use **Node 24.x LTS** (`.nvmrc` is included):
+
+```bash
+nvm use
+```
+
 ```bash
 npm install
 npm run dev
