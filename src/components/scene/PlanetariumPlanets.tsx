@@ -125,6 +125,7 @@ export default function PlanetariumPlanets({
 }: Props) {
   const { camera } = useThree()
   const bodyGroupRefs = useRef<Map<SkyBodyId, THREE.Group>>(new Map())
+  const labelElementRefs = useRef<Map<SkyBodyId, HTMLDivElement>>(new Map())
   const sunGlowRef = useRef<THREE.Sprite>(null)
   const moonGlowRef = useRef<THREE.Sprite>(null)
   const moonPhaseSignatureRef = useRef('')
@@ -238,9 +239,14 @@ export default function PlanetariumPlanets({
       }
 
       const group = bodyGroupRefs.current.get(bodyId)
+      const bodyVisible = isAboveHorizon && (bodyId !== 'Moon' || showMoon)
       if (group) {
         group.position.set(pos[0], pos[1], pos[2])
-        group.visible = isAboveHorizon && (bodyId !== 'Moon' || showMoon)
+        group.visible = bodyVisible
+      }
+      const labelEl = labelElementRefs.current.get(bodyId)
+      if (labelEl) {
+        labelEl.style.display = showLabels && bodyVisible ? 'block' : 'none'
       }
     }
 
@@ -346,7 +352,10 @@ export default function PlanetariumPlanets({
     }
 
     if (sunGlowRef.current) {
-      const visible = showAtmosphere && atmosphere.sunGlowStrength > 0.001 && sunPos != null
+      const visible = showAtmosphere
+        && atmosphere.sunGlowStrength > 0.001
+        && sunPos != null
+        && sunAlt >= ABOVE_HORIZON_EPS_DEG
       sunGlowRef.current.visible = visible
       if (visible && sunPos) {
         sunGlowRef.current.position.set(sunPos[0], sunPos[1], sunPos[2])
@@ -359,7 +368,11 @@ export default function PlanetariumPlanets({
     }
 
     if (moonGlowRef.current) {
-      const visible = showAtmosphere && showMoon && moonGlow.opacity > 0.001 && moonPos != null
+      const visible = showAtmosphere
+        && showMoon
+        && moonGlow.opacity > 0.001
+        && moonPos != null
+        && moonAlt >= ABOVE_HORIZON_EPS_DEG
       moonGlowRef.current.visible = visible
       if (visible && moonPos) {
         moonGlowRef.current.position.set(moonPos[0], moonPos[1], moonPos[2])
@@ -406,7 +419,14 @@ export default function PlanetariumPlanets({
                 style={{ pointerEvents: 'none' }}
                 zIndexRange={[180, 0]}
               >
-                <div className="planetarium-star-label" style={{ color: labelColor }}>
+                <div
+                  ref={(el) => {
+                    if (el) labelElementRefs.current.set(bodyId, el)
+                    else labelElementRefs.current.delete(bodyId)
+                  }}
+                  className="planetarium-star-label"
+                  style={{ color: labelColor }}
+                >
                   {bodyId}
                 </div>
               </Html>
