@@ -68,10 +68,15 @@ const fragmentShader = `
  */
 interface Props {
   visibility?: number
+  baseOpacity?: number
   sunDirectionLocal?: [number, number, number]
   moonDirectionLocal?: [number, number, number]
   twilightWash?: number
   moonWash?: number
+}
+
+const NO_RAYCAST: THREE.Object3D['raycast'] = () => {
+  // Prevent transparent Milky Way mesh from occluding Html labels.
 }
 
 const _localSun = new THREE.Vector3()
@@ -81,6 +86,7 @@ const _worldMoon = new THREE.Vector3()
 
 export default memo(function MilkyWaySphere({
   visibility = 1,
+  baseOpacity = 0.25,
   sunDirectionLocal = [0, 1, 0],
   moonDirectionLocal = [0, 1, 0],
   twilightWash = 0,
@@ -100,7 +106,7 @@ export default memo(function MilkyWaySphere({
       fragmentShader,
       uniforms: {
         map: { value: texture },
-        opacity: { value: 0.25 },
+        opacity: { value: baseOpacity },
         sunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
         moonDirWorld: { value: new THREE.Vector3(0, 1, 0) },
         twilightWash: { value: 0 },
@@ -112,11 +118,11 @@ export default memo(function MilkyWaySphere({
     })
 
     return { geometry: geo, material: mat }
-  }, [texture])
+  }, [texture, baseOpacity])
 
   useEffect(() => {
-    material.uniforms.opacity.value = 0.25 * visibility
-  }, [material, visibility])
+    material.uniforms.opacity.value = baseOpacity * visibility
+  }, [material, baseOpacity, visibility])
 
   useEffect(() => {
     material.uniforms.twilightWash.value = twilightWash
@@ -149,6 +155,7 @@ export default memo(function MilkyWaySphere({
       material={material}
       rotation={MW_ROTATION}
       scale={MW_SCALE}
+      raycast={NO_RAYCAST}
     />
   )
 })

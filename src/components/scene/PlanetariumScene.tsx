@@ -25,6 +25,7 @@ import { AtmosphereAppearance, getAtmosphereAppearance } from '../../lib/atmosph
 const CANVAS_STYLE = { background: '#000000' }
 const STEREOGRAPHIC_CAMERA_DISTANCE = CELESTIAL_SPHERE_RADIUS * 1.02
 const DISK_MASK_ENABLE_FOV = 120
+const PLANETARIUM_MW_BASE_OPACITY = 0.45
 
 interface ContentsProps {
   observer: ObserverLocation
@@ -85,6 +86,7 @@ function PlanetariumContents({
         {showMilkyWayLocal && (
           <MilkyWaySphere
             visibility={milkyWayVisibilityLocal}
+            baseOpacity={PLANETARIUM_MW_BASE_OPACITY}
             sunDirectionLocal={sunDirectionLocal}
             moonDirectionLocal={moonDirectionLocal}
             twilightWash={twilightWashLocal}
@@ -122,6 +124,7 @@ interface Props {
   observer: ObserverLocation
   currentDate: Date
   timeZone?: string | null
+  autoViewResetToken?: number
   onAutoDateChange?: (d: Date) => void
   targetComboBodies?: CelestialBodyId[] | null
 }
@@ -130,6 +133,7 @@ export default memo(function PlanetariumScene({
   observer,
   currentDate,
   timeZone,
+  autoViewResetToken,
   onAutoDateChange,
   targetComboBodies,
 }: Props) {
@@ -244,6 +248,7 @@ export default memo(function PlanetariumScene({
           observer={observer}
           currentDate={currentDate}
           timeZone={timeZone}
+          autoResetToken={autoViewResetToken}
           targetComboBodies={targetComboBodies}
           onAutoDateChange={onAutoDateChange}
           onFovChange={setViewFovDeg}

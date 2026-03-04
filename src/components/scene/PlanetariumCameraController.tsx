@@ -5,7 +5,6 @@ import { planetariumStore } from '../../hooks/usePlanetariumStore'
 import { simulationStore } from '../../hooks/useSimulationStore'
 import { getAltAz, getEclipticAltAzPositions, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import { findBestPlanetariumNightTime, findFirstSunOnHorizon } from '../../lib/planetariumDefaultView'
-import { getTimeZoneDayKey } from '../../lib/timeZoneDay'
 import { CelestialBodyId, ObserverLocation } from '../../types'
 
 const MIN_FOV_DEG = 20
@@ -60,6 +59,7 @@ interface Props {
   observer: ObserverLocation
   currentDate: Date
   timeZone?: string | null
+  autoResetToken?: number
   targetComboBodies?: CelestialBodyId[] | null
   onAutoDateChange?: (d: Date) => void
   onFovChange?: (fovDeg: number) => void
@@ -206,6 +206,7 @@ export default function PlanetariumCameraController({
   observer,
   currentDate,
   timeZone,
+  autoResetToken,
   targetComboBodies,
   onAutoDateChange,
   onFovChange,
@@ -221,8 +222,6 @@ export default function PlanetariumCameraController({
   const touchDragAxis = useRef<DragAxis>('free')
   const touchDragAccum = useRef({ x: 0, y: 0 })
   const pinchDistanceRef = useRef<number | null>(null)
-  const targetKey = (targetComboBodies ?? []).join(',')
-  const currentDayKey = getTimeZoneDayKey(currentDate, timeZone)
 
   const setFovDeg = useCallback((nextFov: number) => {
     const clamped = clamp(nextFov, MIN_FOV_DEG, MAX_FOV_DEG)
@@ -247,12 +246,10 @@ export default function PlanetariumCameraController({
   }, [onFovChange])
 
   useEffect(() => {
-    // Deterministic default view each time planetarium view mounts, or when
-    // selected combo, observer, or day changes: choose the best slot for the active
-    // cluster (visibility first, then solar-interference minimization), and
-    // frame the combo on a wide ecliptic-friendly horizon-to-horizon layout.
-    // Intentionally does NOT run for minute-level date edits within a day, so
-    // in-panel +/-1m/+/-5m controls keep manual orientation stable.
+    // Deterministic default view each time planetarium view mounts, and when
+    // an explicit alignment navigation event requests it. This avoids resets
+    // during passive playback/date drift while still recentering for Prev/Next
+    // and table date selection in the Alignments panel.
     const cam = camera as THREE.PerspectiveCamera
     setFovDeg(DEFAULT_FOV_DEG)
     cam.fov = DEFAULT_FOV_DEG
@@ -330,7 +327,7 @@ export default function PlanetariumCameraController({
       planetariumStore.yaw = DEFAULT_YAW
       planetariumStore.pitch = DEFAULT_PITCH
     }
-  }, [camera, observer, targetKey, currentDayKey, timeZone, setFovDeg])
+  }, [camera, observer, autoResetToken, timeZone, onAutoDateChange, setFovDeg])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
     try {

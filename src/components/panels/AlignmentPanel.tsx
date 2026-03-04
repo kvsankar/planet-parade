@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import PlanetPicker from '../alignment/PlanetPicker'
 import TimeRangeSelector from '../alignment/TimeRangeSelector'
 import PlanetCountRange from '../alignment/PlanetCountRange'
@@ -13,9 +13,16 @@ interface AlignmentPanelProps {
   currentDate: Date
   timeZone?: string | null
   isLandscape?: boolean
+  onPlanetariumResetRequest?: () => void
 }
 
-export default function AlignmentPanel({ alignment, currentDate, timeZone, isLandscape }: AlignmentPanelProps) {
+export default function AlignmentPanel({
+  alignment,
+  currentDate,
+  timeZone,
+  isLandscape,
+  onPlanetariumResetRequest,
+}: AlignmentPanelProps) {
   const {
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
@@ -57,14 +64,29 @@ export default function AlignmentPanel({ alignment, currentDate, timeZone, isLan
     [activeCombo],
   )
 
+  const handlePeakSelect = useCallback((dateMs: number) => {
+    onPlanetariumResetRequest?.()
+    handleDateSelect(dateMs)
+  }, [handleDateSelect, onPlanetariumResetRequest])
+
+  const handlePrevPeak = useCallback(() => {
+    onPlanetariumResetRequest?.()
+    jumpToPeak('prev')
+  }, [jumpToPeak, onPlanetariumResetRequest])
+
+  const handleNextPeak = useCallback(() => {
+    onPlanetariumResetRequest?.()
+    jumpToPeak('next')
+  }, [jumpToPeak, onPlanetariumResetRequest])
+
   const tables = (
     <div className="alignment-tables">
       <MinimaTable
         ppiPeaks={filteredPeaks}
         currentDate={currentDateMs}
-        onSelect={handleDateSelect}
-        onPrev={() => jumpToPeak('prev')}
-        onNext={() => jumpToPeak('next')}
+        onSelect={handlePeakSelect}
+        onPrev={handlePrevPeak}
+        onNext={handleNextPeak}
         hasPrev={hasPrev}
         hasNext={hasNext}
         timeZone={timeZone}

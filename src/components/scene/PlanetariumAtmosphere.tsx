@@ -47,6 +47,10 @@ const fragmentShader = `
   }
 `
 
+const NO_RAYCAST: THREE.Object3D['raycast'] = () => {
+  // Keep transparent atmosphere out of Html occlusion raycasts.
+}
+
 interface Props {
   appearance: AtmosphereAppearance
   sunDirectionLocal: [number, number, number]
@@ -113,5 +117,5 @@ export default memo(function PlanetariumAtmosphere({
     }
   }, [geometry, material])
 
-  return <mesh geometry={geometry} material={material} renderOrder={-20} />
+  return <mesh geometry={geometry} material={material} renderOrder={-20} raycast={NO_RAYCAST} />
 })

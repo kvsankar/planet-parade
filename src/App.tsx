@@ -152,6 +152,10 @@ export default function App() {
   const [locationPickerOpen, setLocationPickerOpen] = useState(false)
   const openLocationPicker = useCallback(() => setLocationPickerOpen(true), [])
   const closeLocationPicker = useCallback(() => setLocationPickerOpen(false), [])
+  const [planetariumViewResetToken, setPlanetariumViewResetToken] = useState(0)
+  const requestPlanetariumViewReset = useCallback(() => {
+    setPlanetariumViewResetToken((token) => token + 1)
+  }, [])
 
   // --- Alignment state (shared across panels) ---
   const alignment = useAlignmentState(currentDate, handleSetDate, observerState.timeZone)
@@ -262,6 +266,7 @@ export default function App() {
                 observer={observer}
                 currentDate={currentDate}
                 timeZone={observerState.timeZone}
+                autoViewResetToken={planetariumViewResetToken}
                 onAutoDateChange={handleSetDate}
                 targetComboBodies={activeCombo?.planets ?? null}
               />
@@ -317,6 +322,7 @@ export default function App() {
                 currentDate={currentDate}
                 timeZone={observerState.timeZone}
                 isLandscape={effectiveIsLandscape}
+                onPlanetariumResetRequest={requestPlanetariumViewReset}
               />
             )}
             {mobileTab === 'timeline' && (
@@ -386,6 +392,7 @@ export default function App() {
                   observer={observer}
                   currentDate={currentDate}
                   timeZone={observerState.timeZone}
+                  autoViewResetToken={planetariumViewResetToken}
                   onAutoDateChange={handleSetDate}
                   targetComboBodies={activeCombo?.planets ?? null}
                 />
@@ -429,6 +436,7 @@ export default function App() {
             currentDate={currentDate}
             timeZone={observerState.timeZone}
             isLandscape={effectiveIsLandscape}
+            onPlanetariumResetRequest={requestPlanetariumViewReset}
           />
         </FloatingPanel>
 
