@@ -13,7 +13,11 @@ const maxWorstP99IncreaseMs = parseNumber(process.env.PERF_MAX_WORST_P99_INCREAS
 const maxLongTaskIncreasePct = parseNumber(process.env.PERF_MAX_LONG_TASK_INCREASE_PCT, 40)
 const maxLongTaskIncreaseAbs = parseNumber(process.env.PERF_MAX_LONG_TASK_INCREASE_ABS, 400)
 
-const segmentLabel = process.env.PERF_SEGMENT_LABEL ?? 'skychart_texture_playback'
+const segmentLabels = parseSegmentLabels(
+  process.env.PERF_SEGMENT_LABELS,
+  process.env.PERF_SEGMENT_LABEL,
+  ['skychart_texture_playback', 'planetarium_playback', 'idle_final'],
+)
 const maxSegmentFpsDropPct = parseNumber(process.env.PERF_MAX_SEGMENT_FPS_DROP_PCT, 25)
 const maxSegmentP99IncreasePct = parseNumber(process.env.PERF_MAX_SEGMENT_P99_INCREASE_PCT, 40)
 const maxSegmentP99IncreaseMs = parseNumber(process.env.PERF_MAX_SEGMENT_P99_INCREASE_MS, 25)
@@ -30,6 +34,17 @@ function parseNumber(value, fallback) {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return fallback
   return parsed
+}
+
+function parseSegmentLabels(segmentListEnv, legacySingleSegmentEnv, fallback) {
+  const raw = segmentListEnv ?? legacySingleSegmentEnv ?? ''
+  const labels = raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (!labels.length) return fallback
+  return [...new Set(labels)]
 }
 
 function round(value, digits = 2) {
@@ -102,44 +117,46 @@ function evaluateChecks({ baseline, current }) {
     expected: `<= ${round(longTaskCeiling)}`,
   })
 
-  const baselineSegment = getSegment(baseline.segments, segmentLabel)
-  const currentSegment = getSegment(current.segments, segmentLabel)
+  for (const segmentLabel of segmentLabels) {
+    const baselineSegment = getSegment(baseline.segments, segmentLabel)
+    const currentSegment = getSegment(current.segments, segmentLabel)
 
-  if (!baselineSegment || !currentSegment) {
+    if (!baselineSegment || !currentSegment) {
+      checks.push({
+        name: `segment:${segmentLabel}`,
+        ok: false,
+        baseline: baselineSegment ? 'present' : 'missing',
+        current: currentSegment ? 'present' : 'missing',
+        expected: 'both present',
+      })
+      continue
+    }
+
+    const baselineSegmentFps = Number(baselineSegment.fps)
+    const currentSegmentFps = Number(currentSegment.fps)
+    const segmentFpsFloor = baselineSegmentFps * (1 - (maxSegmentFpsDropPct / 100))
     checks.push({
-      name: `segment:${segmentLabel}`,
-      ok: false,
-      baseline: baselineSegment ? 'present' : 'missing',
-      current: currentSegment ? 'present' : 'missing',
-      expected: 'both present',
+      name: `segment:${segmentLabel}:fps`,
+      ok: currentSegmentFps >= segmentFpsFloor,
+      baseline: baselineSegmentFps,
+      current: currentSegmentFps,
+      expected: `>= ${round(segmentFpsFloor)}`,
     })
-    return checks
+
+    const baselineSegmentP99 = Number(baselineSegment.p99FrameMs)
+    const currentSegmentP99 = Number(currentSegment.p99FrameMs)
+    const segmentP99Ceiling = Math.max(
+      baselineSegmentP99 * (1 + (maxSegmentP99IncreasePct / 100)),
+      baselineSegmentP99 + maxSegmentP99IncreaseMs,
+    )
+    checks.push({
+      name: `segment:${segmentLabel}:p99FrameMs`,
+      ok: currentSegmentP99 <= segmentP99Ceiling,
+      baseline: baselineSegmentP99,
+      current: currentSegmentP99,
+      expected: `<= ${round(segmentP99Ceiling)}`,
+    })
   }
-
-  const baselineSegmentFps = Number(baselineSegment.fps)
-  const currentSegmentFps = Number(currentSegment.fps)
-  const segmentFpsFloor = baselineSegmentFps * (1 - (maxSegmentFpsDropPct / 100))
-  checks.push({
-    name: `segment:${segmentLabel}:fps`,
-    ok: currentSegmentFps >= segmentFpsFloor,
-    baseline: baselineSegmentFps,
-    current: currentSegmentFps,
-    expected: `>= ${round(segmentFpsFloor)}`,
-  })
-
-  const baselineSegmentP99 = Number(baselineSegment.p99FrameMs)
-  const currentSegmentP99 = Number(currentSegment.p99FrameMs)
-  const segmentP99Ceiling = Math.max(
-    baselineSegmentP99 * (1 + (maxSegmentP99IncreasePct / 100)),
-    baselineSegmentP99 + maxSegmentP99IncreaseMs,
-  )
-  checks.push({
-    name: `segment:${segmentLabel}:p99FrameMs`,
-    ok: currentSegmentP99 <= segmentP99Ceiling,
-    baseline: baselineSegmentP99,
-    current: currentSegmentP99,
-    expected: `<= ${round(segmentP99Ceiling)}`,
-  })
 
   return checks
 }
@@ -174,6 +191,7 @@ async function main() {
   console.log('[perf-check] Comparing profiling medians')
   console.log(`[perf-check] Baseline: ${baselinePath} (commit ${baseline.commit}, generated ${baseline.generatedAt})`)
   console.log(`[perf-check] Current:  ${currentPath} (commit ${current.commit}, generated ${current.generatedAt})`)
+  console.log(`[perf-check] Segment checks: ${segmentLabels.join(', ')}`)
 
   const checks = evaluateChecks({ baseline, current })
   printChecks(checks)

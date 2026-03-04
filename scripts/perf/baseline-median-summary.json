@@ -1,76 +1,76 @@
 {
-  "generatedAt": "2026-03-04T14:38:20.242Z",
-  "gitCommit": "7f7f242",
-  "repeat": 3,
-  "notes": "Baseline for Playwright repeat profiling regression checks. Update only after intentional perf changes.",
+  "generatedAt": "2026-03-04T15:28:18.389Z",
+  "gitCommit": "0ea422e",
+  "repeat": 5,
+  "notes": "Baseline for Playwright repeat profiling regression checks. Update only after intentional performance shifts are accepted.",
   "median": {
     "aggregate": {
       "totalProfileMs": 37000,
-      "weightedAvgFps": 14.27,
-      "worstP99FrameMs": 133.3,
-      "worstMaxFrameMs": 150.1,
-      "longTaskCount": 1047
+      "weightedAvgFps": 13.98,
+      "worstP99FrameMs": 100.1,
+      "worstMaxFrameMs": 116.7,
+      "longTaskCount": 1046
     },
     "segments": [
       {
         "label": "idle_initial",
         "durationMs": 4000,
-        "sampledFrames": 58,
-        "fps": 14.44,
-        "avgFrameMs": 69.25,
-        "p95FrameMs": 99.9,
-        "p99FrameMs": 100.1,
-        "maxFrameMs": 100.1,
-        "longTaskCount": 66,
-        "longTaskMaxMs": 376
+        "sampledFrames": 57,
+        "fps": 14.25,
+        "avgFrameMs": 70.19,
+        "p95FrameMs": 83.4,
+        "p99FrameMs": 83.4,
+        "maxFrameMs": 83.4,
+        "longTaskCount": 68,
+        "longTaskMaxMs": 389
       },
       {
         "label": "solar_playback",
         "durationMs": 8000,
-        "sampledFrames": 114,
-        "fps": 14.24,
-        "avgFrameMs": 70.23,
+        "sampledFrames": 108,
+        "fps": 13.39,
+        "avgFrameMs": 74.69,
         "p95FrameMs": 83.4,
-        "p99FrameMs": 100,
-        "maxFrameMs": 116.7,
-        "longTaskCount": 181,
-        "longTaskMaxMs": 376
+        "p99FrameMs": 99.9,
+        "maxFrameMs": 100,
+        "longTaskCount": 183,
+        "longTaskMaxMs": 389
       },
       {
         "label": "planetarium_playback",
         "durationMs": 10000,
-        "sampledFrames": 155,
-        "fps": 15.45,
-        "avgFrameMs": 64.73,
+        "sampledFrames": 154,
+        "fps": 15.31,
+        "avgFrameMs": 65.3,
         "p95FrameMs": 66.8,
         "p99FrameMs": 83.4,
         "maxFrameMs": 83.4,
         "longTaskCount": 203,
-        "longTaskMaxMs": 376
+        "longTaskMaxMs": 390
       },
       {
         "label": "skychart_texture_playback",
         "durationMs": 12000,
-        "sampledFrames": 151,
-        "fps": 12.55,
-        "avgFrameMs": 79.69,
-        "p95FrameMs": 100.1,
-        "p99FrameMs": 116.7,
-        "maxFrameMs": 150.1,
-        "longTaskCount": 348,
-        "longTaskMaxMs": 413
+        "sampledFrames": 160,
+        "fps": 13.27,
+        "avgFrameMs": 75.34,
+        "p95FrameMs": 83.4,
+        "p99FrameMs": 100.1,
+        "maxFrameMs": 116.7,
+        "longTaskCount": 355,
+        "longTaskMaxMs": 392
       },
       {
         "label": "idle_final",
         "durationMs": 3000,
-        "sampledFrames": 41,
-        "fps": 13.59,
-        "avgFrameMs": 73.57,
+        "sampledFrames": 42,
+        "fps": 13.77,
+        "avgFrameMs": 72.61,
         "p95FrameMs": 83.4,
-        "p99FrameMs": 100,
-        "maxFrameMs": 100,
-        "longTaskCount": 241,
-        "longTaskMaxMs": 413
+        "p99FrameMs": 83.4,
+        "maxFrameMs": 83.4,
+        "longTaskCount": 239,
+        "longTaskMaxMs": 392
       }
     ]
   }
