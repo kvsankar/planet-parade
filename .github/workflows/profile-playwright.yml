@@ -24,12 +24,15 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run profiling harness
-        run: npm run perf:profile:ci
+      - name: Run repeat profiling harness
+        run: npm run perf:profile:repeat:ci
+
+      - name: Check perf regression against baseline
+        run: npm run perf:profile:check:ci
 
       - name: Upload profiling artifacts
         uses: actions/upload-artifact@v4
         with:
           name: playwright-profile-artifacts
-          path: test-output/perf/latest
+          path: test-output/perf/repeat-latest
           if-no-files-found: error
