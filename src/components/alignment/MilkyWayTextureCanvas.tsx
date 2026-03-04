@@ -8,6 +8,10 @@ interface MilkyWayTextureCanvasProps {
   width: number
   height: number
   opacity: number
+  sunDirection: [number, number, number]
+  moonDirection: [number, number, number]
+  twilightWash: number
+  moonWash: number
 }
 
 // --------------- Web Worker (inline blob) ---------------
@@ -36,11 +40,30 @@ self.onmessage = function(e) {
     var rot = d.rot;
     var cx = d.cx, cy = d.cy, R = d.R;
     var w = d.width, h = d.height;
+    var sunDir = d.sunDir;
+    var moonDir = d.moonDir;
+    var twilightWash = d.twilightWash;
+    var moonWash = d.moonWash;
     var seq = d.seq;
 
     var r00 = rot[0], r01 = rot[1], r02 = rot[2];
     var r10 = rot[3], r11 = rot[4], r12 = rot[5];
     var r20 = rot[6], r21 = rot[7], r22 = rot[8];
+
+    var sunX = sunDir[0], sunY = sunDir[1], sunZ = sunDir[2];
+    var sunLen = Math.sqrt(sunX * sunX + sunY * sunY + sunZ * sunZ);
+    if (sunLen > 0) {
+      sunX /= sunLen; sunY /= sunLen; sunZ /= sunLen;
+    } else {
+      sunX = 0; sunY = 0; sunZ = 1;
+    }
+    var moonX = moonDir[0], moonY = moonDir[1], moonZ = moonDir[2];
+    var moonLen = Math.sqrt(moonX * moonX + moonY * moonY + moonZ * moonZ);
+    if (moonLen > 0) {
+      moonX /= moonLen; moonY /= moonLen; moonZ /= moonLen;
+    } else {
+      moonX = 0; moonY = 0; moonZ = 1;
+    }
 
     var RR = R * R;
     var out = new Uint8ClampedArray(w * h * 4);
@@ -54,22 +77,23 @@ self.onmessage = function(e) {
         if (rr > RR) continue;
 
         var r = Math.sqrt(rr);
+        var hor_x, hor_y, hor_z;
         var eqj_x, eqj_y, eqj_z;
 
         if (r < 0.5) {
-          eqj_x = r02; eqj_y = r12; eqj_z = r22;
+          hor_x = 0; hor_y = 0; hor_z = 1;
         } else {
           var alt_rad = HALF_PI * (1 - r / R);
           var cos_alt = Math.cos(alt_rad);
           var sin_alt = Math.sin(alt_rad);
           var inv_r = 1 / r;
-          var hor_x = cos_alt * (-ry * inv_r);
-          var hor_y = cos_alt * (rx * inv_r);
-          var hor_z = sin_alt;
-          eqj_x = r00 * hor_x + r01 * hor_y + r02 * hor_z;
-          eqj_y = r10 * hor_x + r11 * hor_y + r12 * hor_z;
-          eqj_z = r20 * hor_x + r21 * hor_y + r22 * hor_z;
+          hor_x = cos_alt * (-ry * inv_r);
+          hor_y = cos_alt * (rx * inv_r);
+          hor_z = sin_alt;
         }
+        eqj_x = r00 * hor_x + r01 * hor_y + r02 * hor_z;
+        eqj_y = r10 * hor_x + r11 * hor_y + r12 * hor_z;
+        eqj_z = r20 * hor_x + r21 * hor_y + r22 * hor_z;
 
         var dec = Math.asin(eqj_z > 1 ? 1 : eqj_z < -1 ? -1 : eqj_z);
         var ra = Math.atan2(eqj_y, eqj_x);
@@ -101,10 +125,35 @@ self.onmessage = function(e) {
         var w01 = (1 - fx) * fy;
         var w11 = fx * fy;
 
+        var localVisibility = 1.0;
+
+        if (twilightWash > 0.0001) {
+          var sunDot = hor_x * sunX + hor_y * sunY + hor_z * sunZ;
+          if (sunDot > 1) sunDot = 1;
+          if (sunDot < -1) sunDot = -1;
+          var sunAng = Math.acos(sunDot);
+          var sunWide = Math.exp(-0.5 * Math.pow(sunAng / 0.85, 2.0));
+          var sunCore = Math.exp(-0.5 * Math.pow(sunAng / 0.22, 2.0));
+          var sunScatter = 0.65 * sunWide + 0.35 * sunCore;
+          localVisibility -= 0.85 * twilightWash * sunScatter;
+        }
+
+        if (moonWash > 0.0001) {
+          var moonDot = hor_x * moonX + hor_y * moonY + hor_z * moonZ;
+          if (moonDot > 1) moonDot = 1;
+          if (moonDot < -1) moonDot = -1;
+          var moonAng = Math.acos(moonDot);
+          var moonKernel = Math.exp(-0.5 * Math.pow(moonAng / 0.33, 2.0));
+          localVisibility -= 0.75 * moonWash * moonKernel;
+        }
+
+        if (localVisibility < 0.05) localVisibility = 0.05;
+        if (localVisibility > 1.0) localVisibility = 1.0;
+
         var idx = (py * w + px) * 4;
-        out[idx]     = texPixels[i00]     * w00 + texPixels[i10]     * w10 + texPixels[i01]     * w01 + texPixels[i11]     * w11;
-        out[idx + 1] = texPixels[i00 + 1] * w00 + texPixels[i10 + 1] * w10 + texPixels[i01 + 1] * w01 + texPixels[i11 + 1] * w11;
-        out[idx + 2] = texPixels[i00 + 2] * w00 + texPixels[i10 + 2] * w10 + texPixels[i01 + 2] * w01 + texPixels[i11 + 2] * w11;
+        out[idx]     = (texPixels[i00]     * w00 + texPixels[i10]     * w10 + texPixels[i01]     * w01 + texPixels[i11]     * w11) * localVisibility;
+        out[idx + 1] = (texPixels[i00 + 1] * w00 + texPixels[i10 + 1] * w10 + texPixels[i01 + 1] * w01 + texPixels[i11 + 1] * w11) * localVisibility;
+        out[idx + 2] = (texPixels[i00 + 2] * w00 + texPixels[i10 + 2] * w10 + texPixels[i01 + 2] * w01 + texPixels[i11 + 2] * w11) * localVisibility;
         out[idx + 3] = 255;
       }
     }
@@ -178,6 +227,7 @@ const TWO_PI = 2 * Math.PI
 
 export default function MilkyWayTextureCanvas({
   rotMatrix, cx, cy, R, width, height, opacity,
+  sunDirection, moonDirection, twilightWash, moonWash,
 }: MilkyWayTextureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const seqRef = useRef(0)
@@ -245,10 +295,22 @@ export default function MilkyWayTextureCanvas({
         rotMatrix[2][0], rotMatrix[2][1], rotMatrix[2][2],
       ]
       workerInstance!.postMessage({
-        type: 'render', rot, cx, cy, R, width, height, seq, id: idRef.current,
+        type: 'render',
+        rot,
+        cx,
+        cy,
+        R,
+        width,
+        height,
+        sunDir: sunDirection,
+        moonDir: moonDirection,
+        twilightWash,
+        moonWash,
+        seq,
+        id: idRef.current,
       })
     })
-  }, [rotMatrix, cx, cy, R, width, height])
+  }, [rotMatrix, cx, cy, R, width, height, sunDirection, moonDirection, twilightWash, moonWash])
 
   // Circular clip div — prevents the canvas rectangle from being visible
   // outside the chart circle while waiting for the worker's destination-in mask.

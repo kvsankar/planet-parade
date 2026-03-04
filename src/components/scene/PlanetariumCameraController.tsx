@@ -11,6 +11,7 @@ const MAX_FOV_DEG = 175
 const DEFAULT_FOV_DEG = 60
 const DEFAULT_YAW = Math.PI // face south
 const DEFAULT_PITCH = 20 * (Math.PI / 180) // fallback when no combo is available
+const DEFAULT_HORIZON_DROP_DEG = 18
 const MS_PER_DAY = 86_400_000
 const TIME_SCAN_STEP_MS = 5 * 60 * 1000 // 5 minutes
 const DRAG_GAIN_MOUSE = 1.3
@@ -173,7 +174,6 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
   const touchDragAccum = useRef({ x: 0, y: 0 })
   const pinchDistanceRef = useRef<number | null>(null)
   const targetKey = (targetComboBodies ?? []).join(',')
-  const dayKey = `${currentDate.getUTCFullYear()}-${currentDate.getUTCMonth()}-${currentDate.getUTCDate()}`
 
   const setFovDeg = useCallback((nextFov: number) => {
     const clamped = clamp(nextFov, MIN_FOV_DEG, MAX_FOV_DEG)
@@ -199,7 +199,9 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
 
   useEffect(() => {
     // Deterministic default view each time planetarium view mounts, or when
-    // selected combo/day changes: use first viable time and focus brightest target.
+    // selected combo changes: use first viable time and focus brightest target.
+    // Intentionally does NOT run for date-only changes from the main controls,
+    // so alt/az orientation remains stable while stepping +/-1d or +/-5d.
     const cam = camera as THREE.PerspectiveCamera
     setFovDeg(DEFAULT_FOV_DEG)
     cam.fov = DEFAULT_FOV_DEG
@@ -246,9 +248,10 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
       }
 
       const az = focusTarget.azimuth * (Math.PI / 180)
-      // If brightest target is below horizon, point to horizon at same azimuth.
+      // Keep more sky in view by lowering the horizon line toward the bottom.
       const targetAltDeg = Math.max(0, focusTarget.altitude)
-      const alt = targetAltDeg * (Math.PI / 180)
+      const framedAltDeg = clamp(targetAltDeg + DEFAULT_HORIZON_DROP_DEG, 0, 85)
+      const alt = framedAltDeg * (Math.PI / 180)
       planetariumStore.yaw = normalizeAngleRad(-az)
       planetariumStore.pitch = clamp(alt, -MAX_PITCH, MAX_PITCH)
       return
@@ -257,7 +260,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     // Fallback only when combo centroid is unavailable.
     planetariumStore.yaw = DEFAULT_YAW
     planetariumStore.pitch = DEFAULT_PITCH
-  }, [camera, observer, targetKey, dayKey, setFovDeg])
+  }, [camera, observer, targetKey, setFovDeg])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
     try {

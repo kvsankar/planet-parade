@@ -1,6 +1,6 @@
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { useLoader } from '@react-three/fiber'
+import { useLoader, useFrame } from '@react-three/fiber'
 
 const OBLIQUITY_RAD = 23.4392911 * (Math.PI / 180)
 const MW_SPHERE_RADIUS = 949
@@ -11,8 +11,11 @@ const MW_SCALE: [number, number, number] = [-1, 1, 1]
 
 const vertexShader = `
   varying vec2 vUv;
+  varying vec3 vWorldDir;
   void main() {
     vUv = uv;
+    vec3 worldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+    vWorldDir = normalize(worldPos);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `
@@ -20,10 +23,35 @@ const vertexShader = `
 const fragmentShader = `
   uniform sampler2D map;
   uniform float opacity;
+  uniform vec3 sunDirWorld;
+  uniform vec3 moonDirWorld;
+  uniform float twilightWash;
+  uniform float moonWash;
   varying vec2 vUv;
+  varying vec3 vWorldDir;
   void main() {
     vec4 tex = texture2D(map, vUv);
-    gl_FragColor = vec4(tex.rgb, tex.a * opacity);
+
+    float localVisibility = 1.0;
+
+    if (twilightWash > 0.0001) {
+      float sunDot = clamp(dot(normalize(vWorldDir), normalize(sunDirWorld)), -1.0, 1.0);
+      float sunAng = acos(sunDot);
+      float sunWide = exp(-0.5 * pow(sunAng / 0.85, 2.0));
+      float sunCore = exp(-0.5 * pow(sunAng / 0.22, 2.0));
+      float sunScatter = clamp(0.65 * sunWide + 0.35 * sunCore, 0.0, 1.0);
+      localVisibility -= 0.85 * twilightWash * sunScatter;
+    }
+
+    if (moonWash > 0.0001) {
+      float moonDot = clamp(dot(normalize(vWorldDir), normalize(moonDirWorld)), -1.0, 1.0);
+      float moonAng = acos(moonDot);
+      float moonKernel = exp(-0.5 * pow(moonAng / 0.33, 2.0));
+      localVisibility -= 0.75 * moonWash * moonKernel;
+    }
+
+    localVisibility = clamp(localVisibility, 0.05, 1.0);
+    gl_FragColor = vec4(tex.rgb * localVisibility, tex.a * opacity * localVisibility);
   }
 `
 
@@ -38,8 +66,28 @@ const fragmentShader = `
  * Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio.
  * Data: Gaia DR2 (ESA/Gaia/DPAC).
  */
-export default memo(function MilkyWaySphere() {
+interface Props {
+  visibility?: number
+  sunDirectionLocal?: [number, number, number]
+  moonDirectionLocal?: [number, number, number]
+  twilightWash?: number
+  moonWash?: number
+}
+
+const _localSun = new THREE.Vector3()
+const _localMoon = new THREE.Vector3()
+const _worldSun = new THREE.Vector3()
+const _worldMoon = new THREE.Vector3()
+
+export default memo(function MilkyWaySphere({
+  visibility = 1,
+  sunDirectionLocal = [0, 1, 0],
+  moonDirectionLocal = [0, 1, 0],
+  twilightWash = 0,
+  moonWash = 0,
+}: Props) {
   const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}starmap_4k.jpg`)
+  const meshRef = useRef<THREE.Mesh>(null)
 
   const { geometry, material } = useMemo(() => {
     // Don't set colorSpace — we want raw sRGB bytes passed through as-is
@@ -53,6 +101,10 @@ export default memo(function MilkyWaySphere() {
       uniforms: {
         map: { value: texture },
         opacity: { value: 0.25 },
+        sunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
+        moonDirWorld: { value: new THREE.Vector3(0, 1, 0) },
+        twilightWash: { value: 0 },
+        moonWash: { value: 0 },
       },
       side: THREE.BackSide,
       transparent: true,
@@ -62,8 +114,37 @@ export default memo(function MilkyWaySphere() {
     return { geometry: geo, material: mat }
   }, [texture])
 
+  useEffect(() => {
+    material.uniforms.opacity.value = 0.25 * visibility
+  }, [material, visibility])
+
+  useEffect(() => {
+    material.uniforms.twilightWash.value = twilightWash
+  }, [material, twilightWash])
+
+  useEffect(() => {
+    material.uniforms.moonWash.value = moonWash
+  }, [material, moonWash])
+
+  useFrame(() => {
+    const mesh = meshRef.current
+    if (!mesh) return
+    const viewGroup = mesh.parent?.parent
+    if (!viewGroup) return
+
+    _localSun.set(sunDirectionLocal[0], sunDirectionLocal[1], sunDirectionLocal[2]).normalize()
+    _localMoon.set(moonDirectionLocal[0], moonDirectionLocal[1], moonDirectionLocal[2]).normalize()
+
+    _worldSun.copy(_localSun).transformDirection(viewGroup.matrixWorld).normalize()
+    _worldMoon.copy(_localMoon).transformDirection(viewGroup.matrixWorld).normalize()
+
+    material.uniforms.sunDirWorld.value.copy(_worldSun)
+    material.uniforms.moonDirWorld.value.copy(_worldMoon)
+  })
+
   return (
     <mesh
+      ref={meshRef}
       geometry={geometry}
       material={material}
       rotation={MW_ROTATION}

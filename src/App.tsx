@@ -44,6 +44,10 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sceneMenuOpen, setSceneMenuOpen] = useState(false)
   const [sceneView, setSceneView] = useState<'free' | 'planetarium'>('free')
+  const [forceLandscapeMobileView, setForceLandscapeMobileView] = useState(false)
+  const emulateLandscapeMobile = !isMobile && forceLandscapeMobileView
+  const effectiveIsMobile = isMobile || emulateLandscapeMobile
+  const effectiveIsLandscape = isLandscape || emulateLandscapeMobile
 
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -159,8 +163,20 @@ export default function App() {
   // --- Panel manager ---
   const panel = usePanelManager()
 
+  const toggleLandscapeMobileView = useCallback(() => {
+    setForceLandscapeMobileView((prev) => {
+      const next = !prev
+      if (next) {
+        setMobileTab('scene')
+        setMobileMenuOpen(false)
+        setSceneMenuOpen(false)
+      }
+      return next
+    })
+  }, [])
+
   // --- Guided tour ---
-  const { startTour, startAdvancedTour } = useTour({ isMobile, setMobileTab })
+  const { startTour, startAdvancedTour } = useTour({ isMobile: effectiveIsMobile, setMobileTab })
 
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
@@ -203,66 +219,100 @@ export default function App() {
       <button className={`scene-view-tab${sceneView === 'planetarium' ? ' active' : ''}`} onClick={() => setSceneView('planetarium')}>Planetarium</button>
     </div>
   )
+  const playbackModeToggle = !isMobile ? (
+    <button
+      className={`playback-mode-btn${emulateLandscapeMobile ? ' active' : ''}`}
+      onClick={toggleLandscapeMobileView}
+      title={emulateLandscapeMobile ? 'Return to desktop panel layout' : 'Switch to landscape mobile layout'}
+    >
+      {emulateLandscapeMobile ? 'Desktop View' : 'Mobile Landscape'}
+    </button>
+  ) : null
+  const showMobilePlaybackBar = emulateLandscapeMobile || (sceneView === 'free' && mobileTab !== 'align')
+  const showMobileScene = mobileTab === 'scene'
 
   const mobileLayout = (
-    <div className="app">
-      {/* Scene — always mounted to preserve WebGL state */}
+    <div className={`app${emulateLandscapeMobile ? ' app-force-mobile-landscape' : ''}`}>
       <div className="mobile-scene">
-        {sceneViewToggle}
-        <div style={{ display: sceneView === 'free' ? 'contents' : 'none' }}>
-          <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
-        </div>
-        {sceneView === 'planetarium' && (
-          <PlanetariumScene
-            observer={observer}
-            currentDate={currentDate}
-            onAutoDateChange={handleSetDate}
-            targetComboBodies={activeCombo?.planets ?? null}
-          />
-        )}
-        {sceneView === 'free' && (
-          <div className="scene-overlay">
-            <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
-            {ppiOverlay}
-            <button
-              className="mobile-menu-btn"
-              onClick={() => setMobileMenuOpen((o) => !o)}
-              aria-label="Settings"
-            >
-              ☰
-            </button>
-            {mobileMenuOpen && (
-              <div className="mobile-menu-dropdown">
-                <DisplayToggles />
-                <BodySelector />
+        {showMobileScene && (
+          <>
+            {sceneViewToggle}
+            {sceneView === 'free' && (
+              <SolarSystemScene
+                positions={positions}
+                orbitPaths={orbitPaths}
+                visibleSeries={alignment.visibleSeries}
+                bestPerKind={alignment.bestPerKind}
+              />
+            )}
+            {sceneView === 'planetarium' && (
+              <PlanetariumScene
+                observer={observer}
+                currentDate={currentDate}
+                onAutoDateChange={handleSetDate}
+                targetComboBodies={activeCombo?.planets ?? null}
+              />
+            )}
+            {sceneView === 'free' && (
+              <div className="scene-overlay">
+                <InfoDisplay selectedBodyId={selectedBodyId} positions={positions} />
+                {ppiOverlay}
+                <button
+                  className="mobile-menu-btn"
+                  onClick={() => setMobileMenuOpen((o) => !o)}
+                  aria-label="Settings"
+                >
+                  ☰
+                </button>
+                {mobileMenuOpen && (
+                  <div className="mobile-menu-dropdown">
+                    <DisplayToggles />
+                    <BodySelector />
+                  </div>
+                )}
               </div>
             )}
-          </div>
+            {sceneView === 'free' && (
+              <InnerPlanetsInset
+                positions={positions}
+                orbitPaths={orbitPaths}
+                visibleSeries={alignment.visibleSeries}
+                bestPerKind={alignment.bestPerKind}
+              />
+            )}
+            {sceneView === 'planetarium' && (
+              <PlanetariumTimeControls onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />
+            )}
+          </>
         )}
-        {sceneView === 'free' && <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />}
-        {sceneView === 'planetarium' && <PlanetariumTimeControls isPlaying={isPlaying} speed={speed} togglePlay={togglePlay} setSpeed={handleSetSpeed} onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
       </div>
 
       {/* Active panel sheet (overlays scene) */}
       {mobileTab !== 'scene' && (
-        <div className={`mobile-sheet${mobileTab !== 'align' ? ' mobile-sheet-with-playback' : ''}`}>
+        <div className={`mobile-sheet${showMobilePlaybackBar ? ' mobile-sheet-with-playback' : ''}`}>
           <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
           <div className="mobile-sheet-body">
-            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={isLandscape} />}
+            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />}
             {mobileTab === 'timeline' && (
               <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
             )}
             {mobileTab === 'sky' && (
-              <SkyViewPanel alignment={alignment} currentDate={currentDate} isLandscape={isLandscape} />
+              <SkyViewPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />
             )}
             {mobileTab === 'charts' && (
-              <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} isLandscape={isLandscape} />
+              <SkyChartPanel
+                currentDate={currentDate}
+                observer={observer}
+                isMobile={effectiveIsMobile}
+                isPlaying={isPlaying}
+                isLandscape={effectiveIsLandscape}
+              />
             )}
           </div>
         </div>
       )}
 
-      {mobileTab !== 'align' && (
+      {showMobilePlaybackBar && (
         <PlaybackBar
           currentDate={currentDate}
           isPlaying={isPlaying}
@@ -270,6 +320,7 @@ export default function App() {
           togglePlay={togglePlay}
           setSpeed={handleSetSpeed}
           onDateChange={handleSetDate}
+          extraActions={emulateLandscapeMobile ? playbackModeToggle : undefined}
         />
       )}
 
@@ -289,9 +340,14 @@ export default function App() {
           <div className="scene-panel-content">
             {sceneViewToggle}
             <div className="scene-canvas-area">
-              <div style={{ display: sceneView === 'free' ? 'contents' : 'none' }}>
-                <SolarSystemScene positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />
-              </div>
+              {sceneView === 'free' && (
+                <SolarSystemScene
+                  positions={positions}
+                  orbitPaths={orbitPaths}
+                  visibleSeries={alignment.visibleSeries}
+                  bestPerKind={alignment.bestPerKind}
+                />
+              )}
               {sceneView === 'planetarium' && (
                 <PlanetariumScene
                   observer={observer}
@@ -321,12 +377,12 @@ export default function App() {
               </div>
             )}
             {sceneView === 'free' && <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />}
-            {sceneView === 'planetarium' && <PlanetariumTimeControls isPlaying={isPlaying} speed={speed} togglePlay={togglePlay} setSpeed={handleSetSpeed} onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
+            {sceneView === 'planetarium' && <PlanetariumTimeControls onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
           </div>
         </FloatingPanel>
 
         <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
-          <AlignmentPanel alignment={alignment} currentDate={currentDate} />
+          <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />
         </FloatingPanel>
 
         <FloatingPanel {...fp('chart')} title="Parade Timeline" minWidth={400} minHeight={160}>
@@ -338,11 +394,17 @@ export default function App() {
         </FloatingPanel>
 
         <FloatingPanel {...fp('skyview')} title="Ecliptic Strip" minWidth={300} minHeight={200}>
-          <SkyViewPanel alignment={alignment} currentDate={currentDate} />
+          <SkyViewPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />
         </FloatingPanel>
 
-        <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200}>
-          <SkyChartPanel currentDate={currentDate} observer={observer} isMobile={isMobile} isPlaying={isPlaying} />
+        <FloatingPanel {...fp('skychart')} title="Sky Charts" minWidth={300} minHeight={200} bodyClassName="skychart-panel-body">
+          <SkyChartPanel
+            currentDate={currentDate}
+            observer={observer}
+            isMobile={effectiveIsMobile}
+            isPlaying={isPlaying}
+            isLandscape={effectiveIsLandscape}
+          />
         </FloatingPanel>
 
         <PlaybackBar
@@ -354,6 +416,7 @@ export default function App() {
           onDateChange={handleSetDate}
           extraActions={
             <>
+              {playbackModeToggle}
               <button className="reset-layout-btn" onClick={panel.resetLayout}>
                 Reset Layout
               </button>
@@ -370,7 +433,7 @@ export default function App() {
     <SimulationTimeContext.Provider value={simTimeValue}>
       <SelectionContext.Provider value={selectionValue}>
         <DisplaySettingsContext.Provider value={displayValue}>
-          {isMobile ? mobileLayout : desktopLayout}
+          {effectiveIsMobile ? mobileLayout : desktopLayout}
         </DisplaySettingsContext.Provider>
       </SelectionContext.Provider>
     </SimulationTimeContext.Provider>

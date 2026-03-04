@@ -41,12 +41,16 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   // --- Display toggles ---
   const [showStars, setShowStars] = useState(true)
+  const [showStarLabels, setShowStarLabels] = useState(true)
+  const [showPlanetLabels, setShowPlanetLabels] = useState(true)
   const [showConstellationEdges, setShowConstellationEdges] = useState(true)
   const [showConstellationLabels, setShowConstellationLabels] = useState(true)
+  const [showAltAzGrid, setShowAltAzGrid] = useState(true)
+  const [showEcliptic, setShowEcliptic] = useState(true)
   const [showMilkyWay, setShowMilkyWay] = useState(true)
-  const [showPlanets, setShowPlanets] = useState(true)
+  const [showAtmosphere, setShowAtmosphere] = useState(false)
   const [showMoon, setShowMoon] = useState(true)
-  const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('polygons')
+  const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
 
   // --- Zoom / pan ---
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -278,8 +282,11 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
   }, [])
 
   const toggleProps = {
-    showStars, showConstellationEdges, showConstellationLabels,
-    showMilkyWay, showPlanets, showMoon, isPlaying,
+    showStars, showStarLabels, showPlanetLabels,
+    showConstellationEdges, showConstellationLabels,
+    showAltAzGrid, showEcliptic,
+    showMilkyWay, showAtmosphere,
+    showPlanets: true, showMoon, isPlaying,
     hideTitle: !!isMobile,
     milkyWayStyle,
   }
@@ -365,11 +372,15 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
                 <div className="skychart-layer-dropdown">
                   {([
                     ['Stars', showStars, setShowStars],
-                    ['Edges', showConstellationEdges, setShowConstellationEdges],
-                    ['Labels', showConstellationLabels, setShowConstellationLabels],
                     ['Milky Way', showMilkyWay, setShowMilkyWay],
-                    ['Sun & Planets', showPlanets, setShowPlanets],
+                    ['Atmosphere', showAtmosphere, setShowAtmosphere],
+                    ['Star Labels', showStarLabels, setShowStarLabels],
+                    ['Planet Labels', showPlanetLabels, setShowPlanetLabels],
                     ['Moon', showMoon, setShowMoon],
+                    ['Constellation Edges', showConstellationEdges, setShowConstellationEdges],
+                    ['Constellation Labels', showConstellationLabels, setShowConstellationLabels],
+                    ['Alt/Az Grid', showAltAzGrid, setShowAltAzGrid],
+                    ['Ecliptic', showEcliptic, setShowEcliptic],
                   ] as [string, boolean, React.Dispatch<React.SetStateAction<boolean>>][]).map(([label, val, setter]) => (
                     <label key={label} className="skychart-toggle">
                       <input type="checkbox" checked={val} onChange={() => setter(v => !v)} />

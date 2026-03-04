@@ -1182,7 +1182,7 @@ select option {
 
 .scene-overlay {
   position: absolute;
-  top: 6px;
+  top: 34px;
   left: 6px;
   display: flex;
   flex-direction: column;
@@ -1409,9 +1409,6 @@ select option {
 /* ====== Planetarium Grid Toggles ====== */
 
 .planetarium-grid-toggles {
-  position: absolute;
-  top: 6px;
-  right: 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1419,8 +1416,39 @@ select option {
   backdrop-filter: blur(4px);
   border-radius: 6px;
   padding: 4px 8px;
-  z-index: 4;
+  z-index: 1;
   pointer-events: auto;
+}
+
+.planetarium-layer-menu {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.planetarium-layer-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(10, 10, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.planetarium-layer-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .planetarium-disk-mask {
@@ -1550,6 +1578,31 @@ select option {
   font-size: 10px;
 }
 
+.playback-mode-btn {
+  pointer-events: auto;
+  padding: 2px 8px;
+  min-height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.playback-mode-btn:hover {
+  color: #ddd;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.playback-mode-btn.active {
+  color: #6B93D6;
+  border-color: rgba(107, 147, 214, 0.45);
+  background: rgba(107, 147, 214, 0.18);
+}
+
 /* ====== SkyView Cone Toggles ====== */
 .sky-view-controls {
   display: flex;
@@ -1598,6 +1651,7 @@ select option {
   display: flex;
   flex-direction: column;
   position: relative;
+  background: #05070d;
 }
 
 .skychart-chart-area {
@@ -1609,6 +1663,15 @@ select option {
   justify-content: center;
   position: relative;
   touch-action: none;
+  background: #05070d;
+}
+
+.skychart-panel-body {
+  background: #05070d;
+}
+
+.floating-panel[data-tour="skychart"] {
+  background: #0a0d16;
 }
 
 .skychart-pair {
@@ -1883,6 +1946,242 @@ select option {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* ====== Desktop Emulation: Landscape Mobile View ====== */
+.app-force-mobile-landscape .mobile-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+.app-force-mobile-landscape .mobile-scene canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.app-force-mobile-landscape .mobile-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 50px);
+  z-index: 250;
+  background: #0a0a14;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-force-mobile-landscape .mobile-sheet-with-playback {
+  height: calc(100% - 82px);
+}
+
+.app-force-mobile-landscape .mobile-sheet-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #999;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.app-force-mobile-landscape .mobile-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 12px;
+  min-height: 0;
+}
+
+.app-force-mobile-landscape .mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50px;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: rgba(10, 10, 20, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 300;
+}
+
+.app-force-mobile-landscape .mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 50px;
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.app-force-mobile-landscape .mobile-tab.active {
+  color: #6B93D6;
+}
+
+.app-force-mobile-landscape .mobile-tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-force-mobile-landscape .mobile-tab-label {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.app-force-mobile-landscape .playback-bar {
+  left: 0;
+  right: 0;
+  bottom: 50px;
+  transform: none;
+  gap: 6px;
+  padding: 4px 12px;
+  z-index: 260;
+  background: rgba(10, 10, 20, 0.96);
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  justify-content: center;
+}
+
+.app-force-mobile-landscape .playback-bar .minima-nav-btn {
+  display: none;
+}
+
+.app-force-mobile-landscape .playback-bar .playback-today-btn {
+  display: inline-flex;
+  min-height: 24px;
+  font-size: 10px;
+  padding: 2px 6px;
+  align-items: center;
+}
+
+.app-force-mobile-landscape .playback-bar .playback-date-input {
+  font-size: 10px;
+  padding: 2px 4px;
+  min-height: 24px;
+}
+
+.app-force-mobile-landscape .playback-bar .play-btn {
+  min-height: 24px;
+  min-width: 24px;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.app-force-mobile-landscape .playback-bar .speed-select {
+  min-height: 24px;
+  font-size: 10px;
+  padding: 2px 4px;
+}
+
+.app-force-mobile-landscape .playback-bar .playback-mode-btn {
+  min-height: 24px;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.app-force-mobile-landscape .inner-planets-inset {
+  width: 120px;
+  height: 120px;
+  bottom: 110px;
+}
+
+.app-force-mobile-landscape .bottom-right-actions {
+  display: none;
+}
+
+.app-force-mobile-landscape .mobile-help-btn {
+  display: block;
+  position: fixed;
+  top: 6px;
+  right: 8px;
+  z-index: 270;
+}
+
+.app-force-mobile-landscape .mobile-help-btn .help-tour-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.app-force-mobile-landscape .mobile-scene .scene-overlay {
+  top: 40px;
+  left: 8px;
+  max-width: 200px;
+}
+
+.app-force-mobile-landscape .mobile-scene .planetarium-layer-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+}
+
+.app-force-mobile-landscape .mobile-menu-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(10, 10, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ccc;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.app-force-mobile-landscape .mobile-menu-dropdown {
+  pointer-events: auto;
+  background: rgba(10, 10, 20, 0.92);
+  border-radius: 8px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-force-mobile-landscape .mobile-sheet .play-btn {
+  min-height: 32px;
+  min-width: 32px;
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.app-force-mobile-landscape .mobile-sheet .minima-nav-btn {
+  min-height: 32px;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.app-force-mobile-landscape .mobile-sheet .playback-date-input {
+  min-height: 32px;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.app-force-mobile-landscape .mobile-sheet .speed-select {
+  min-height: 32px;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
 /* ====== Mobile Layout (< 768px) ====== */
 @media (max-width: 767.98px), ((max-height: 767.98px) and (orientation: landscape) and (pointer: coarse)) {
 
@@ -1907,7 +2206,7 @@ select option {
     width: 100%;
     height: calc(100% - 50px);
     z-index: 250;
-    background: rgba(10, 10, 20, 0.96);
+    background: #0a0a14;
     display: flex;
     flex-direction: column;
   }
@@ -2059,9 +2358,15 @@ select option {
 
   /* --- Scene overlay on mobile — compact menu --- */
   .mobile-scene .scene-overlay {
-    top: 8px;
+    top: 40px;
     left: 8px;
     max-width: 200px;
+  }
+
+  .mobile-scene .planetarium-layer-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
   }
 
   .mobile-menu-btn {

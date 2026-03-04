@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { simulationStore } from '../../hooks/useSimulationStore'
+import { MS_PER_DAY } from '../../constants'
 import { ObserverLocation } from '../../types'
 
 const SPEED_OPTIONS = [
@@ -27,36 +28,29 @@ function formatDateTime(date: Date): string {
 }
 
 interface Props {
-  isPlaying: boolean
-  speed: number
-  togglePlay: () => void
-  setSpeed: (s: number) => void
   onDateChange: (d: Date) => void
   observer: ObserverLocation
   currentDate: Date
 }
 
-export default function PlanetariumTimeControls({ isPlaying, speed, togglePlay, setSpeed, onDateChange, observer, currentDate }: Props) {
-  const savedSpeedRef = useRef<number | null>(null)
+export default function PlanetariumTimeControls({ onDateChange, observer, currentDate }: Props) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [speed, setSpeed] = useState(SPEED_OPTIONS[0].value)
   const rootRef = useRef<HTMLDivElement>(null)
   const [bottomPx, setBottomPx] = useState(BASE_BOTTOM_PX)
   const bottomPxRef = useRef(BASE_BOTTOM_PX)
+  const lastFrameRef = useRef<number | null>(null)
+  const uiUpdateRef = useRef(0)
 
   useEffect(() => {
     bottomPxRef.current = bottomPx
   }, [bottomPx])
 
-  // On mount: save current speed and set planetarium default
   useEffect(() => {
-    savedSpeedRef.current = simulationStore.speed
-    setSpeed(SPEED_OPTIONS[0].value) // 1 min/s
     return () => {
-      // On unmount: restore saved speed
-      if (savedSpeedRef.current !== null) {
-        setSpeed(savedSpeedRef.current)
-      }
+      lastFrameRef.current = null
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const stepMinutes = useCallback((minutes: number) => {
     const newMs = simulationStore.date.getTime() + minutes * 60 * 1000
@@ -65,28 +59,63 @@ export default function PlanetariumTimeControls({ isPlaying, speed, togglePlay, 
     onDateChange(newDate)
   }, [onDateChange])
 
+  useEffect(() => {
+    if (!isPlaying) {
+      lastFrameRef.current = null
+      return
+    }
+
+    let rafId = 0
+    const tick = (now: number) => {
+      if (lastFrameRef.current !== null) {
+        const elapsedSec = (now - lastFrameRef.current) / 1000
+        const capped = Math.min(elapsedSec, 0.1)
+        const newMs = simulationStore.date.getTime() + speed * capped * MS_PER_DAY
+        const newDate = new Date(newMs)
+        simulationStore.date = newDate
+
+        // Keep UI updates lightweight while playing.
+        if (now - uiUpdateRef.current > 100) {
+          uiUpdateRef.current = now
+          onDateChange(newDate)
+        }
+      }
+      lastFrameRef.current = now
+      rafId = requestAnimationFrame(tick)
+    }
+
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [isPlaying, speed, onDateChange])
+
   const updateBottomOffset = useCallback(() => {
     const controlsEl = rootRef.current
-    const playbackEl = document.querySelector('.playback-bar') as HTMLElement | null
-    if (!controlsEl || !playbackEl) {
+    if (!controlsEl) {
       setBottomPx((prev) => (prev === BASE_BOTTOM_PX ? prev : BASE_BOTTOM_PX))
       return
     }
 
     const controlsRect = controlsEl.getBoundingClientRect()
-    const playbackRect = playbackEl.getBoundingClientRect()
+    const blockers = Array.from(
+      document.querySelectorAll<HTMLElement>('.playback-bar, .mobile-tab-bar'),
+    )
+    if (blockers.length === 0) {
+      setBottomPx((prev) => (prev === BASE_BOTTOM_PX ? prev : BASE_BOTTOM_PX))
+      return
+    }
 
-    const overlapX = Math.min(controlsRect.right, playbackRect.right) - Math.max(controlsRect.left, playbackRect.left)
     const deltaFromBase = bottomPxRef.current - BASE_BOTTOM_PX
     const baseBottomOnScreen = controlsRect.bottom + deltaFromBase
 
-    let targetBottom = BASE_BOTTOM_PX
-    if (overlapX > 0) {
-      const neededLift = baseBottomOnScreen - playbackRect.top + SAFE_GAP_PX
-      if (neededLift > 0) {
-        targetBottom = BASE_BOTTOM_PX + neededLift
-      }
+    let neededLiftMax = 0
+    for (const blocker of blockers) {
+      const blockerRect = blocker.getBoundingClientRect()
+      const overlapX = Math.min(controlsRect.right, blockerRect.right) - Math.max(controlsRect.left, blockerRect.left)
+      if (overlapX <= 0) continue
+      const neededLift = baseBottomOnScreen - blockerRect.top + SAFE_GAP_PX
+      if (neededLift > neededLiftMax) neededLiftMax = neededLift
     }
+    let targetBottom = BASE_BOTTOM_PX + Math.max(0, neededLiftMax)
 
     const parentEl = controlsEl.offsetParent as HTMLElement | null
     if (parentEl) {
@@ -100,10 +129,9 @@ export default function PlanetariumTimeControls({ isPlaying, speed, togglePlay, 
   useEffect(() => {
     updateBottomOffset()
 
-    const playbackEl = document.querySelector('.playback-bar') as HTMLElement | null
     const resizeObs = new ResizeObserver(() => updateBottomOffset())
     if (rootRef.current) resizeObs.observe(rootRef.current)
-    if (playbackEl) resizeObs.observe(playbackEl)
+    document.querySelectorAll<HTMLElement>('.playback-bar, .mobile-tab-bar').forEach((el) => resizeObs.observe(el))
 
     const intervalId = window.setInterval(updateBottomOffset, 250)
     window.addEventListener('resize', updateBottomOffset)
@@ -127,7 +155,7 @@ export default function PlanetariumTimeControls({ isPlaying, speed, togglePlay, 
       <div className="planetarium-time-row">
         <button className="planetarium-time-btn" onClick={() => stepMinutes(-5)} title="-5 min">-5m</button>
         <button className="planetarium-time-btn" onClick={() => stepMinutes(-1)} title="-1 min">-1m</button>
-        <button className="planetarium-time-btn planetarium-play-btn" onClick={togglePlay}>
+        <button className="planetarium-time-btn planetarium-play-btn" onClick={() => setIsPlaying((v) => !v)}>
           {isPlaying ? '\u23F8' : '\u25B6'}
         </button>
         <button className="planetarium-time-btn" onClick={() => stepMinutes(1)} title="+1 min">+1m</button>

@@ -4,6 +4,10 @@ import { BODY_META } from '../../constants'
 import { CelestialBodyId } from '../../types'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { CONSTELLATIONS } from '../../data/constellationLines'
+import { getMoonGlowVisuals } from '../../lib/moonGlow'
+import { getNightSkyVisibility } from '../../lib/skyVisibility'
+import { effectiveStarMagnitude, limitingMagnitudeFromSkyVisibility, starContrastFactor } from '../../lib/starVisibility'
+import { colorToCss, getAtmosphereAppearance } from '../../lib/atmosphereColor'
 import MilkyWayTextureCanvas from './MilkyWayTextureCanvas'
 
 interface StereoSkyChartProps {
@@ -18,11 +22,16 @@ interface StereoSkyChartProps {
   moonWaxing: boolean
   magnitudes: Partial<Record<SkyBodyId, number | null>>
   showStars?: boolean
+  showStarLabels?: boolean
+  showPlanetLabels?: boolean
   showConstellationEdges?: boolean
   showConstellationLabels?: boolean
+  showAltAzGrid?: boolean
+  showEcliptic?: boolean
   showMilkyWay?: boolean
   showPlanets?: boolean
   showMoon?: boolean
+  showAtmosphere?: boolean
   isPlaying?: boolean
   hideTitle?: boolean
   milkyWayStyle?: 'polygons' | 'texture'
@@ -64,6 +73,21 @@ function projectAltAz(altitude: number, azimuth: number, R: number): { x: number
   return { x: -r * Math.sin(azRad), y: -r * Math.cos(azRad) }
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function altAzToHorDirection(altitude: number, azimuth: number): [number, number, number] {
+  const altRad = altitude * DEG_TO_RAD
+  const azRad = azimuth * DEG_TO_RAD
+  const cosAlt = Math.cos(altRad)
+  // Horizontal frame used in astronomy-engine: x=north, y=west, z=up.
+  const xNorth = cosAlt * Math.cos(azRad)
+  const yWest = -cosAlt * Math.sin(azRad)
+  const zUp = Math.sin(altRad)
+  return [xNorth, yWest, zUp]
+}
+
 const MW_OPACITIES: Record<string, number> = { ol1: 0.02, ol2: 0.03, ol3: 0.04, ol4: 0.05, ol5: 0.06 }
 
 const SPECTRAL_COLORS: Record<string, string> = {
@@ -71,16 +95,27 @@ const SPECTRAL_COLORS: Record<string, string> = {
   G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
 }
 
-/** SVG path for the lit portion of the Moon, centered at (0,0) */
-function moonPhasePath(r: number, illum: number, waxing: boolean): string {
+/** SVG path for the lit portion of the Moon, centered at (0,0). */
+function moonPhasePath(r: number, illum: number, litToRight: boolean): string {
   // k ranges from -1 (new) to +1 (full)
   const k = 2 * illum - 1
   const rx = Math.abs(k) * r
-  // Lit side semicircle sweep: waxing = right side (sweep 1), waning = left side (sweep 0)
-  const semiSweep = waxing ? 1 : 0
-  // Terminator sweep depends on gibbous vs crescent and waxing vs waning
-  const termSweep = waxing ? (k >= 0 ? 1 : 0) : (k >= 0 ? 0 : 1)
+  // Lit side semicircle sweep: right side (sweep 1) or left side (sweep 0)
+  const semiSweep = litToRight ? 1 : 0
+  // Terminator sweep depends on gibbous vs crescent and lit-side orientation.
+  const termSweep = litToRight ? (k >= 0 ? 1 : 0) : (k >= 0 ? 0 : 1)
   return `M 0 ${-r} A ${r} ${r} 0 0 ${semiSweep} 0 ${r} A ${rx} ${r} 0 0 ${termSweep} 0 ${-r} Z`
+}
+
+function moonLimbAngleDeg(
+  moonPos: { x: number; y: number },
+  sunPos: { x: number; y: number },
+): number {
+  const dx = sunPos.x - moonPos.x
+  const dy = sunPos.y - moonPos.y
+  if (dx * dx + dy * dy < 1e-8) return 0
+  // SVG coordinates are y-down, so atan2 gives the correct screen-space rotation.
+  return Math.atan2(dy, dx) * 180 / Math.PI
 }
 
 function formatTime(d: Date): string {
@@ -126,8 +161,17 @@ function buildGapSplitPath(
 export default function StereoSkyChart({
   positions, stars, ecliptic, milkyWay, title, time, size,
   moonIllumination, moonWaxing, magnitudes,
-  showStars = true, showConstellationEdges = true,
-  showConstellationLabels = true, showMilkyWay = true, showPlanets = true, showMoon = true,
+  showStars = true,
+  showStarLabels = true,
+  showPlanetLabels = true,
+  showConstellationEdges = true,
+  showConstellationLabels = true,
+  showAltAzGrid = true,
+  showEcliptic = true,
+  showMilkyWay = true,
+  showPlanets = true,
+  showMoon = true,
+  showAtmosphere = true,
   isPlaying = false,
   hideTitle = false,
   milkyWayStyle = 'polygons',
@@ -147,10 +191,46 @@ export default function StereoSkyChart({
   const sunProj = projected.find((p) => p.bodyId === 'Sun') ?? null
   const moonProj = projected.find((p) => p.bodyId === 'Moon') ?? null
 
-  // Moon glow peak opacity: 0.12 * illumination * clamp01(sin(altitude))
-  const moonGlowOpacity = showMoon && moonProj && moonProj.altitude > 0 && moonIllumination > 0.1
-    ? 0.12 * moonIllumination * Math.min(1, Math.sin(moonProj.altitude * DEG_TO_RAD))
-    : 0
+  const moonGlow = moonProj && showMoon && showAtmosphere
+    ? getMoonGlowVisuals({
+      moonIllumination,
+      moonAltitudeDeg: moonProj.altitude,
+      moonMagnitude: magnitudes.Moon ?? null,
+    })
+    : { opacity: 0, radiusScale: 0, strength: 0 }
+
+  const skyVisibility = getNightSkyVisibility({
+    sunAltitudeDeg: sunProj?.altitude ?? -90,
+    moonGlowStrength: moonGlow.strength,
+    includeSunlight: showAtmosphere,
+    includeMoonlight: showAtmosphere && showMoon,
+  })
+
+  const atmosphere = getAtmosphereAppearance({
+    sunAltitudeDeg: sunProj?.altitude ?? -90,
+    moonWash: skyVisibility.moonWash,
+    enabled: showAtmosphere,
+  })
+
+  const sunDirectionHor = useMemo<[number, number, number]>(() => {
+    if (!sunProj) return [0, 0, 1]
+    return altAzToHorDirection(sunProj.altitude, sunProj.azimuth)
+  }, [sunProj?.altitude, sunProj?.azimuth])
+
+  const moonDirectionHor = useMemo<[number, number, number]>(() => {
+    if (!moonProj) return [0, 0, 1]
+    return altAzToHorDirection(moonProj.altitude, moonProj.azimuth)
+  }, [moonProj?.altitude, moonProj?.azimuth])
+
+  const moonLimbRotationDeg = useMemo(() => {
+    if (!moonProj || !sunProj) return 0
+    return moonLimbAngleDeg(
+      { x: moonProj.x, y: moonProj.y },
+      { x: sunProj.x, y: sunProj.y },
+    )
+  }, [moonProj?.x, moonProj?.y, sunProj?.x, sunProj?.y])
+
+  const moonLitToRight = !!(moonProj && sunProj) || moonWaxing
 
   const projectedStars = useMemo(() => {
     return stars.map((s) => {
@@ -289,15 +369,19 @@ export default function StereoSkyChart({
   return (
     <div style={{ position: 'relative', width: size, height: svgHeight, overflow: 'hidden' }}>
       {useTexture && horToEqjMatrix && (
-        <MilkyWayTextureCanvas
-          rotMatrix={horToEqjMatrix}
-          cx={cx}
-          cy={cy}
-          R={R}
-          width={size}
-          height={svgHeight}
-          opacity={0.45}
-        />
+          <MilkyWayTextureCanvas
+            rotMatrix={horToEqjMatrix}
+            cx={cx}
+            cy={cy}
+            R={R}
+            width={size}
+            height={svgHeight}
+            opacity={0.45 * skyVisibility.milkyWayVisibility}
+            sunDirection={sunDirectionHor}
+            moonDirection={moonDirectionHor}
+            twilightWash={skyVisibility.twilightWash}
+            moonWash={skyVisibility.moonWash}
+          />
       )}
     <svg
       width={size}
@@ -323,7 +407,20 @@ export default function StereoSkyChart({
           <clipPath id={`clip-${title}`}>
             <circle cx={cx} cy={cy} r={R} />
           </clipPath>
-          {sunProj && (
+          {showAtmosphere && atmosphere.skyAlpha > 0.001 && (
+            <radialGradient
+              id={`skybg-${title}`}
+              cx={cx}
+              cy={cy}
+              r={R}
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor={colorToCss(atmosphere.zenithColor)} />
+              <stop offset="70%" stopColor={colorToCss(atmosphere.horizonColor, 0.92)} />
+              <stop offset="100%" stopColor={colorToCss(atmosphere.horizonColor)} />
+            </radialGradient>
+          )}
+          {showAtmosphere && sunProj && atmosphere.sunGlowStrength > 0.001 && (
             <radialGradient
               id={`twilight-${title}`}
               cx={cx + sunProj.x}
@@ -331,19 +428,20 @@ export default function StereoSkyChart({
               r={R * 1.2}
               gradientUnits="userSpaceOnUse"
             >
-              <stop offset="0%" stopColor="rgba(255, 170, 60, 0.18)" />
-              <stop offset="100%" stopColor="rgba(255, 170, 60, 0)" />
+              <stop offset="0%" stopColor={colorToCss(atmosphere.sunCoreColor, 0.30 * atmosphere.sunGlowStrength)} />
+              <stop offset="35%" stopColor={colorToCss(atmosphere.sunGlowColor, 0.18 * atmosphere.sunGlowStrength)} />
+              <stop offset="100%" stopColor={colorToCss(atmosphere.sunGlowColor, 0)} />
             </radialGradient>
           )}
-          {moonProj && moonGlowOpacity > 0 && (
+          {moonProj && moonGlow.opacity > 0 && (
             <radialGradient
               id={`moonlight-${title}`}
               cx={cx + moonProj.x}
               cy={cy + moonProj.y}
-              r={R * 0.8}
+              r={R * 0.65 * moonGlow.radiusScale}
               gradientUnits="userSpaceOnUse"
             >
-              <stop offset="0%" stopColor={`rgba(180, 200, 230, ${moonGlowOpacity})`} />
+              <stop offset="0%" stopColor={`rgba(180, 200, 230, ${moonGlow.opacity})`} />
               <stop offset="100%" stopColor="rgba(180, 200, 230, 0)" />
             </radialGradient>
           )}
@@ -352,50 +450,60 @@ export default function StereoSkyChart({
         {/* Background */}
         <circle cx={cx} cy={cy} r={R} fill={useTexture ? 'transparent' : '#0a0e1a'} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
 
+        {/* Atmosphere background tint */}
+        {showAtmosphere && atmosphere.skyAlpha > 0.001 && (
+          <circle cx={cx} cy={cy} r={R} fill={`url(#skybg-${title})`} opacity={atmosphere.skyAlpha} />
+        )}
+
         {/* Twilight glow overlay */}
-        {sunProj && (
+        {showAtmosphere && sunProj && atmosphere.sunGlowStrength > 0.001 && (
           <circle cx={cx} cy={cy} r={R} fill={`url(#twilight-${title})`} />
         )}
 
         {/* Moonlight glow overlay */}
-        {moonProj && moonGlowOpacity > 0 && (
+        {moonProj && moonGlow.opacity > 0 && (
           <circle cx={cx} cy={cy} r={R} fill={`url(#moonlight-${title})`} />
         )}
 
-        {/* Altitude grid rings at 30° and 60° */}
-        {[30, 60].map((alt) => {
-          const ringR = ((90 - alt) / 90) * R
-          return (
-            <circle
-              key={alt}
-              cx={cx}
-              cy={cy}
-              r={ringR}
-              fill="none"
-              stroke={gridColor}
-              strokeWidth={0.5}
-              strokeDasharray="4 3"
-            />
-          )
-        })}
+        {/* Alt/Az grid */}
+        {showAltAzGrid && (
+          <>
+            {/* Altitude grid rings at 30° and 60° */}
+            {[30, 60].map((alt) => {
+              const ringR = ((90 - alt) / 90) * R
+              return (
+                <circle
+                  key={alt}
+                  cx={cx}
+                  cy={cy}
+                  r={ringR}
+                  fill="none"
+                  stroke={gridColor}
+                  strokeWidth={0.5}
+                  strokeDasharray="4 3"
+                />
+              )
+            })}
 
-        {/* 8 azimuth lines every 45° */}
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((az) => {
-          const azRad = az * DEG_TO_RAD
-          const ex = cx + -R * Math.sin(azRad)
-          const ey = cy + -R * Math.cos(azRad)
-          return (
-            <line
-              key={az}
-              x1={cx}
-              y1={cy}
-              x2={ex}
-              y2={ey}
-              stroke={gridColor}
-              strokeWidth={0.5}
-            />
-          )
-        })}
+            {/* 8 azimuth lines every 45° */}
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((az) => {
+              const azRad = az * DEG_TO_RAD
+              const ex = cx + -R * Math.sin(azRad)
+              const ey = cy + -R * Math.cos(azRad)
+              return (
+                <line
+                  key={az}
+                  x1={cx}
+                  y1={cy}
+                  x2={ex}
+                  y2={ey}
+                  stroke={gridColor}
+                  strokeWidth={0.5}
+                />
+              )
+            })}
+          </>
+        )}
 
         {/* Cardinal labels N/E/S/W */}
         {([
@@ -424,24 +532,26 @@ export default function StereoSkyChart({
           )
         })}
 
-        {/* Altitude labels along north axis */}
-        {[30, 60].map((alt) => {
-          const labelR = ((90 - alt) / 90) * R
-          return (
-            <text
-              key={alt}
-              x={cx + 4}
-              y={cy - labelR + 3}
-              fill={textColor}
-              fontSize={8}
-            >
-              {alt}°
-            </text>
-          )
-        })}
-
-        {/* Zenith dot */}
-        <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
+        {/* Altitude labels + zenith marker */}
+        {showAltAzGrid && (
+          <>
+            {[30, 60].map((alt) => {
+              const labelR = ((90 - alt) / 90) * R
+              return (
+                <text
+                  key={alt}
+                  x={cx + 4}
+                  y={cy - labelR + 3}
+                  fill={textColor}
+                  fontSize={8}
+                >
+                  {alt}°
+                </text>
+              )
+            })}
+            <circle cx={cx} cy={cy} r={1.5} fill="rgba(255,255,255,0.3)" />
+          </>
+        )}
 
         {/* Stars + body dots + labels (clipped to circle) */}
         <g clipPath={`url(#clip-${title})`}>
@@ -453,12 +563,12 @@ export default function StereoSkyChart({
                 d={layer.path}
                 fill="#8899bb"
                 fillRule="evenodd"
-                opacity={MW_OPACITIES[layer.id] ?? 0.03}
+                opacity={(MW_OPACITIES[layer.id] ?? 0.03) * skyVisibility.milkyWayVisibility}
               />
             ) : null
           )}
           {/* Ecliptic curve + label */}
-          {eclipticPathData && (
+          {showEcliptic && eclipticPathData && (
             <g>
               <path
                 d={eclipticPathData.path}
@@ -513,12 +623,17 @@ export default function StereoSkyChart({
             const sx = cx + s.x
             const sy = cy + s.y
             const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
-            const rad = magToRadius(s.mag)
+            const effMag = showAtmosphere
+              ? effectiveStarMagnitude(s.mag, s.altitude)
+              : s.mag
+            const limMag = limitingMagnitudeFromSkyVisibility(skyVisibility.starVisibility)
+            const contrast = showAtmosphere ? starContrastFactor(effMag, limMag) : 1
+            const rad = magToRadius(effMag)
             const isAbove = s.altitude >= 0
-            let baseOpacity = isAbove ? 0.85 : 0.3
+            let baseOpacity = (isAbove ? 0.85 : 0.3) * skyVisibility.starVisibility * contrast
 
             // Proximity dimming for faint stars (mag > 2.0)
-            if (s.mag > 2.0) {
+            if (showAtmosphere && s.mag > 2.0) {
               const glowRadius = R * 0.4
               if (sunProj) {
                 const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
@@ -526,10 +641,10 @@ export default function StereoSkyChart({
                   baseOpacity *= 0.6 + 0.4 * (dSun / glowRadius)
                 }
               }
-              if (moonProj && moonGlowOpacity > 0) {
+              if (moonProj && moonGlow.opacity > 0) {
                 const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
                 if (dMoon < glowRadius) {
-                  baseOpacity *= 1 - moonIllumination * 0.4 * (1 - dMoon / glowRadius)
+                  baseOpacity *= 1 - Math.min(0.6, moonGlow.strength * 0.45) * (1 - dMoon / glowRadius)
                 }
               }
             }
@@ -537,7 +652,7 @@ export default function StereoSkyChart({
             return (
               <g key={s.starIndex} opacity={baseOpacity}>
                 <circle cx={sx} cy={sy} r={rad} fill={color} />
-                {s.name && (
+                {showStarLabels && s.name && (
                   <text
                     x={sx + rad + 2}
                     y={sy + 2.5}
@@ -554,32 +669,70 @@ export default function StereoSkyChart({
           {/* Planet layer (on top of stars) */}
           {projected.map((p) => {
             const isMoon = p.bodyId === 'Moon'
+            const isSun = p.bodyId === 'Sun'
             if (isMoon && !showMoon) return null
             if (!isMoon && !showPlanets) return null
             const px = cx + p.x
             const py = cy + p.y
             const color = bodyColor(p.bodyId)
-            const mag = magnitudes[p.bodyId]
-            const isSun = p.bodyId === 'Sun'
-            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(mag ?? 2)
+            const rawMag = magnitudes[p.bodyId]
+            const effMag = showAtmosphere && !isSun && !isMoon && rawMag != null
+              ? effectiveStarMagnitude(rawMag, p.altitude)
+              : rawMag
+            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(effMag ?? 2)
             const isAboveHorizon = p.altitude >= 0
+            const limMag = limitingMagnitudeFromSkyVisibility(skyVisibility.starVisibility)
+            const contrast = showAtmosphere && !isSun && !isMoon && effMag != null
+              ? starContrastFactor(effMag, limMag)
+              : 1
+            const faintness = effMag != null ? clamp((effMag + 2) / 8, 0, 1) : 0.4
+            const bodyDir = altAzToHorDirection(p.altitude, p.azimuth)
+            let localVisibility = 1
+
+            if (showAtmosphere && !isSun && !isMoon) {
+              if (sunProj && skyVisibility.twilightWash > 0.001) {
+                const sunDot = clamp(
+                  bodyDir[0] * sunDirectionHor[0] + bodyDir[1] * sunDirectionHor[1] + bodyDir[2] * sunDirectionHor[2],
+                  -1,
+                  1,
+                )
+                const sunAng = Math.acos(sunDot)
+                const sunKernel = Math.exp(-0.5 * (sunAng / 0.45) ** 2)
+                localVisibility *= 1 - 0.58 * skyVisibility.twilightWash * (0.35 + 0.65 * faintness) * sunKernel
+              }
+              if (moonProj && skyVisibility.moonWash > 0.001) {
+                const moonDot = clamp(
+                  bodyDir[0] * moonDirectionHor[0] + bodyDir[1] * moonDirectionHor[1] + bodyDir[2] * moonDirectionHor[2],
+                  -1,
+                  1,
+                )
+                const moonAng = Math.acos(moonDot)
+                const moonKernel = Math.exp(-0.5 * (moonAng / 0.34) ** 2)
+                localVisibility *= 1 - 0.40 * skyVisibility.moonWash * (0.25 + 0.75 * faintness) * moonKernel
+              }
+              localVisibility = clamp(localVisibility, 0.15, 1)
+            }
+
+            const dotOpacity = (isAboveHorizon ? 1 : 0.3) * contrast * localVisibility
+            const displayMag = effMag ?? rawMag
 
             return (
-              <g key={p.bodyId} opacity={isAboveHorizon ? 1 : 0.3}>
+              <g key={p.bodyId} opacity={dotOpacity}>
                 {isMoon ? (
                   <>
                     <circle cx={px} cy={py} r={rad} fill="#1a1a2e" />
-                    <path
-                      d={moonPhasePath(rad, moonIllumination, moonWaxing)}
-                      transform={`translate(${px},${py})`}
-                      fill={MOON_COLOR}
-                    />
+                    <g transform={`translate(${px},${py}) rotate(${moonLimbRotationDeg})`}>
+                      <path
+                        d={moonPhasePath(rad, moonIllumination, moonLitToRight)}
+                        fill={MOON_COLOR}
+                      />
+                    </g>
                     <circle cx={px} cy={py} r={rad} fill="none" stroke="rgba(200,200,200,0.4)" strokeWidth={0.5} />
                   </>
                 ) : (
                   <circle cx={px} cy={py} r={rad} fill={color} />
                 )}
-                {(() => {
+                {showPlanetLabels && (() => {
                   const off = labelOffsets.get(p.bodyId) ?? { lx: 0, ly: -6 }
                   // Push label outward by the dot radius so it clears large bodies (Moon, Sun)
                   const offLen = Math.sqrt(off.lx * off.lx + off.ly * off.ly)
@@ -603,7 +756,7 @@ export default function StereoSkyChart({
                       >
                         {BODY_LABELS[p.bodyId]}
                       </text>
-                      {mag != null && (
+                      {displayMag != null && (
                         <text
                           x={labelX}
                           y={labelY + (off.ly >= 0 ? 10 : -9)}
@@ -613,7 +766,7 @@ export default function StereoSkyChart({
                           fontSize={7.5}
                           opacity={0.7}
                         >
-                          {mag.toFixed(1)}
+                          {displayMag.toFixed(1)}
                         </text>
                       )}
                     </>
