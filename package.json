@@ -11,7 +11,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "perf:install": "playwright install chromium",
+    "perf:profile": "node scripts/perf/run-playwright-profile.mjs",
+    "perf:profile:ci": "PROFILE_OUT_DIR=test-output/perf/latest node scripts/perf/run-playwright-profile.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -33,6 +36,7 @@
     "@types/three": "^0.183.1",
     "@types/tz-lookup": "^6.1.2",
     "@vitejs/plugin-react": "^5.1.4",
+    "playwright": "^1.58.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"

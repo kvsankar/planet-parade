@@ -93,6 +93,8 @@ npm run build        # Type-check and production build
 npm run preview      # Preview the production build
 npm run test         # Run unit tests
 npm run test:watch   # Run tests in watch mode
+npm run perf:install # Install Playwright Chromium (one-time)
+npm run perf:profile # Automated profiling run + trace artifacts
 ```
 
 ## Tech Stack
@@ -138,6 +140,7 @@ src/
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
 | [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
 | [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, visibility/darkness ranking) |
+| [Performance Profiling](docs/performance-profiling.md) | Automated Playwright-driven profiling harness (Chrome trace + summary metrics) |
 
 ## Data Sources
 
