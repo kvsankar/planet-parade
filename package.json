@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "perf:install": "playwright install chromium",
     "perf:profile": "node scripts/perf/run-playwright-profile.mjs",
-    "perf:profile:ci": "PROFILE_OUT_DIR=test-output/perf/latest node scripts/perf/run-playwright-profile.mjs"
+    "perf:profile:ci": "PROFILE_OUT_DIR=test-output/perf/latest node scripts/perf/run-playwright-profile.mjs",
+    "perf:profile:repeat": "node scripts/perf/run-playwright-profile-repeat.mjs",
+    "perf:profile:repeat:ci": "PROFILE_OUT_DIR=test-output/perf/repeat-latest PROFILE_REPEAT=5 node scripts/perf/run-playwright-profile-repeat.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

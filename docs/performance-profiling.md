@@ -7,6 +7,7 @@ This project includes an automated Playwright profiling harness that:
 - Captures a Chrome DevTools performance trace (`chrome-trace.json`)
 - Captures a Playwright interaction trace (`playwright-trace.zip`)
 - Writes structured metrics (`summary.json`) and a readable report (`summary.md`)
+- Supports repeat runs with median aggregation (`median-summary.json` / `median-summary.md`)
 
 ## Quick Start
 
@@ -26,6 +27,16 @@ Artifacts are written to:
 
 `test-output/perf/<timestamp>/`
 
+3. Run repeat mode for more stable comparisons:
+
+```bash
+npm run perf:profile:repeat
+```
+
+Repeat artifacts are written to:
+
+`test-output/perf/repeat-<timestamp>/`
+
 ## CI Job
 
 A manual GitHub Actions workflow is included:
@@ -44,6 +55,12 @@ Each run emits:
 - `playwright-trace.zip`: Playwright trace (open via `npx playwright show-trace`)
 - `final-screen.png`: final UI screenshot
 
+Repeat mode additionally emits:
+
+- `median-summary.json`: median aggregate/segment metrics across runs
+- `median-summary.md`: human-readable median report
+- `run-XX/`: per-run artifacts from the single-run harness
+
 ## Tunables (Environment Variables)
 
 - `PROFILE_BASE_URL` (default `http://127.0.0.1:4173`)
@@ -52,11 +69,18 @@ Each run emits:
 - `PROFILE_SKIP_BUILD=1` to skip `npm run build`
 - `PROFILE_SKIP_SERVER=1` to use an already-running server at `PROFILE_BASE_URL`
 - `PROFILE_HEADFUL=1` to run non-headless
+- `PROFILE_REPEAT` (default `5`) number of runs for `perf:profile:repeat`
 
 Example (reuse existing `npm run dev` server):
 
 ```bash
 PROFILE_SKIP_BUILD=1 PROFILE_SKIP_SERVER=1 PROFILE_BASE_URL=http://127.0.0.1:5173 npm run perf:profile
+```
+
+Repeat mode example (3 runs against an existing dev server):
+
+```bash
+PROFILE_REPEAT=3 PROFILE_SKIP_BUILD=1 PROFILE_SKIP_SERVER=1 PROFILE_BASE_URL=http://127.0.0.1:5173 npm run perf:profile:repeat
 ```
 
 ## Notes
@@ -66,3 +90,4 @@ PROFILE_SKIP_BUILD=1 PROFILE_SKIP_SERVER=1 PROFILE_BASE_URL=http://127.0.0.1:517
 - When it starts its own preview server, it uses a strict port (`PROFILE_PORT`) and fails fast if already occupied.
 - For reliable comparisons, run on the same machine, same browser channel, and similar background load.
 - Use `summary.json` for automated regression thresholds and dashboards.
+- For commit-to-commit tracking, prefer repeat-mode medians over single-run readings.
