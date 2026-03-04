@@ -68,6 +68,31 @@ function makeObserver(loc: ObserverLocation): Astronomy.Observer {
   return new Astronomy.Observer(loc.lat, loc.lon, loc.height)
 }
 
+export interface SkyProjectionContext {
+  astroTime: Astronomy.AstroTime
+  observer: Astronomy.Observer
+  // astronomy-engine column-major storage for EQJ->HOR rotation.
+  eqjToHor: number[][]
+  // Row-major HOR->EQJ matrix for shader-side vec multiplication.
+  horToEqj: number[][]
+}
+
+export function prepareSkyProjectionContext(date: Date, observer: ObserverLocation): SkyProjectionContext {
+  const obs = makeObserver(observer)
+  const astroTime = Astronomy.MakeTime(date)
+  const eqjToHor = Astronomy.Rotation_EQJ_HOR(astroTime, obs).rot
+
+  // Inverse of EQJ->HOR is HOR->EQJ; for an orthonormal matrix this is transpose.
+  // `eqjToHor` is column-major, and this yields a row-major matrix convenient for GLSL.
+  const horToEqj = [
+    [eqjToHor[0][0], eqjToHor[0][1], eqjToHor[0][2]],
+    [eqjToHor[1][0], eqjToHor[1][1], eqjToHor[1][2]],
+    [eqjToHor[2][0], eqjToHor[2][1], eqjToHor[2][2]],
+  ]
+
+  return { astroTime, observer: obs, eqjToHor, horToEqj }
+}
+
 function computeAltAzFromPrepared(
   bodyId: SkyBodyId,
   astroTime: Astronomy.AstroTime,
@@ -84,19 +109,20 @@ function computeAltAzFromPrepared(
 }
 
 export function getAltAz(bodyId: SkyBodyId, date: Date, observer: ObserverLocation): AltAzPosition {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  return computeAltAzFromPrepared(bodyId, astroTime, obs)
+  const prepared = prepareSkyProjectionContext(date, observer)
+  return computeAltAzFromPrepared(bodyId, prepared.astroTime, prepared.observer)
+}
+
+export function getAllAltAzFromContext(context: SkyProjectionContext): AltAzPosition[] {
+  const out = new Array<AltAzPosition>(SKY_BODIES.length)
+  for (let i = 0; i < SKY_BODIES.length; i++) {
+    out[i] = computeAltAzFromPrepared(SKY_BODIES[i], context.astroTime, context.observer)
+  }
+  return out
 }
 
 export function getAllAltAz(date: Date, observer: ObserverLocation): AltAzPosition[] {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  const out = new Array<AltAzPosition>(SKY_BODIES.length)
-  for (let i = 0; i < SKY_BODIES.length; i++) {
-    out[i] = computeAltAzFromPrepared(SKY_BODIES[i], astroTime, obs)
-  }
-  return out
+  return getAllAltAzFromContext(prepareSkyProjectionContext(date, observer))
 }
 
 export function findSunrise(startDate: Date, observer: ObserverLocation): Date | null {
@@ -120,7 +146,7 @@ export function findSunset(startDate: Date, observer: ObserverLocation): Date | 
  *   rising = false → sunset  terminator (Sun descending, western sky)
  * Returns longitude in degrees (−180 … +180).
  */
-export function sunHorizonLongitude(date: Date, lat: number, rising: boolean, sunAltitudeDeg = 0): number {
+export function sunHorizonLongitudes(date: Date, lat: number, sunAltitudeDeg = 0): { rising: number; setting: number } {
   const t = Astronomy.MakeTime(date)
   const eq = Astronomy.Equator(Astronomy.Body.Sun, t, new Astronomy.Observer(lat, 0, 0), true, true)
 
@@ -135,22 +161,28 @@ export function sunHorizonLongitude(date: Date, lat: number, rising: boolean, su
   const denom = cosLat * cosDec
 
   // Near-pole edge cases where the target altitude may be unreachable.
-  if (Math.abs(denom) < 1e-6) return 0
+  if (Math.abs(denom) < 1e-6) return { rising: 0, setting: 0 }
 
   const cosHa = (sinAlt - sinLat * sinDec) / denom
 
   // Target altitude does not occur for this latitude/date.
-  if (cosHa < -1 || cosHa > 1) return 0
+  if (cosHa < -1 || cosHa > 1) return { rising: 0, setting: 0 }
 
   const haHours = Math.acos(cosHa) * 12 / Math.PI   // radians → hours
-  const ha = rising ? -haHours : haHours              // east / west
-
   const gst = Astronomy.SiderealTime(t)               // hours
-  let lon = (ha + eq.ra - gst) * 15                    // hours → degrees
+  let risingLon = (-haHours + eq.ra - gst) * 15       // hours → degrees
+  let settingLon = (haHours + eq.ra - gst) * 15       // hours → degrees
 
   // Normalise to −180 … +180
-  lon = ((lon % 360) + 540) % 360 - 180
-  return lon
+  risingLon = ((risingLon % 360) + 540) % 360 - 180
+  settingLon = ((settingLon % 360) + 540) % 360 - 180
+
+  return { rising: risingLon, setting: settingLon }
+}
+
+export function sunHorizonLongitude(date: Date, lat: number, rising: boolean, sunAltitudeDeg = 0): number {
+  const result = sunHorizonLongitudes(date, lat, sunAltitudeDeg)
+  return rising ? result.rising : result.setting
 }
 
 // ============ Moon illumination ============
@@ -185,6 +217,7 @@ export interface StarAltAzPosition {
 
 // Pre-compute J2000 unit vectors from static RA/Dec (computed once at module load)
 const DEG_TO_RAD = Math.PI / 180
+const RAD_TO_DEG = 180 / Math.PI
 const STAR_UNIT_VECTORS = STAR_CATALOG.map((star) => {
   const raRad = star.ra * 15 * DEG_TO_RAD
   const decRad = star.dec * DEG_TO_RAD
@@ -192,21 +225,55 @@ const STAR_UNIT_VECTORS = STAR_CATALOG.map((star) => {
   return [cosDec * Math.cos(raRad), cosDec * Math.sin(raRad), Math.sin(decRad)] as const
 })
 
-export function getStarAltAzPositions(date: Date, observer: ObserverLocation): StarAltAzPosition[] {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
+function clampUnit(value: number): number {
+  if (value < -1) return -1
+  if (value > 1) return 1
+  return value
+}
 
-  return STAR_UNIT_VECTORS.map(([x, y, z], i) => {
-    const vec = new Astronomy.Vector(x, y, z, astroTime)
-    const horVec = Astronomy.RotateVector(rot, vec)
-    const sphere = Astronomy.HorizonFromVector(horVec, 'normal')
-    return {
+function normalRefractionDegrees(altitudeDeg: number): number {
+  if (altitudeDeg < -90 || altitudeDeg > 90) return 0
+  let hd = altitudeDeg
+  if (hd < -1) hd = -1
+  let refr = 1.02 / Math.tan((hd + 10.3 / (hd + 5.11)) * DEG_TO_RAD) / 60
+  if (altitudeDeg < -1) {
+    refr *= (altitudeDeg + 90) / 89
+  }
+  return refr
+}
+
+function eqjUnitVectorToAltAz(x: number, y: number, z: number, eqjToHor: number[][]): AltAzPoint {
+  // astronomy-engine rotation storage is column-major.
+  const hx = eqjToHor[0][0] * x + eqjToHor[1][0] * y + eqjToHor[2][0] * z
+  const hy = eqjToHor[0][1] * x + eqjToHor[1][1] * y + eqjToHor[2][1] * z
+  const hz = eqjToHor[0][2] * x + eqjToHor[1][2] * y + eqjToHor[2][2] * z
+
+  const geometricAltitude = Math.asin(clampUnit(hz)) * RAD_TO_DEG
+  const altitude = geometricAltitude + normalRefractionDegrees(geometricAltitude)
+
+  let azimuth = Math.atan2(-hy, hx) * RAD_TO_DEG
+  if (azimuth < 0) azimuth += 360
+  if (azimuth >= 360) azimuth -= 360
+
+  return { altitude, azimuth }
+}
+
+export function getStarAltAzPositionsFromContext(context: SkyProjectionContext): StarAltAzPosition[] {
+  const out = new Array<StarAltAzPosition>(STAR_UNIT_VECTORS.length)
+  for (let i = 0; i < STAR_UNIT_VECTORS.length; i++) {
+    const [x, y, z] = STAR_UNIT_VECTORS[i]
+    const altAz = eqjUnitVectorToAltAz(x, y, z, context.eqjToHor)
+    out[i] = {
       starIndex: i,
-      altitude: sphere.lat,
-      azimuth: sphere.lon,
+      altitude: altAz.altitude,
+      azimuth: altAz.azimuth,
     }
-  })
+  }
+  return out
+}
+
+export function getStarAltAzPositions(date: Date, observer: ObserverLocation): StarAltAzPosition[] {
+  return getStarAltAzPositionsFromContext(prepareSkyProjectionContext(date, observer))
 }
 
 // ============ Shared alt/az point type ============
@@ -222,28 +289,25 @@ export interface AltAzPoint {
 const OBLIQUITY_RAD = 23.4393 * DEG_TO_RAD
 const COS_OBL = Math.cos(OBLIQUITY_RAD)
 const SIN_OBL = Math.sin(OBLIQUITY_RAD)
+const ECLIPTIC_UNIT_VECTORS = Array.from({ length: 360 }, (_, i) => {
+  const lon = i * DEG_TO_RAD
+  const cosLon = Math.cos(lon)
+  const sinLon = Math.sin(lon)
+  return [cosLon, sinLon * COS_OBL, sinLon * SIN_OBL] as const
+})
 
 /** Sample 360 points along the ecliptic and return their alt/az positions */
-export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation): AltAzPoint[] {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
-  const points: AltAzPoint[] = []
-
-  for (let i = 0; i < 360; i++) {
-    const lon = i * DEG_TO_RAD
-    const cosLon = Math.cos(lon)
-    const sinLon = Math.sin(lon)
-
-    // Ecliptic (λ, β=0) → equatorial J2000 unit vector
-    const vec = new Astronomy.Vector(cosLon, sinLon * COS_OBL, sinLon * SIN_OBL, astroTime)
-    const horVec = Astronomy.RotateVector(rot, vec)
-    const sphere = Astronomy.HorizonFromVector(horVec, 'normal')
-
-    points.push({ altitude: sphere.lat, azimuth: sphere.lon })
+export function getEclipticAltAzPositionsFromContext(context: SkyProjectionContext): AltAzPoint[] {
+  const points = new Array<AltAzPoint>(ECLIPTIC_UNIT_VECTORS.length)
+  for (let i = 0; i < ECLIPTIC_UNIT_VECTORS.length; i++) {
+    const [x, y, z] = ECLIPTIC_UNIT_VECTORS[i]
+    points[i] = eqjUnitVectorToAltAz(x, y, z, context.eqjToHor)
   }
-
   return points
+}
+
+export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation): AltAzPoint[] {
+  return getEclipticAltAzPositionsFromContext(prepareSkyProjectionContext(date, observer))
 }
 
 // ============ HOR → EQJ rotation matrix (for texture reprojection) ============
@@ -252,15 +316,7 @@ export function getEclipticAltAzPositions(date: Date, observer: ObserverLocation
  *  Transposed from astronomy-engine's column-major storage so that standard
  *  row-major matrix×vector multiplication gives the correct result. */
 export function getHORtoEQJMatrix(date: Date, observer: ObserverLocation): number[][] {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  const rot = Astronomy.Rotation_HOR_EQJ(astroTime, obs)
-  // astronomy-engine stores rot[col][row]; transpose to row-major
-  return [
-    [rot.rot[0][0], rot.rot[1][0], rot.rot[2][0]],
-    [rot.rot[0][1], rot.rot[1][1], rot.rot[2][1]],
-    [rot.rot[0][2], rot.rot[1][2], rot.rot[2][2]],
-  ]
+  return prepareSkyProjectionContext(date, observer).horToEqj
 }
 
 // ============ Milky Way polygons (d3-celestial data) ============
@@ -291,21 +347,30 @@ export interface MilkyWayLayer {
   rings: AltAzPoint[][]
 }
 
+export function getMilkyWayPolygonsFromContext(context: SkyProjectionContext): MilkyWayLayer[] {
+  const layers = new Array<MilkyWayLayer>(MW_LAYERS.length)
+
+  for (let i = 0; i < MW_LAYERS.length; i++) {
+    const layer = MW_LAYERS[i]
+    const rings = new Array<AltAzPoint[]>(layer.rings.length)
+
+    for (let j = 0; j < layer.rings.length; j++) {
+      const ring = layer.rings[j]
+      const points = new Array<AltAzPoint>(ring.length)
+      for (let k = 0; k < ring.length; k++) {
+        const [x, y, z] = ring[k]
+        points[k] = eqjUnitVectorToAltAz(x, y, z, context.eqjToHor)
+      }
+      rings[j] = points
+    }
+
+    layers[i] = { id: layer.id, rings }
+  }
+
+  return layers
+}
+
 /** Transform pre-computed Milky Way polygon data to alt/az for the given date and observer */
 export function getMilkyWayPolygons(date: Date, observer: ObserverLocation): MilkyWayLayer[] {
-  const obs = makeObserver(observer)
-  const astroTime = Astronomy.MakeTime(date)
-  const rot = Astronomy.Rotation_EQJ_HOR(astroTime, obs)
-
-  return MW_LAYERS.map((layer) => ({
-    id: layer.id,
-    rings: layer.rings.map((ring) =>
-      ring.map(([x, y, z]) => {
-        const vec = new Astronomy.Vector(x, y, z, astroTime)
-        const horVec = Astronomy.RotateVector(rot, vec)
-        const sphere = Astronomy.HorizonFromVector(horVec, 'normal')
-        return { altitude: sphere.lat, azimuth: sphere.lon }
-      })
-    ),
-  }))
+  return getMilkyWayPolygonsFromContext(prepareSkyProjectionContext(date, observer))
 }

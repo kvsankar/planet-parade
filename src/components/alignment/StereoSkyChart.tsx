@@ -243,6 +243,7 @@ export default function StereoSkyChart({
     moonWash: skyVisibility.moonWash,
     enabled: showAtmosphere,
   })
+  const limitingMagnitude = limitingMagnitudeFromSkyVisibility(skyVisibility.starVisibility)
 
   const sunDirectionHor = useMemo<[number, number, number]>(() => {
     if (!sunProj) return [0, 0, 1]
@@ -661,8 +662,7 @@ export default function StereoSkyChart({
             const effMag = showAtmosphere
               ? effectiveStarMagnitude(s.mag, s.altitude)
               : s.mag
-            const limMag = limitingMagnitudeFromSkyVisibility(skyVisibility.starVisibility)
-            const contrast = showAtmosphere ? starContrastFactor(effMag, limMag) : 1
+            const contrast = showAtmosphere ? starContrastFactor(effMag, limitingMagnitude) : 1
             const rad = magToRadius(effMag)
             const isAbove = s.altitude >= 0
             let baseOpacity = (isAbove ? 0.85 : 0.3) * skyVisibility.starVisibility * contrast
@@ -716,9 +716,8 @@ export default function StereoSkyChart({
               : rawMag
             const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(effMag ?? 2)
             const isAboveHorizon = p.altitude >= 0
-            const limMag = limitingMagnitudeFromSkyVisibility(skyVisibility.starVisibility)
             const contrast = showAtmosphere && !isSun && !isMoon && effMag != null
-              ? starContrastFactor(effMag, limMag)
+              ? starContrastFactor(effMag, limitingMagnitude)
               : 1
             const faintness = effMag != null ? clamp((effMag + 2) / 8, 0, 1) : 0.4
             const bodyDir = altAzToHorDirection(p.altitude, p.azimuth)
