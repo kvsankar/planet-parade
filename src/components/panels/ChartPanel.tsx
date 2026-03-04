@@ -8,12 +8,14 @@ import { ChartMetric } from '../../types'
 interface ChartPanelProps {
   alignment: AlignmentState
   currentDate: Date
+  timeZone?: string | null
   onDateChange: (d: Date) => void
 }
 
 export default function ChartPanel({
   alignment,
   currentDate,
+  timeZone,
   onDateChange,
 }: ChartPanelProps) {
   const {
@@ -106,6 +108,7 @@ export default function ChartPanel({
       <SeparationChart
         data={chartData}
         currentDate={currentDateMs}
+        timeZone={timeZone}
         onDateClick={handleDateSelect}
         visibleCounts={visibleCounts}
         visibleMetrics={visibleMetrics}

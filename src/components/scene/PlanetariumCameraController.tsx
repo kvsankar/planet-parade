@@ -5,6 +5,7 @@ import { planetariumStore } from '../../hooks/usePlanetariumStore'
 import { simulationStore } from '../../hooks/useSimulationStore'
 import { getAltAz, getEclipticAltAzPositions, SKY_BODIES, SkyBodyId } from '../../lib/astronomy'
 import { findBestPlanetariumNightTime, findFirstSunOnHorizon } from '../../lib/planetariumDefaultView'
+import { getTimeZoneDayKey } from '../../lib/timeZoneDay'
 import { CelestialBodyId, ObserverLocation } from '../../types'
 
 const MIN_FOV_DEG = 20
@@ -41,6 +42,14 @@ function normalizeAngleRad(angle: number): number {
   return wrapped < 0 ? wrapped + Math.PI : wrapped - Math.PI
 }
 
+function normalizeAngleDeg(angleDeg: number): number {
+  return ((angleDeg % 360) + 360) % 360
+}
+
+function shortestSignedAngleDeg(angleDeg: number): number {
+  return ((angleDeg + 540) % 360) - 180
+}
+
 /**
  * Controls the planetarium view direction via drag/scroll.
  * Does NOT rotate the camera — instead writes yaw/pitch to planetariumStore,
@@ -50,6 +59,7 @@ function normalizeAngleRad(angle: number): number {
 interface Props {
   observer: ObserverLocation
   currentDate: Date
+  timeZone?: string | null
   targetComboBodies?: CelestialBodyId[] | null
   onAutoDateChange?: (d: Date) => void
   onFovChange?: (fovDeg: number) => void
@@ -73,6 +83,11 @@ interface EclipticFrame {
 interface EclipticArcFrame {
   centerAzimuthDeg: number
   fovDeg: number
+}
+
+interface VisibleRun {
+  start: number
+  length: number
 }
 
 function computeWrappedAzimuthSpanDeg(azimuthDeg: number[]): { centerDeg: number; spanDeg: number } | null {
@@ -129,24 +144,72 @@ function computeEclipticFrame(samples: TargetSample[]): EclipticFrame | null {
   }
 }
 
+function findLongestVisibleRun(samples: { altitude: number }[], minAltitudeDeg: number): VisibleRun {
+  const n = samples.length
+  if (n === 0) return { start: 0, length: 0 }
+
+  let bestStart = 0
+  let bestLength = 0
+  let runStart = 0
+  let runLength = 0
+
+  for (let i = 0; i < n * 2; i++) {
+    const sample = samples[i % n]
+    if (sample.altitude >= minAltitudeDeg) {
+      if (runLength === 0) runStart = i
+      runLength = Math.min(runLength + 1, n)
+      if (runLength > bestLength) {
+        bestLength = runLength
+        bestStart = runStart
+      }
+    } else {
+      runLength = 0
+    }
+  }
+
+  if (bestLength < 2) return { start: 0, length: 0 }
+  return {
+    start: ((bestStart % n) + n) % n,
+    length: bestLength,
+  }
+}
+
 function computeVisibleEclipticArcFrame(date: Date, observer: ObserverLocation): EclipticArcFrame | null {
-  const visibleArc = getEclipticAltAzPositions(date, observer)
-    .filter((p) => p.altitude >= ECLIPTIC_VISIBLE_EPS_DEG)
-  if (visibleArc.length < 2) return null
-  const azData = computeWrappedAzimuthSpanDeg(visibleArc.map((p) => p.azimuth))
-  if (!azData) return null
+  const samples = getEclipticAltAzPositions(date, observer)
+  const visibleRun = findLongestVisibleRun(samples, ECLIPTIC_VISIBLE_EPS_DEG)
+  if (visibleRun.length < 2) return null
+
+  const midIndex = (visibleRun.start + Math.floor(visibleRun.length / 2)) % samples.length
+  const centerAzimuthDeg = normalizeAngleDeg(samples[midIndex].azimuth)
+
+  let maxHalfSpanDeg = 0
+  for (let i = 0; i < visibleRun.length; i++) {
+    const sample = samples[(visibleRun.start + i) % samples.length]
+    const offsetDeg = Math.abs(shortestSignedAngleDeg(
+      normalizeAngleDeg(sample.azimuth) - centerAzimuthDeg,
+    ))
+    if (offsetDeg > maxHalfSpanDeg) maxHalfSpanDeg = offsetDeg
+  }
+  const spanDeg = Math.min(360, maxHalfSpanDeg * 2)
 
   return {
-    centerAzimuthDeg: azData.centerDeg,
+    centerAzimuthDeg,
     fovDeg: clamp(
-      azData.spanDeg + ECLIPTIC_ARC_FOV_PAD_DEG,
+      spanDeg + ECLIPTIC_ARC_FOV_PAD_DEG,
       ECLIPTIC_ARC_MIN_FOV_DEG,
       ECLIPTIC_ARC_MAX_FOV_DEG,
     ),
   }
 }
 
-export default function PlanetariumCameraController({ observer, currentDate, targetComboBodies, onAutoDateChange, onFovChange }: Props) {
+export default function PlanetariumCameraController({
+  observer,
+  currentDate,
+  timeZone,
+  targetComboBodies,
+  onAutoDateChange,
+  onFovChange,
+}: Props) {
   const { camera, gl, size } = useThree()
   const mouseDragPointerId = useRef<number | null>(null)
   const mouseDragAxis = useRef<DragAxis>('free')
@@ -159,6 +222,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
   const touchDragAccum = useRef({ x: 0, y: 0 })
   const pinchDistanceRef = useRef<number | null>(null)
   const targetKey = (targetComboBodies ?? []).join(',')
+  const currentDayKey = getTimeZoneDayKey(currentDate, timeZone)
 
   const setFovDeg = useCallback((nextFov: number) => {
     const clamped = clamp(nextFov, MIN_FOV_DEG, MAX_FOV_DEG)
@@ -184,11 +248,11 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
 
   useEffect(() => {
     // Deterministic default view each time planetarium view mounts, or when
-    // selected combo changes: choose the best nighttime slot for the active
+    // selected combo, observer, or day changes: choose the best slot for the active
     // cluster (visibility first, then solar-interference minimization), and
     // frame the combo on a wide ecliptic-friendly horizon-to-horizon layout.
-    // Intentionally does NOT run for date-only changes from the main controls,
-    // so alt/az orientation remains stable while stepping +/-1d or +/-5d.
+    // Intentionally does NOT run for minute-level date edits within a day, so
+    // in-panel +/-1m/+/-5m controls keep manual orientation stable.
     const cam = camera as THREE.PerspectiveCamera
     setFovDeg(DEFAULT_FOV_DEG)
     cam.fov = DEFAULT_FOV_DEG
@@ -201,8 +265,8 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
     }
 
     if (targets.length > 0) {
-      const nightChoice = findBestPlanetariumNightTime(currentDate, observer, targets)
-      const sunHorizonTime = findFirstSunOnHorizon(currentDate, observer)
+      const nightChoice = findBestPlanetariumNightTime(currentDate, observer, targets, timeZone)
+      const sunHorizonTime = findFirstSunOnHorizon(currentDate, observer, timeZone)
       const fallbackSunHorizonTime = nightChoice && nightChoice.visibleCount > 0 ? null : sunHorizonTime
       const date = nightChoice?.date ?? fallbackSunHorizonTime ?? currentDate
 
@@ -266,7 +330,7 @@ export default function PlanetariumCameraController({ observer, currentDate, tar
       planetariumStore.yaw = DEFAULT_YAW
       planetariumStore.pitch = DEFAULT_PITCH
     }
-  }, [camera, observer, targetKey, setFovDeg])
+  }, [camera, observer, targetKey, currentDayKey, timeZone, setFovDeg])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
     try {

@@ -72,22 +72,26 @@ A 2D scatter plot of planet positions in ecliptic longitude (X) and latitude (Y)
 - **Zoom/pan**: X-axis zoom (1–16×) with drag and pinch support.
 - **Planet data table**: ecliptic longitude, latitude, elongation from Sun, visual magnitude, and AM/PM classification for each body.
 
-### 2.4 Sky Charts (Stereographic Projection)
+### 2.4 Sky Charts (Azimuthal Equidistant Projection)
 
-Dual hemispheric sky charts showing what you would actually see at sunrise (morning chart) and sunset (evening chart) from a location on Earth's equator:
+Dual hemispheric sky charts showing evening and morning reference frames from a default observer latitude (equator by default, user-overridable via opt-in location controls), with virtual longitudes chosen so the Sun is at a selected altitude:
 
 - **Projection**: azimuthal equidistant — zenith at center, horizon at edge, cardinal directions labeled.
-- **Rendered elements**: Sun, Moon (with accurate phase), planets, 192 bright stars (with spectral color), 39 constellation stick figures and labels, ecliptic curve, Milky Way.
+- **Reference frame presets**: Sun altitude pills (`0°`, `-6°`, `-12°`) plus a badge showing the active preset.
+- **Rendered elements**: Sun, Moon (with physically oriented phase limb), planets, 192 bright stars (with spectral color), 39 constellation stick figures and labels, dashed ecliptic curve, Milky Way.
 - **Milky Way rendering**: two modes toggled via `[Poly | Tex]` pills:
   - Polygons — multi-layer SVG fills from d3-celestial data.
   - Texture — real-time reprojection of a NASA Deep Star Maps JPEG (Gaia DR2, 1.7 billion stars) via Web Worker.
-- **Toggleable layers**: stars, constellation edges, constellation labels, Milky Way, Sun & planets, Moon.
-- **Visual magnitude**: brighter objects rendered larger.
-- **Zoom**: 1–16× panel zoom expands both charts; labels and dots scale down to avoid clutter.
+- **Atmosphere model**: optional integrated sunlight/twilight/moonlight rendering shared with Planetarium; dims stars/planets and attenuates Milky Way contrast.
+- **Toggleable layers**: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic.
+- **Layout modes**: desktop paired AM/PM charts by default with optional tabbed mode; mobile always tabbed.
+- **Zoom/Pan**: 1–16× with mouse/touch. Mobile landscape allows zooming out enough to fit the full circular sky.
 
-### 2.5 3D Solar System
+### 2.5 Space & Sky Panel
 
-An interactive heliocentric 3D view showing the Sun, eight planets, and the Moon as colored spheres at their real positions:
+The Scene panel has two tabs: **Solar System** and **Planetarium**.
+
+#### Solar System tab
 
 - **Accurate positions**: computed from `astronomy-engine` ephemeris data (VSOP87 models) in ecliptic coordinates, to-scale in AU.
 - **Orbits**: one full orbital period per body, toggleable.
@@ -102,21 +106,33 @@ An interactive heliocentric 3D view showing the Sun, eight planets, and the Moon
 - **Camera**: rotate (drag), zoom (scroll), pan (right-drag). Body selection animates camera toward the body. Follow mode tracks the selected body continuously.
 - **Inner planets**: auto-hide when zoomed far out to avoid crowding; toggleable override.
 
+#### Planetarium tab
+
+- **Observer-centric sky dome** with horizon, cardinal markers, Alt/Az grid (15° intervals), dashed ecliptic, stars, Milky Way, constellations, Sun/Moon/planets.
+- **Integrated atmosphere** shared with Sky Charts (daylight, twilight, moonlight wash and attenuation).
+- **Stable interaction model**: drag rotates the full sky frame (not independent overlays), axis-lock behavior reduces accidental horizon tilt, wheel/pinch zoom uses FoV range 20°–120°.
+- **Deterministic startup framing**: on mount or combo change, chooses a nighttime instant for the active cluster and frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
+- **Observer location control**: user-invoked only; supports browser geolocation permission prompt, OpenStreetMap map/search selection, and manual coordinate entry.
+- **Timezone inference**: infer IANA timezone from observer coordinates for local sunrise/sunset and panel time labels (fallback UTC).
+
 ### 2.6 Time Controls
 
-A global playback bar shared across all views — changing the date updates everything simultaneously:
+Two complementary control layers:
 
-- **Date picker**: direct date entry.
-- **Timeline slider**: scrub across the 1975–2075 range.
-- **Play/Pause**: animated time progression.
-- **Speed presets**: 1, 5, 10, 30, 100, 365, 1000, 3650 days/second.
-- **Navigation**: ±1 day, ±5 days, Today, Previous alignment, Next alignment.
-- **Smooth animation**: positions update every render frame (60 fps). No per-frame jitter.
+- **Global playback bar** (shared app timeline):
+  - Date picker, timeline slider, play/pause, speed presets (1–3650 d/s), ±1/±5 day, Today, Prev/Next.
+  - Changes update all panels in sync.
+- **Planetarium mini controls** (local to Planetarium tab):
+  - ±1/±5 minute stepping, local play/pause, speeds from 1 min/s to 1 hr/s.
+  - Intentionally independent from global play/pause state.
+  - Auto-offsets vertically to avoid overlap with playback/tab bars.
 
 ### 2.7 Responsive Layout
 
 - **Desktop**: floating, draggable, resizable panels with z-ordering. All five views visible simultaneously.
+- **Desktop mobile emulation**: playback bar toggle can switch to a landscape-mobile style layout for testing.
 - **Mobile (portrait)**: tabbed interface — Align, Timeline, Scene, Sky, Charts. One panel at a time.
+- **Mobile scene behavior**: Scene tab supports Solar System and Planetarium sub-tabs; each mode shows only its relevant control overlay.
 - **Mobile (landscape)**: two-column layouts where appropriate (chart + table, controls + results).
 - **Touch**: pinch-to-zoom and drag-to-pan on all interactive charts.
 
@@ -140,7 +156,7 @@ A global playback bar shared across all views — changing the date updates ever
 | FR-5  | An interactive timeline chart shall display AM, PM, and Straddling separation series with combination size tabs, zoom, pan, and click-to-navigate. |
 | FR-6  | A sky view shall plot planet positions in ecliptic longitude/latitude with per-kind shading bands, combination size tabs, and span annotations. Non-combo planets shall be dimmed. |
 | FR-7  | A planet data table shall show ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM classification. |
-| FR-8  | Dual stereographic sky charts shall show the sky at sunrise and sunset with stars, constellations, Milky Way, Moon phase, and planets. |
+| FR-8  | Dual azimuthal-equidistant sky charts shall show evening/morning Sun-referenced frames with stars, constellations, Milky Way, Moon phase, and planets. |
 | FR-9  | The Milky Way shall be renderable in both polygon and NASA texture modes, toggled by the user. |
 | FR-10 | A 3D solar system view shall display all bodies at their real heliocentric positions with to-scale orbits. |
 | FR-11 | Per-kind alignment cones from Earth shall visualize the best AM, PM, and Straddling clusters for the active combination size in the 3D view. |
@@ -150,6 +166,8 @@ A global playback bar shared across all views — changing the date updates ever
 | FR-15 | The simulation date range shall span 1975-01-01 to 2075-01-01. |
 | FR-16 | Animation shall update positions every render frame for smooth motion. |
 | FR-17 | Clicking a body shall select it and animate the camera toward it; Follow mode shall track it continuously. |
+| FR-18 | The Scene panel shall provide a Planetarium mode with horizon/cardinal framing and stable drag/zoom controls. |
+| FR-19 | Planetarium startup shall auto-select a deterministic nighttime instant that prioritizes active-cluster visibility while minimizing solar interference. |
 
 ### 3.2 Non-Functional Requirements
 
@@ -175,6 +193,10 @@ These are architectural and technology choices — not requirements. Alternative
 - **Scale**: 1 AU = 10 scene units. Celestial sphere radius = 950.
 - **State management**: React contexts for UI state; a module-level mutable store for the live simulation date shared between React and the Three.js render loop.
 - **Animation**: time advanced in Three.js `useFrame` loop. Per-frame position updates from the shared store. React UI updated at throttled rate (~10/sec).
+- **Planetarium view model**: drag updates a shared yaw/pitch store applied to a parent scene group, so sky layers and horizon remain rigidly aligned.
+- **Planetarium default-time strategy**: daylight-rejecting UTC day scan (5-minute steps), lexicographic ranking by visibility/darkness/altitude, with Sun-on-horizon fallback. See `docs/planetarium-default-view.md`.
+- **Sky chart reference frame**: virtual longitudes selected via `sunHorizonLongitude` so Sun is at configurable reference altitude (`0°`, `-6°`, `-12°`) rather than fixed civil sunrise/sunset.
+- **Atmosphere rendering**: shared sky-visibility and chromatic atmosphere model used by both Planetarium and Sky Charts.
 - **Sky chart texture**: Web Worker with inline blob source, shared across chart instances with reference counting and instance-ID isolation. See `docs/milkyway-texture.md`.
 - **Milky Way sphere**: custom ShaderMaterial bypassing Three.js color management. `phiStart=π` on SphereGeometry for RA alignment.
 - **Asset paths**: `import.meta.env.BASE_URL` prefix for all `public/` assets (Vite `base: './'`).
@@ -192,7 +214,7 @@ src/
 ├── types.ts                   CelestialBodyId, AlignmentTabDataPoint, AlignmentKind, etc.
 ├── constants.ts               Body metadata, speed/time presets, colors, formatting
 ├── components/
-│   ├── scene/                 3D solar system visualization
+│   ├── scene/                 Space & Sky renderers (Solar System + Planetarium)
 │   │   ├── SolarSystemScene.tsx   Canvas setup, camera, scene wrapper
 │   │   ├── CelestialBody.tsx      Planet mesh with dynamic sizing and labels
 │   │   ├── Sun.tsx                Central star
@@ -200,6 +222,14 @@ src/
 │   │   ├── AlignmentCones.tsx     Per-kind 3D cones (AM/PM/Straddling) from Earth
 │   │   ├── CameraController.tsx   OrbitControls, follow mode, selection animation
 │   │   ├── InnerPlanetsInset.tsx   Zoomed-in inner-planets view
+│   │   ├── PlanetariumScene.tsx   Observer sky dome wrapper + layer controls
+│   │   ├── PlanetariumCameraController.tsx  Drag/zoom + default framing logic
+│   │   ├── PlanetariumWorldRotation.tsx  Sidereal sky rotation in observer frame
+│   │   ├── PlanetariumHorizon.tsx  Horizon ring, ground dome, NESW labels
+│   │   ├── PlanetariumAltAzGrid.tsx  15° Alt/Az grid lines and labels
+│   │   ├── PlanetariumEclipticGrid.tsx  Dashed ecliptic in horizontal coordinates
+│   │   ├── PlanetariumPlanets.tsx  Sun/Moon/planet sprites + labels + attenuation
+│   │   ├── PlanetariumAtmosphere.tsx  Sky tint + twilight glow dome
 │   │   ├── MilkyWaySphere.tsx     NASA texture background sphere
 │   │   ├── RealStars.tsx          192-star point sprites with B-V colors
 │   │   ├── ConstellationLines3D.tsx   39 constellation stick figures
@@ -225,6 +255,7 @@ src/
 │   └── ui/                    Playback, toggles, selector, mobile tabs, help
 │       ├── PlaybackBar.tsx        Date input, play/pause, speed, step navigation
 │       ├── PlaybackControls.tsx   Compact playback controls (mobile)
+│       ├── PlanetariumTimeControls.tsx  In-panel minute stepping + local play/speed
 │       ├── TimeControls.tsx       Date picker + timeline slider
 │       ├── DisplayToggles.tsx     3D scene layer checkboxes
 │       ├── BodySelector.tsx       Quick-select planet focus buttons
@@ -240,6 +271,7 @@ src/
 │   ├── usePlanetPositions.ts  Memoized heliocentric positions
 │   ├── useOrbitPaths.ts       Memoized orbit polylines
 │   ├── useSimulationStore.ts  Global non-React store for R3F performance
+│   ├── usePlanetariumStore.ts Shared yaw/pitch/FoV state for Planetarium view group
 │   ├── useTour.ts             Guided tour state (driver.js)
 │   ├── useIsMobile.ts         Responsive breakpoint detection
 │   └── useIsLandscape.ts      Orientation detection
@@ -248,6 +280,10 @@ src/
 │   ├── alignment.ts           Combination-based alignment (computeAlignmentTabs, findBestPerKind, classifyCombination), local minima, ephemeris cache
 │   ├── ppiScoring.ts          Planet Parade Index (computePPIResults, computeComboPPI), presets
 │   ├── coordinateConversion.ts EQJ↔Scene, RA/Dec↔XYZ, ecliptic transforms
+│   ├── planetariumDefaultView.ts Planetarium default-time chooser
+│   ├── skyVisibility.ts       Shared twilight/moon wash -> visibility factors
+│   ├── atmosphereColor.ts     Shared sky color model (day/twilight/night/moon)
+│   ├── moonGlow.ts            Moon glow strength from phase/magnitude/airmass
 │   └── orbitSampler.ts        Orbit path sampling via Kepler
 ├── data/                      Static catalogs and data files
 │   ├── starCatalog.ts         192 stars (RA, Dec, magnitude, spectral class)
@@ -264,5 +300,6 @@ docs/
 ├── specs.md                   This file
 ├── planet-parade-index.md     PPI scoring formula, presets, calibration, design decisions
 ├── milkyway-texture.md        NASA texture source, conversion, rendering pipeline
+├── planetarium-default-view.md Planetarium default-time and framing strategy
 └── alignment-algorithm-analysis.md  Alignment computation research and validation
 ```

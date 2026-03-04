@@ -11,10 +11,11 @@ import { CelestialBodyId } from '../../types'
 interface AlignmentPanelProps {
   alignment: AlignmentState
   currentDate: Date
+  timeZone?: string | null
   isLandscape?: boolean
 }
 
-export default function AlignmentPanel({ alignment, currentDate, isLandscape }: AlignmentPanelProps) {
+export default function AlignmentPanel({ alignment, currentDate, timeZone, isLandscape }: AlignmentPanelProps) {
   const {
     selectedBodies, setSelectedBodies,
     startDate, setStartDate,
@@ -66,6 +67,7 @@ export default function AlignmentPanel({ alignment, currentDate, isLandscape }: 
         onNext={() => jumpToPeak('next')}
         hasPrev={hasPrev}
         hasNext={hasNext}
+        timeZone={timeZone}
         dayDetailCombos={dayDetailCombos}
         selectedDayComboIdx={selectedDayComboIdx}
         onDayComboSelect={setSelectedDayComboIdx}

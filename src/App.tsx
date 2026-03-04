@@ -14,6 +14,7 @@ import DisplayToggles from './components/ui/DisplayToggles'
 import BodySelector from './components/ui/BodySelector'
 import InfoDisplay from './components/ui/InfoDisplay'
 import MobileTabBar, { MobileTab } from './components/ui/MobileTabBar'
+import LocationPickerModal from './components/ui/LocationPickerModal'
 import { SimulationTimeContext } from './hooks/useSimulationTime'
 import { simulationStore } from './hooks/useSimulationStore'
 import { MS_PER_DAY, BODY_META } from './constants'
@@ -23,10 +24,11 @@ import { usePlanetPositions } from './hooks/usePlanetPositions'
 import { useOrbitPaths } from './hooks/useOrbitPaths'
 import { usePanelManager, PanelId } from './hooks/usePanelManager'
 import { useAlignmentState } from './hooks/useAlignmentState'
-import { CelestialBodyId, ObserverLocation } from './types'
+import { CelestialBodyId } from './types'
 import { useTour } from './hooks/useTour'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useIsLandscape } from './hooks/useIsLandscape'
+import { useObserverLocation } from './hooks/useObserverLocation'
 
 const MOBILE_TAB_TITLES: Record<MobileTab, string> = {
   scene: 'Space & Sky',
@@ -138,8 +140,21 @@ export default function App() {
   const positions = usePlanetPositions(currentDate)
   const orbitPaths = useOrbitPaths(currentDate)
 
+  // --- Observer location (progressive, user-triggered) ---
+  const {
+    observer,
+    observerState,
+    setManualLocation,
+    setOsmLocation,
+    resetToDefault,
+    requestBrowserLocation,
+  } = useObserverLocation()
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const openLocationPicker = useCallback(() => setLocationPickerOpen(true), [])
+  const closeLocationPicker = useCallback(() => setLocationPickerOpen(false), [])
+
   // --- Alignment state (shared across panels) ---
-  const alignment = useAlignmentState(currentDate, handleSetDate)
+  const alignment = useAlignmentState(currentDate, handleSetDate, observerState.timeZone)
 
   // Best combo for current day (for scene overlay PPI display)
   const activeCombo = alignment.selectedDayComboIdx != null
@@ -156,9 +171,6 @@ export default function App() {
       </span>
     </div>
   ) : null
-
-  // --- Observer (fixed for Stage 1) ---
-  const observer = useMemo<ObserverLocation>(() => ({ lat: 0, lon: 0, height: 0 }), [])
 
   // --- Panel manager ---
   const panel = usePanelManager()
@@ -249,6 +261,7 @@ export default function App() {
               <PlanetariumScene
                 observer={observer}
                 currentDate={currentDate}
+                timeZone={observerState.timeZone}
                 onAutoDateChange={handleSetDate}
                 targetComboBodies={activeCombo?.planets ?? null}
               />
@@ -281,7 +294,13 @@ export default function App() {
               />
             )}
             {sceneView === 'planetarium' && (
-              <PlanetariumTimeControls onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />
+              <PlanetariumTimeControls
+                onDateChange={handleSetDate}
+                observer={observer}
+                currentDate={currentDate}
+                timeZone={observerState.timeZone}
+                onOpenLocationPicker={openLocationPicker}
+              />
             )}
           </>
         )}
@@ -292,9 +311,21 @@ export default function App() {
         <div className={`mobile-sheet${showMobilePlaybackBar ? ' mobile-sheet-with-playback' : ''}`}>
           <div className="mobile-sheet-header">{MOBILE_TAB_TITLES[mobileTab]}</div>
           <div className="mobile-sheet-body">
-            {mobileTab === 'align' && <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />}
+            {mobileTab === 'align' && (
+              <AlignmentPanel
+                alignment={alignment}
+                currentDate={currentDate}
+                timeZone={observerState.timeZone}
+                isLandscape={effectiveIsLandscape}
+              />
+            )}
             {mobileTab === 'timeline' && (
-              <ChartPanel alignment={alignment} currentDate={currentDate} onDateChange={handleSetDate} />
+              <ChartPanel
+                alignment={alignment}
+                currentDate={currentDate}
+                timeZone={observerState.timeZone}
+                onDateChange={handleSetDate}
+              />
             )}
             {mobileTab === 'sky' && (
               <SkyViewPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />
@@ -303,9 +334,11 @@ export default function App() {
               <SkyChartPanel
                 currentDate={currentDate}
                 observer={observer}
+                timeZone={observerState.timeZone}
                 isMobile={effectiveIsMobile}
                 isPlaying={isPlaying}
                 isLandscape={effectiveIsLandscape}
+                onOpenLocationPicker={openLocationPicker}
               />
             )}
           </div>
@@ -352,6 +385,7 @@ export default function App() {
                 <PlanetariumScene
                   observer={observer}
                   currentDate={currentDate}
+                  timeZone={observerState.timeZone}
                   onAutoDateChange={handleSetDate}
                   targetComboBodies={activeCombo?.planets ?? null}
                 />
@@ -377,18 +411,32 @@ export default function App() {
               </div>
             )}
             {sceneView === 'free' && <InnerPlanetsInset positions={positions} orbitPaths={orbitPaths} visibleSeries={alignment.visibleSeries} bestPerKind={alignment.bestPerKind} />}
-            {sceneView === 'planetarium' && <PlanetariumTimeControls onDateChange={handleSetDate} observer={observer} currentDate={currentDate} />}
+            {sceneView === 'planetarium' && (
+              <PlanetariumTimeControls
+                onDateChange={handleSetDate}
+                observer={observer}
+                currentDate={currentDate}
+                timeZone={observerState.timeZone}
+                onOpenLocationPicker={openLocationPicker}
+              />
+            )}
           </div>
         </FloatingPanel>
 
         <FloatingPanel {...fp('controls')} title="Alignments" minWidth={220} minHeight={200}>
-          <AlignmentPanel alignment={alignment} currentDate={currentDate} isLandscape={effectiveIsLandscape} />
+          <AlignmentPanel
+            alignment={alignment}
+            currentDate={currentDate}
+            timeZone={observerState.timeZone}
+            isLandscape={effectiveIsLandscape}
+          />
         </FloatingPanel>
 
         <FloatingPanel {...fp('chart')} title="Parade Timeline" minWidth={400} minHeight={160}>
           <ChartPanel
             alignment={alignment}
             currentDate={currentDate}
+            timeZone={observerState.timeZone}
             onDateChange={handleSetDate}
           />
         </FloatingPanel>
@@ -401,9 +449,11 @@ export default function App() {
           <SkyChartPanel
             currentDate={currentDate}
             observer={observer}
+            timeZone={observerState.timeZone}
             isMobile={effectiveIsMobile}
             isPlaying={isPlaying}
             isLandscape={effectiveIsLandscape}
+            onOpenLocationPicker={openLocationPicker}
           />
         </FloatingPanel>
 
@@ -434,6 +484,15 @@ export default function App() {
       <SelectionContext.Provider value={selectionValue}>
         <DisplaySettingsContext.Provider value={displayValue}>
           {effectiveIsMobile ? mobileLayout : desktopLayout}
+          <LocationPickerModal
+            open={locationPickerOpen}
+            observerState={observerState}
+            onClose={closeLocationPicker}
+            onUseBrowserLocation={requestBrowserLocation}
+            onApplyManualLocation={setManualLocation}
+            onApplySearchLocation={setOsmLocation}
+            onResetLocation={resetToDefault}
+          />
         </DisplaySettingsContext.Provider>
       </SelectionContext.Provider>
     </SimulationTimeContext.Provider>

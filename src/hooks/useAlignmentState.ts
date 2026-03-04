@@ -4,6 +4,7 @@ import { MS_PER_DAY } from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
 import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos, findPPIPeaks, findSpanMinima } from '../lib/ppiScoring'
 import { SkyViewCenter } from '../components/alignment/SkyView'
+import { getTimeZoneDayKey, getTimeZoneDayRange } from '../lib/timeZoneDay'
 
 export interface AlignmentState {
   // State
@@ -54,6 +55,7 @@ export interface AlignmentState {
 export function useAlignmentState(
   currentDate: Date,
   onDateChange: (d: Date) => void,
+  timeZone?: string | null,
 ): AlignmentState {
   const [selectedBodies, setSelectedBodies] = useState<CelestialBodyId[]>([
     'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
@@ -114,16 +116,17 @@ export function useAlignmentState(
 
   const [selectedDayComboIdx, setSelectedDayComboIdx] = useState<number | null>(null)
 
-  const currentDay = Math.floor(currentDate.getTime() / MS_PER_DAY)
+  const currentDayKey = getTimeZoneDayKey(currentDate, timeZone)
+  const currentDayRange = getTimeZoneDayRange(currentDate, timeZone)
 
   // Reset combo selection when day changes
-  const prevDayRef = useRef(currentDay)
+  const prevDayRef = useRef(currentDayKey)
   useEffect(() => {
-    if (prevDayRef.current !== currentDay) {
-      prevDayRef.current = currentDay
+    if (prevDayRef.current !== currentDayKey) {
+      prevDayRef.current = currentDayKey
       setSelectedDayComboIdx(null)
     }
-  }, [currentDay])
+  }, [currentDayKey])
 
   const chartData = useMemo(() => {
     return ppiResult.dates.map((dateMs, d) => {
@@ -149,9 +152,9 @@ export function useAlignmentState(
 
   const dayDetailCombos = useMemo((): PPIDayPoint[] => {
     if (selectedBodies.length < 2) return []
-    const dayDate = new Date(currentDay * MS_PER_DAY)
+    const dayDate = new Date(currentDayRange.startMs)
     return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights, effectiveMax)
-  }, [selectedBodies, currentDay, effectiveMin, ppiWeights, effectiveMax])
+  }, [selectedBodies, currentDayRange.startMs, effectiveMin, ppiWeights, effectiveMax])
 
   const allMinima = useMemo(() => {
     const result: AlignmentMinimum[] = []
@@ -169,7 +172,7 @@ export function useAlignmentState(
     const result: BestPerKind = { morning: null, evening: null, straddling: null }
     if (dayDetailCombos.length === 0) return result
 
-    const dayDate = new Date(currentDay * MS_PER_DAY)
+    const dayDate = new Date(currentDayRange.startMs)
     const sunLon = getGeocentricEclipticCoords('Sun', dayDate).lon
 
     const combosToShow = selectedDayComboIdx !== null && selectedDayComboIdx < dayDetailCombos.length
@@ -190,7 +193,7 @@ export function useAlignmentState(
     }
 
     return result
-  }, [dayDetailCombos, currentDay, selectedBodies, selectedDayComboIdx])
+  }, [dayDetailCombos, currentDayRange.startMs, selectedBodies, selectedDayComboIdx])
 
   const handleDateSelect = useCallback(
     (dateMs: number) => onDateChange(new Date(dateMs)),
@@ -201,9 +204,9 @@ export function useAlignmentState(
 
   const filteredPeaks = useMemo(() => {
     const pickBestPerDay = (points: PPIDayPoint[]): PPIDayPoint[] => {
-      const byDay = new Map<number, PPIDayPoint>()
+      const byDay = new Map<string, PPIDayPoint>()
       for (const p of points) {
-        const day = Math.floor(p.date / MS_PER_DAY)
+        const day = getTimeZoneDayKey(new Date(p.date), timeZone)
         const prev = byDay.get(day)
         if (!prev) {
           byDay.set(day, p)
@@ -253,27 +256,32 @@ export function useAlignmentState(
       }
     }
     return pickBestPerDay(points)
-  }, [ppiResult, visibleCounts, navMode, simpleMode])
+  }, [ppiResult, visibleCounts, navMode, simpleMode, timeZone])
 
-  const hasPrev = useMemo(() => filteredPeaks.some((m) => m.date < currentDateMs), [filteredPeaks, currentDateMs])
-  const hasNext = useMemo(() => filteredPeaks.some((m) => m.date > currentDateMs), [filteredPeaks, currentDateMs])
+  const hasPrev = useMemo(
+    () => filteredPeaks.some((m) => getTimeZoneDayKey(new Date(m.date), timeZone) < currentDayKey),
+    [filteredPeaks, timeZone, currentDayKey],
+  )
+  const hasNext = useMemo(
+    () => filteredPeaks.some((m) => getTimeZoneDayKey(new Date(m.date), timeZone) > currentDayKey),
+    [filteredPeaks, timeZone, currentDayKey],
+  )
 
   const jumpToPeak = useCallback(
     (direction: 'prev' | 'next') => {
       if (filteredPeaks.length === 0) return
       if (direction === 'next') {
-        const next = filteredPeaks.find((m) => m.date > currentDateMs)
+        const next = filteredPeaks.find((m) => getTimeZoneDayKey(new Date(m.date), timeZone) > currentDayKey)
         if (next) onDateChange(new Date(next.date))
       } else {
         let prev: PPIDayPoint | null = null
         for (const m of filteredPeaks) {
-          if (m.date < currentDateMs) prev = m
-          else break
+          if (getTimeZoneDayKey(new Date(m.date), timeZone) < currentDayKey) prev = m
         }
         if (prev) onDateChange(new Date(prev.date))
       }
     },
-    [filteredPeaks, currentDateMs, onDateChange],
+    [filteredPeaks, currentDayKey, onDateChange, timeZone],
   )
 
   const now = Date.now()

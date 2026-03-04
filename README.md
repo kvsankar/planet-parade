@@ -16,11 +16,14 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 
 ## Features
 
-### 3D Solar System
-- Heliocentric view of all planets (Mercury through Neptune) with accurate orbital positions
-- Orbit lines, labels, and an inner-planets inset for detail
-- Per-kind alignment cones from Earth (AM/PM/Straddling) showing the best cluster for each category
-- Animated playback from 1x to 3650x speed across a 100-year range (1975–2075)
+### Space & Sky Panel
+- Two scene modes in one panel: `Solar System` (heliocentric 3D) and `Planetarium` (observer sky dome)
+- Solar System mode shows all planets with orbit lines, labels, inner-planets inset, and per-kind alignment cones from Earth
+- Planetarium mode provides Stellarium-style drag/zoom navigation with horizon, cardinal markers, Alt/Az grid, dashed ecliptic, stars, Milky Way, and constellations
+- Planetarium startup auto-selects a nighttime instant (cluster visibility first, sunlight interference second), then frames a wide horizon-to-horizon ecliptic view
+- Planetarium includes independent mini time controls (play/pause, ±1/±5 min, 1 min/s to 1 hr/s), separate from the main playback bar
+- Observer location is opt-in and user-triggered: set via browser geolocation permission, OpenStreetMap map/search widget, or manual coordinates
+- Timezone is inferred from chosen observer coordinates and used in sky-time labels (with UTC fallback)
 
 ### Planetary Alignments ([algorithm](docs/alignment-algorithm-analysis.md))
 - Select any combination of planets and compute the tightest cluster for every combination size
@@ -46,19 +49,23 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Draggable separator to resize chart vs table; table toggleable
 - X-axis zoom/pan with pinch and drag support
 
-### Stereographic Sky Charts ([Milky Way rendering](docs/milkyway-texture.md))
-- Hemispheric projection of the sky dome at sunrise and sunset
-- Sun, Moon (with phase), planets, 192 stars, 39 constellations, ecliptic curve, and Milky Way
-- Visual magnitudes determine planet and star dot sizes
-- Toggleable layers: stars, constellation edges, constellation labels, Milky Way, planets, Moon
-- Panel-level zoom expands the charts while labels and dots retain their pixel sizes
-- Smooth animation — sky rotates continuously as the date changes
-- Mobile: AM/PM tabs to switch between morning and evening charts
+### Sky Charts ([Milky Way rendering](docs/milkyway-texture.md))
+- Dual azimuthal-equidistant hemispheres for evening and morning reference frames
+- Reference frame can be anchored by Sun altitude presets (`0°`, `-6°`, `-12°`) with a visible badge
+- Observer location is shared with Planetarium and can be changed on demand from Sky Charts controls
+- Sun, Moon (phase with sun-facing limb), planets, 192 stars, 39 constellations, dashed ecliptic, and Milky Way
+- Shared atmosphere model with Planetarium: sunlight/twilight/moonlight sky wash, star attenuation, and Milky Way attenuation
+- Toggleable layers: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic
+- Milky Way style switch: `Poly` (d3-celestial polygons) or `Tex` (NASA texture), default `Tex`
+- Panel-level zoom/pan with touch support; mobile landscape can zoom out enough to show the full sky circle
+- Desktop supports paired charts (default) or optional tabbed view; mobile uses AM/PM tabs
 
 ### Cross-Platform
 - Desktop: draggable, resizable floating panels with z-ordering
 - Mobile: full-screen tabbed interface with compact controls
+- Desktop can emulate mobile-landscape layout via a playback-bar toggle
 - Mobile landscape: two-column layouts for Align (controls | minima table) and Ecliptic Strip (chart | data table); full-width sky chart circle
+- Scene tab behavior matches mode: Solar System shows main scene controls, Planetarium shows only the in-panel planetarium controls
 - Touch gestures throughout (pinch-to-zoom, drag-to-pan)
 - Guided tour with Quick Tour and Full Tour modes; auto-starts on first visit
 
@@ -98,13 +105,13 @@ npm run test:watch   # Run tests in watch mode
 ```
 src/
   components/
-    scene/       3D solar system (Sun, planets, orbits, camera)
+    scene/       Space & Sky renderers (Solar System + Planetarium)
     panels/      Floating panel wrappers (AlignmentPanel, ChartPanel, SkyViewPanel, SkyChartPanel)
-    alignment/   Charts, sky views, stereo sky charts, planet picker, minima table
-    ui/          Playback bar, body selector, toggles, mobile tab bar, help button
+    alignment/   Ecliptic Strip, Sky Charts renderer, timeline, planet picker, minima table
+    ui/          Playback bars, planetarium mini controls, body selector, toggles, mobile tab bar, help button
   hooks/         State management, responsive hooks (useIsMobile, useIsLandscape),
-                 guided tour (useTour), display settings, panel manager
-  lib/           Astronomy calculations, alignment math, coordinate transforms
+                 guided tour (useTour), display settings, panel manager, planetarium view store
+  lib/           Astronomy calculations, alignment/PPI math, atmosphere + visibility models, coordinate transforms
   data/          Star catalog, constellation lines, Milky Way polygons
   types.ts       Shared type definitions (CelestialBodyId, AlignmentTabDataPoint, etc.)
 ```

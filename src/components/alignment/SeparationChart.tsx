@@ -28,6 +28,7 @@ const KIND_LABELS: Record<AlignmentKind, string> = {
 interface SeparationChartProps {
   data: Record<string, number | string | null>[]
   currentDate: number | null
+  timeZone?: string | null
   onDateClick: (dateMs: number) => void
   visibleCounts: Set<number>
   visibleMetrics: Set<ChartMetric>
@@ -35,7 +36,7 @@ interface SeparationChartProps {
   focusToken?: number
 }
 
-function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics, simpleMode }: any) {
+function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics, simpleMode, timeZone }: any) {
   if (!active || !payload || payload.length === 0) return null
   const point = payload[0]?.payload
   if (!point) return null
@@ -47,7 +48,7 @@ function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics, 
     const planets = planetsStr ? planetsStr.split(',') as CelestialBodyId[] : []
     return (
       <div style={TOOLTIP_STYLE}>
-        <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number)}</div>
+        <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number, timeZone)}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {visibleMetrics.has('ppi') && ppi != null && (
             <span style={{ color: '#ddd' }}>PPI {Number(ppi).toFixed(1)}</span>
@@ -79,7 +80,7 @@ function CustomTooltip({ active, payload, label, visibleCounts, visibleMetrics, 
 
   return (
     <div style={TOOLTIP_STYLE}>
-      <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number)}</div>
+      <div style={{ marginBottom: 4, color: '#ccc' }}>{formatDate(label as number, timeZone)}</div>
       {counts.map((k: number) => {
         const ppi = point[`ppi_${k}`]
         const span = point[`span_${k}`]
@@ -119,8 +120,9 @@ const ChartInner = memo(function ChartInner({
   visibleCounts,
   visibleMetrics,
   simpleMode,
+  timeZone,
   xDomain,
-}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleCounts' | 'visibleMetrics' | 'simpleMode'> & { xDomain: [number, number] }) {
+}: Pick<SeparationChartProps, 'data' | 'onDateClick' | 'visibleCounts' | 'visibleMetrics' | 'simpleMode' | 'timeZone'> & { xDomain: [number, number] }) {
   const showPPI = visibleMetrics.has('ppi')
   const showSpan = visibleMetrics.has('span')
   const counts = Array.from(visibleCounts).sort((a, b) => b - a)
@@ -148,7 +150,7 @@ const ChartInner = memo(function ChartInner({
           type="number"
           domain={xDomain}
           allowDataOverflow
-          tickFormatter={(v) => formatDate(v)}
+          tickFormatter={(v) => formatDate(v, timeZone)}
           stroke="#666"
           fontSize={10}
           minTickGap={40}
@@ -179,7 +181,7 @@ const ChartInner = memo(function ChartInner({
           />
         )}
         <Tooltip
-          content={<CustomTooltip visibleCounts={visibleCounts} visibleMetrics={visibleMetrics} simpleMode={simpleMode} />}
+          content={<CustomTooltip visibleCounts={visibleCounts} visibleMetrics={visibleMetrics} simpleMode={simpleMode} timeZone={timeZone} />}
         />
         {simpleMode ? (
           <>
@@ -268,6 +270,7 @@ const CHART_PAD_RIGHT = 45
 export default function SeparationChart({
   data,
   currentDate,
+  timeZone,
   onDateClick,
   visibleCounts,
   visibleMetrics,
@@ -505,6 +508,7 @@ export default function SeparationChart({
           visibleCounts={visibleCounts}
           visibleMetrics={visibleMetrics}
           simpleMode={simpleMode}
+          timeZone={timeZone}
           xDomain={xDomain}
         />
         {indicatorPct != null && (
@@ -517,7 +521,7 @@ export default function SeparationChart({
                 className="chart-date-label"
                 style={indicatorFlip ? { right: 6, left: 'auto', alignItems: 'flex-end' } as const : undefined}
               >
-                <span>{formatDate(currentDate!)}</span>
+                <span>{formatDate(currentDate!, timeZone)}</span>
                 {indicatorPpi != null && (
                   <span>
                     PPI {indicatorPpi.toFixed(1)}

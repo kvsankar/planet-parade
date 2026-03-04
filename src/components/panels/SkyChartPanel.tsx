@@ -1,18 +1,20 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
 import { findSunrise, findSunset, getAllAltAz, AltAzPosition, getStarAltAzPositions, getEclipticAltAzPositions, getMilkyWayPolygons, getMoonIllumination, isMoonWaxing, getBodyVisualMagnitude, SKY_BODIES, SkyBodyId, sunHorizonLongitude, getHORtoEQJMatrix } from '../../lib/astronomy'
+import { getTimeZoneDayRange } from '../../lib/timeZoneDay'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 
 interface SkyChartPanelProps {
   currentDate: Date
   observer: ObserverLocation
+  timeZone?: string | null
   isMobile?: boolean
   isPlaying?: boolean
   isLandscape?: boolean
+  onOpenLocationPicker?: () => void
 }
 
 const MS_PER_MW_STEP = 120_000 // 2 minutes — only for expensive MW computations
-const MS_PER_DAY = 86_400_000
 const MAX_ZOOM = 16
 const BASE_MIN_ZOOM = 0.35
 const SUN_REFERENCE_ALTITUDES = [0, -6, -12] as const
@@ -24,7 +26,21 @@ function formatSignedDegrees(value: number): string {
   return `${value}°`
 }
 
-export default function SkyChartPanel({ currentDate, observer, isMobile, isPlaying, isLandscape }: SkyChartPanelProps) {
+function formatLatLon(lat: number, lon: number): string {
+  const latDir = lat >= 0 ? 'N' : 'S'
+  const lonDir = lon >= 0 ? 'E' : 'W'
+  return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`
+}
+
+export default function SkyChartPanel({
+  currentDate,
+  observer,
+  timeZone,
+  isMobile,
+  isPlaying,
+  isLandscape,
+  onOpenLocationPicker,
+}: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
   const [mobileChart, setMobileChart] = useState<'pm' | 'am'>('pm')
@@ -145,9 +161,9 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   // --- Daily quantities (labels, moon phase, magnitudes) ---
   const dayStart = useMemo(() => {
-    const d = currentDate
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-  }, [Math.floor(currentDate.getTime() / MS_PER_DAY)])
+    const dayRange = getTimeZoneDayRange(currentDate, timeZone)
+    return new Date(dayRange.startMs)
+  }, [currentMs, timeZone])
 
   const sunriseTime = useMemo(() => findSunrise(dayStart, observer), [dayStart, observer])
   const sunsetTime = useMemo(() => findSunset(dayStart, observer), [dayStart, observer])
@@ -344,6 +360,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
       moonIllumination={morningMoonIllum}
       moonWaxing={morningMoonWaxing}
       magnitudes={morningMagnitudes}
+      timeZone={timeZone}
       horToEqjMatrix={morningRotMatrix}
       {...toggleProps}
     />
@@ -361,6 +378,7 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
       moonIllumination={eveningMoonIllum}
       moonWaxing={eveningMoonWaxing}
       magnitudes={eveningMagnitudes}
+      timeZone={timeZone}
       horToEqjMatrix={eveningRotMatrix}
       {...toggleProps}
     />
@@ -368,8 +386,20 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
 
   return (
     <div className="skychart-panel">
-      <div className="skychart-reference-badge">
-        {`Reference: Sun @ ${formatSignedDegrees(sunReferenceAltitudeDeg)} (virtual longitude)`}
+      <div className="skychart-top-strip">
+        <div className="skychart-reference-badge">
+          {`Reference: Sun @ ${formatSignedDegrees(sunReferenceAltitudeDeg)} (virtual longitude)`}
+        </div>
+        {onOpenLocationPicker && (
+          <button
+            type="button"
+            className="skychart-location-btn"
+            onClick={onOpenLocationPicker}
+            title="Set observer location"
+          >
+            {formatLatLon(observer.lat, observer.lon)}
+          </button>
+        )}
       </div>
       {tabbedMode && (
         <div className="skychart-ampm-tabs">
@@ -444,6 +474,19 @@ export default function SkyChartPanel({ currentDate, observer, isMobile, isPlayi
                       ))}
                     </span>
                   </div>
+                  {onOpenLocationPicker && (
+                    <button
+                      type="button"
+                      className="skychart-location-open-btn"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setLayerMenuOpen(false)
+                        onOpenLocationPicker()
+                      }}
+                    >
+                      Set Location
+                    </button>
+                  )}
                   {([
                     ['Stars', showStars, setShowStars],
                     ['Milky Way', showMilkyWay, setShowMilkyWay],

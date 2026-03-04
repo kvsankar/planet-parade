@@ -111,7 +111,16 @@ The texture is in J2000 equatorial coordinates. The scene uses ecliptic coordina
 - Scaled by `[-1, 1, 1]` to correct the RA direction (RA increases eastward, but Three.js SphereGeometry phi increases in the opposite sense when viewed from inside with `BackSide`)
 - Rotated by `-obliquity` (23.44°) around X to tilt the equatorial pole to the ecliptic pole
 
-Material opacity is set to 0.25 for a subtle background effect.
+Base material opacity is `0.25` for a subtle background effect, then modulated at runtime by shared sky-visibility factors.
+
+### Atmospheric attenuation in Planetarium
+
+In Planetarium, the Milky Way shader applies directional attenuation from:
+
+- **Twilight wash** (Sun altitude driven) with wide + core scattering kernels around the Sun direction.
+- **Moon wash** (phase/altitude/magnitude driven) with a narrower kernel around the Moon direction.
+
+The final local visibility is clamped and multiplied into both RGB and alpha, so Milky Way contrast fades naturally in twilight/moonlight.
 
 ### Asset path
 
@@ -119,7 +128,7 @@ The texture is loaded via `import.meta.env.BASE_URL` (Vite replaces this with th
 
 ## Sky Chart Texture Reprojection
 
-The same `starmap_4k.jpg` texture is also used in the stereographic sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
+The same `starmap_4k.jpg` texture is also used in the sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
 
 ### How it works
 
@@ -129,6 +138,8 @@ The same `starmap_4k.jpg` texture is also used in the stereographic sky charts (
 2. **Horizontal → J2000** — Apply the `Rotation_HOR_EQJ` matrix (from astronomy-engine, transposed to row-major) to convert the horizontal unit vector to a J2000 equatorial direction
 3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 - dec)/π` (matching the 3D sphere's texture convention where RA=0h maps to u=0.5)
 4. **Bilinear sample** — Interpolate the 4 nearest texture pixels for smooth output
+
+After sampling, the worker applies the same twilight/moon directional attenuation model used by Planetarium so both views react consistently to atmosphere settings.
 
 ### Architecture
 

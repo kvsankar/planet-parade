@@ -49,8 +49,25 @@ export const SERIES_COLORS = {
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Format a Date or ms timestamp as dd-Mmm-yyyy */
-export function formatDate(d: Date | number): string {
+export function formatDate(d: Date | number, timeZone?: string | null): string {
   const dt = typeof d === 'number' ? new Date(d) : d
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+      }).formatToParts(dt)
+      const byType = new Map(parts.map((part) => [part.type, part.value]))
+      const day = byType.get('day')
+      const mon = byType.get('month')
+      const year = byType.get('year')
+      if (day && mon && year) return `${day}-${mon}-${year}`
+    } catch {
+      // Fall back to UTC formatting below.
+    }
+  }
   const day = String(dt.getUTCDate()).padStart(2, '0')
   const mon = MONTH_ABBR[dt.getUTCMonth()]
   const year = dt.getUTCFullYear()

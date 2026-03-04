@@ -121,11 +121,18 @@ function PlanetariumContents({
 interface Props {
   observer: ObserverLocation
   currentDate: Date
+  timeZone?: string | null
   onAutoDateChange?: (d: Date) => void
   targetComboBodies?: CelestialBodyId[] | null
 }
 
-export default memo(function PlanetariumScene({ observer, currentDate, onAutoDateChange, targetComboBodies }: Props) {
+export default memo(function PlanetariumScene({
+  observer,
+  currentDate,
+  timeZone,
+  onAutoDateChange,
+  targetComboBodies,
+}: Props) {
   const [showMilkyWay, setShowMilkyWay] = useState(true)
   const [showAltAzGrid, setShowAltAzGrid] = useState(true)
   const [showEclipticGrid, setShowEclipticGrid] = useState(true)
@@ -236,6 +243,7 @@ export default memo(function PlanetariumScene({ observer, currentDate, onAutoDat
         <PlanetariumCameraController
           observer={observer}
           currentDate={currentDate}
+          timeZone={timeZone}
           targetComboBodies={targetComboBodies}
           onAutoDateChange={onAutoDateChange}
           onFovChange={setViewFovDeg}

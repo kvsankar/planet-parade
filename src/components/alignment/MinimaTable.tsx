@@ -1,6 +1,7 @@
 import { memo, useState, useMemo, useEffect } from 'react'
 import { AlignmentKind, CelestialBodyId, PPIDayPoint } from '../../types'
-import { SERIES_COLORS, formatDate, ANALYZABLE_BODIES, MS_PER_DAY } from '../../constants'
+import { SERIES_COLORS, formatDate, ANALYZABLE_BODIES } from '../../constants'
+import { getTimeZoneDayKey } from '../../lib/timeZoneDay'
 
 interface MinimaTableProps {
   ppiPeaks: PPIDayPoint[]
@@ -10,6 +11,7 @@ interface MinimaTableProps {
   onNext?: () => void
   hasPrev?: boolean
   hasNext?: boolean
+  timeZone?: string | null
   dayDetailCombos?: PPIDayPoint[]
   selectedDayComboIdx?: number | null
   onDayComboSelect?: (idx: number | null) => void
@@ -52,6 +54,7 @@ export default memo(function MinimaTable({
   onNext,
   hasPrev = false,
   hasNext = false,
+  timeZone,
   dayDetailCombos,
   selectedDayComboIdx,
   onDayComboSelect,
@@ -86,10 +89,10 @@ export default memo(function MinimaTable({
     return arr
   }, [ppiPeaks, sortCol, sortDir])
 
-  const currentDay = useMemo(
-    () => (currentDate == null ? null : Math.floor(currentDate / MS_PER_DAY)),
-    [currentDate],
-  )
+  const currentDay = useMemo(() => {
+    if (currentDate == null) return null
+    return getTimeZoneDayKey(new Date(currentDate), timeZone)
+  }, [currentDate, timeZone])
 
   const dayGroups = useMemo(() => {
     if (!dayDetailCombos?.length) return null
@@ -238,10 +241,10 @@ export default memo(function MinimaTable({
               {sorted.map((m) => (
                 <tr
                   key={`${m.date}-${m.kind}-${m.planetCount}-${m.planets.join(',')}`}
-                  className={currentDay !== null && currentDay === Math.floor(m.date / MS_PER_DAY) ? 'active' : ''}
+                  className={currentDay !== null && currentDay === getTimeZoneDayKey(new Date(m.date), timeZone) ? 'active' : ''}
                   onClick={() => onSelect(m.date)}
                 >
-                  <td>{formatDate(m.date)}</td>
+                  <td>{formatDate(m.date, timeZone)}</td>
                   <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>
                   <td className="col-right">{m.span.toFixed(1)}&deg;</td>
                   <td className="col-right">{m.planetCount}</td>
@@ -264,7 +267,7 @@ export default memo(function MinimaTable({
           </table>
           {dayGroups && (
             <div className="day-detail-section">
-              <span className="control-label">Best combos on {formatDate(currentDate ?? dayDetailCombos![0].date)}</span>
+              <span className="control-label">Best combos on {formatDate(currentDate ?? dayDetailCombos![0].date, timeZone)}</span>
               <table>
                 <thead>
                   <tr>

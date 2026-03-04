@@ -18,7 +18,42 @@ function formatLatLon(lat: number, lon: number): string {
   return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`
 }
 
-function formatDateTime(date: Date): string {
+function formatDateTime(date: Date, timeZone?: string | null): string {
+  if (!timeZone) {
+    const y = date.getUTCFullYear()
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const d = String(date.getUTCDate()).padStart(2, '0')
+    const h = String(date.getUTCHours()).padStart(2, '0')
+    const min = String(date.getUTCMinutes()).padStart(2, '0')
+    return `${y}-${m}-${d} ${h}:${min} UTC`
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      hourCycle: 'h23',
+      timeZoneName: 'short',
+    }).formatToParts(date)
+    const byType = new Map(parts.map((part) => [part.type, part.value]))
+    const y = byType.get('year')
+    const m = byType.get('month')
+    const d = byType.get('day')
+    const h = byType.get('hour')
+    const min = byType.get('minute')
+    const zone = byType.get('timeZoneName') ?? timeZone
+    if (y && m && d && h && min) {
+      return `${y}-${m}-${d} ${h}:${min} ${zone}`
+    }
+  } catch {
+    // Fallback to UTC formatting below.
+  }
+
   const y = date.getUTCFullYear()
   const m = String(date.getUTCMonth() + 1).padStart(2, '0')
   const d = String(date.getUTCDate()).padStart(2, '0')
@@ -31,9 +66,17 @@ interface Props {
   onDateChange: (d: Date) => void
   observer: ObserverLocation
   currentDate: Date
+  timeZone?: string | null
+  onOpenLocationPicker?: () => void
 }
 
-export default function PlanetariumTimeControls({ onDateChange, observer, currentDate }: Props) {
+export default function PlanetariumTimeControls({
+  onDateChange,
+  observer,
+  currentDate,
+  timeZone,
+  onOpenLocationPicker,
+}: Props) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [speed, setSpeed] = useState(SPEED_OPTIONS[0].value)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -149,8 +192,19 @@ export default function PlanetariumTimeControls({ onDateChange, observer, curren
   return (
     <div ref={rootRef} className="planetarium-time-controls" style={{ bottom: `${bottomPx}px` }}>
       <div className="planetarium-info-row">
-        <span className="planetarium-info-text">{formatDateTime(currentDate)}</span>
-        <span className="planetarium-info-text">{formatLatLon(observer.lat, observer.lon)}</span>
+        <span className="planetarium-info-text">{formatDateTime(currentDate, timeZone)}</span>
+        {onOpenLocationPicker ? (
+          <button
+            type="button"
+            className="planetarium-info-location-btn"
+            onClick={onOpenLocationPicker}
+            title="Set observer location"
+          >
+            {formatLatLon(observer.lat, observer.lon)}
+          </button>
+        ) : (
+          <span className="planetarium-info-text">{formatLatLon(observer.lat, observer.lon)}</span>
+        )}
       </div>
       <div className="planetarium-time-row">
         <button className="planetarium-time-btn" onClick={() => stepMinutes(-5)} title="-5 min">-5m</button>

@@ -17,6 +17,7 @@ interface StereoSkyChartProps {
   milkyWay: MilkyWayLayer[]
   title: string
   time: Date | null
+  timeZone?: string | null
   size: number
   moonIllumination: number
   moonWaxing: boolean
@@ -124,7 +125,31 @@ function moonLimbAngleDeg(
   return Math.atan2(dy, dx) * 180 / Math.PI
 }
 
-function formatTime(d: Date): string {
+function formatTime(d: Date, timeZone?: string | null): string {
+  if (!timeZone) {
+    const h = d.getUTCHours().toString().padStart(2, '0')
+    const m = d.getUTCMinutes().toString().padStart(2, '0')
+    return `${h}:${m} UTC`
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      hourCycle: 'h23',
+      timeZoneName: 'short',
+    }).formatToParts(d)
+    const byType = new Map(parts.map((part) => [part.type, part.value]))
+    const h = byType.get('hour')
+    const m = byType.get('minute')
+    const zone = byType.get('timeZoneName') ?? timeZone
+    if (h && m) return `${h}:${m} ${zone}`
+  } catch {
+    // Fallback to UTC below.
+  }
+
   const h = d.getUTCHours().toString().padStart(2, '0')
   const m = d.getUTCMinutes().toString().padStart(2, '0')
   return `${h}:${m} UTC`
@@ -166,6 +191,7 @@ function buildGapSplitPath(
 
 export default function StereoSkyChart({
   positions, stars, ecliptic, milkyWay, title, time, size,
+  timeZone,
   moonIllumination, moonWaxing, magnitudes,
   showStars = true,
   showStarLabels = true,
@@ -417,7 +443,7 @@ export default function StereoSkyChart({
             </text>
             {time && (
               <text x={cx} y={26} textAnchor="middle" fill="#666" fontSize={10}>
-                {formatTime(time)}
+                {formatTime(time, timeZone)}
               </text>
             )}
           </>
