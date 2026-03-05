@@ -60,6 +60,12 @@ function round(value, digits = 2) {
   return Math.round(value * factor) / factor
 }
 
+function readNumber(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return 0
+  return parsed
+}
+
 function extractMedianAggregate(runSummaries) {
   const fields = ['totalProfileMs', 'weightedAvgFps', 'worstP99FrameMs', 'worstMaxFrameMs', 'longTaskCount']
   const aggregate = {}
@@ -105,7 +111,140 @@ function extractMedianSegments(runSummaries) {
   })
 }
 
-function formatMarkdown({ generatedAt, repeat, gitCommit, outRootPath, runs, medianAggregate, medianSegments }) {
+function extractMedianHotspots(hotspotRuns, runCount, topN = 5) {
+  if (!hotspotRuns.length) return null
+
+  const segmentLabels = [...new Set(hotspotRuns.flatMap((run) =>
+    (run.report?.segments ?? []).map((segment) => segment.label)))]
+
+  const segments = segmentLabels.map((label) => {
+    const segmentPerRun = hotspotRuns.map((run) => {
+      const segment = (run.report?.segments ?? []).find((entry) => entry.label === label)
+      return segment ?? null
+    })
+
+    const longTaskCountValues = segmentPerRun
+      .filter((segment) => segment)
+      .map((segment) => readNumber(segment.longTaskCount))
+    const totalLongTaskMsValues = segmentPerRun
+      .filter((segment) => segment)
+      .map((segment) => readNumber(segment.totalLongTaskMs))
+
+    const sourceCounts = {}
+    for (const segment of segmentPerRun) {
+      if (!segment?.source) continue
+      sourceCounts[segment.source] = (sourceCounts[segment.source] ?? 0) + 1
+    }
+    const source = Object.entries(sourceCounts)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'unknown'
+
+    const offenderKeys = new Set(segmentPerRun.flatMap((segment) =>
+      (segment?.offenders ?? []).map((offender) => offender.key)))
+
+    const offenders = []
+    for (const key of offenderKeys) {
+      const totalMsSeries = segmentPerRun.map((segment) => {
+        if (!segment) return 0
+        const offender = (segment.offenders ?? []).find((entry) => entry.key === key)
+        return readNumber(offender?.totalMs)
+      })
+      const countSeries = segmentPerRun.map((segment) => {
+        if (!segment) return 0
+        const offender = (segment.offenders ?? []).find((entry) => entry.key === key)
+        return readNumber(offender?.count)
+      })
+      const maxMsSeries = segmentPerRun.map((segment) => {
+        if (!segment) return 0
+        const offender = (segment.offenders ?? []).find((entry) => entry.key === key)
+        return readNumber(offender?.maxMs)
+      })
+
+      const coverageRuns = totalMsSeries.filter((value) => value > 0).length
+      const medianTotalMs = round(median(totalMsSeries))
+      if (medianTotalMs <= 0) continue
+
+      offenders.push({
+        key,
+        coverageRuns,
+        coveragePct: round((coverageRuns * 100) / Math.max(runCount, 1)),
+        medianTotalMs,
+        medianCount: round(median(countSeries)),
+        medianMaxMs: round(median(maxMsSeries)),
+      })
+    }
+
+    offenders.sort((a, b) => {
+      if (b.medianTotalMs !== a.medianTotalMs) return b.medianTotalMs - a.medianTotalMs
+      if (b.coverageRuns !== a.coverageRuns) return b.coverageRuns - a.coverageRuns
+      return b.medianCount - a.medianCount
+    })
+
+    return {
+      label,
+      source,
+      runsWithSegment: segmentPerRun.filter(Boolean).length,
+      medianLongTaskCount: round(median(longTaskCountValues)),
+      medianTotalLongTaskMs: round(median(totalLongTaskMsValues)),
+      offenders: offenders.slice(0, topN),
+    }
+  })
+
+  return {
+    generatedAt: new Date().toISOString(),
+    runCount,
+    runsWithHotspots: hotspotRuns.length,
+    segments,
+  }
+}
+
+function formatHotspotsMarkdown(hotspots) {
+  const lines = []
+  lines.push('# Playwright Profiling Hotspot Summary')
+  lines.push('')
+  lines.push(`- Generated: ${hotspots.generatedAt}`)
+  lines.push(`- Runs with hotspot data: ${hotspots.runsWithHotspots}/${hotspots.runCount}`)
+  lines.push('')
+  lines.push('| Segment | Source | Median long tasks | Median long-task ms | Top offenders |')
+  lines.push('|---|---|---:|---:|---|')
+  for (const segment of hotspots.segments) {
+    const offenders = segment.offenders.length
+      ? segment.offenders
+        .map((offender) => `${offender.key} (${offender.medianTotalMs}ms, ${offender.coverageRuns}/${hotspots.runCount})`)
+        .join('<br>')
+      : '_none_'
+    lines.push(`| ${segment.label} | ${segment.source} | ${segment.medianLongTaskCount} | ${segment.medianTotalLongTaskMs} | ${offenders} |`)
+  }
+  lines.push('')
+  lines.push('## Notes')
+  lines.push('')
+  lines.push('- Hotspots are aggregated from per-run `hotspots.json` traces.')
+  lines.push('- Offender values are medians across runs (missing offender in a run counts as 0 for that run).')
+  return `${lines.join('\n')}\n`
+}
+
+function formatHotspotsPrCommentMarkdown(hotspots, gitCommit) {
+  const lines = []
+  lines.push('### Playwright Trace Hotspots (Median)')
+  lines.push('')
+  lines.push(`Commit: \`${gitCommit}\`  |  Runs: ${hotspots.runsWithHotspots}/${hotspots.runCount}`)
+  lines.push('')
+  lines.push('| Segment | Median long-task ms | Top offenders (median ms, coverage) |')
+  lines.push('|---|---:|---|')
+  for (const segment of hotspots.segments) {
+    const offenders = segment.offenders.slice(0, 3).length
+      ? segment.offenders
+        .slice(0, 3)
+        .map((offender) => `${offender.key} (${offender.medianTotalMs}ms, ${offender.coverageRuns}/${hotspots.runCount})`)
+        .join('<br>')
+      : '_none_'
+    lines.push(`| ${segment.label} | ${segment.medianTotalLongTaskMs} | ${offenders} |`)
+  }
+  lines.push('')
+  lines.push('_Generated by `perf:profile:repeat` hotspot aggregation._')
+  return `${lines.join('\n')}\n`
+}
+
+function formatMarkdown({ generatedAt, repeat, gitCommit, outRootPath, runs, medianAggregate, medianSegments, hotspots }) {
   const lines = []
   lines.push('# Playwright Profiling Repeat Summary')
   lines.push('')
@@ -136,11 +275,31 @@ function formatMarkdown({ generatedAt, repeat, gitCommit, outRootPath, runs, med
   for (const segment of medianSegments) {
     lines.push(`| ${segment.label} | ${segment.durationMs} | ${segment.fps} | ${segment.p95FrameMs} | ${segment.p99FrameMs} | ${segment.maxFrameMs} | ${segment.longTaskCount} |`)
   }
+
+  if (hotspots) {
+    lines.push('')
+    lines.push('## Median Hotspots')
+    lines.push('')
+    lines.push('| Segment | Source | Median long tasks | Median long-task ms | Top offenders |')
+    lines.push('|---|---|---:|---:|---|')
+    for (const segment of hotspots.segments) {
+      const offenders = segment.offenders.length
+        ? segment.offenders
+          .map((offender) => `${offender.key} (${offender.medianTotalMs}ms, ${offender.coverageRuns}/${hotspots.runCount})`)
+          .join('<br>')
+        : '_none_'
+      lines.push(`| ${segment.label} | ${segment.source} | ${segment.medianLongTaskCount} | ${segment.medianTotalLongTaskMs} | ${offenders} |`)
+    }
+  }
+
   lines.push('')
   lines.push('## Notes')
   lines.push('')
   lines.push('- Each run directory (`run-XX`) includes full trace artifacts from the single-run harness.')
   lines.push('- The median numbers are robust against one-off machine jitter and are preferred for commit comparisons.')
+  if (hotspots) {
+    lines.push('- Hotspot summaries are emitted in `hotspots-summary.md` and `hotspots-pr-comment.md`.')
+  }
   return `${lines.join('\n')}\n`
 }
 
@@ -156,6 +315,7 @@ async function main() {
 
   const runSummaries = []
   const runRows = []
+  const hotspotRuns = []
 
   for (let index = 0; index < repeatCount; index += 1) {
     const runNumber = index + 1
@@ -187,6 +347,17 @@ async function main() {
       output: runDirName,
       aggregate: summary.aggregate,
     })
+
+    try {
+      const hotspotPath = path.join(runDir, 'hotspots.json')
+      const hotspotRaw = await readFile(hotspotPath, 'utf8')
+      const hotspot = JSON.parse(hotspotRaw)
+      if (Array.isArray(hotspot?.segments) && hotspot.segments.length) {
+        hotspotRuns.push({ run: runNumber, output: runDirName, report: hotspot })
+      }
+    } catch {
+      // Keep repeat profiling usable if hotspot artifact is absent.
+    }
   }
 
   const medianAggregate = extractMedianAggregate(runSummaries)
@@ -204,8 +375,16 @@ async function main() {
     },
   }
 
+  const hotspots = extractMedianHotspots(hotspotRuns, runSummaries.length)
+  if (hotspots) {
+    medianSummary.hotspots = hotspots
+  }
+
   const jsonPath = path.join(outRoot, 'median-summary.json')
   const markdownPath = path.join(outRoot, 'median-summary.md')
+  const hotspotsJsonPath = path.join(outRoot, 'hotspots-summary.json')
+  const hotspotsMarkdownPath = path.join(outRoot, 'hotspots-summary.md')
+  const hotspotsPrCommentPath = path.join(outRoot, 'hotspots-pr-comment.md')
 
   await writeFile(jsonPath, `${JSON.stringify(medianSummary, null, 2)}\n`, 'utf8')
   await writeFile(markdownPath, formatMarkdown({
@@ -216,12 +395,31 @@ async function main() {
     runs: runRows,
     medianAggregate,
     medianSegments,
+    hotspots,
   }), 'utf8')
+
+  if (hotspots) {
+    await writeFile(hotspotsJsonPath, `${JSON.stringify(hotspots, null, 2)}\n`, 'utf8')
+    await writeFile(hotspotsMarkdownPath, formatHotspotsMarkdown(hotspots), 'utf8')
+    await writeFile(hotspotsPrCommentPath, formatHotspotsPrCommentMarkdown(hotspots, gitCommit), 'utf8')
+  }
 
   console.log(`[repeat] Done. Median artifacts written to ${outRoot}`)
   console.log(`[repeat] Median weighted FPS: ${medianAggregate.weightedAvgFps}`)
   console.log(`[repeat] Median worst p99 frame: ${medianAggregate.worstP99FrameMs} ms`)
   console.log(`[repeat] Median long tasks: ${medianAggregate.longTaskCount}`)
+  if (hotspots) {
+    console.log(`[repeat] Hotspot summary: ${hotspotsMarkdownPath}`)
+    for (const segment of hotspots.segments) {
+      const preview = segment.offenders.slice(0, 2)
+        .map((offender) => `${offender.key} ${offender.medianTotalMs}ms (${offender.coverageRuns}/${hotspots.runCount})`)
+        .join(' | ')
+      console.log(`[repeat][hotspots] ${segment.label}: ${preview || 'none'}`)
+    }
+    console.log(`[repeat] PR comment markdown: ${hotspotsPrCommentPath}`)
+  } else {
+    console.log('[repeat] No hotspot artifacts found across runs; skipped hotspot summary.')
+  }
 }
 
 main().catch((err) => {

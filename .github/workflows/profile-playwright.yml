@@ -30,6 +30,16 @@ jobs:
       - name: Check perf regression against baseline
         run: npm run perf:profile:check:ci
 
+      - name: Print hotspot PR comment markdown
+        if: always()
+        run: |
+          if [ -f test-output/perf/repeat-latest/hotspots-pr-comment.md ]; then
+            echo "----- hotspots-pr-comment.md -----"
+            cat test-output/perf/repeat-latest/hotspots-pr-comment.md
+          else
+            echo "hotspots-pr-comment.md not found"
+          fi
+
       - name: Upload profiling artifacts
         uses: actions/upload-artifact@v4
         with:

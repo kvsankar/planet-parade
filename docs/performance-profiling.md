@@ -69,6 +69,9 @@ Repeat mode additionally emits:
 
 - `median-summary.json`: median aggregate/segment metrics across runs
 - `median-summary.md`: human-readable median report
+- `hotspots-summary.json`: median hotspot attribution across runs
+- `hotspots-summary.md`: readable median hotspot summary tables
+- `hotspots-pr-comment.md`: PR comment-ready markdown snippet
 - `run-XX/`: per-run artifacts from the single-run harness
 
 Regression checking uses:
