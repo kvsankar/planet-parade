@@ -129,3 +129,4 @@ npm run perf:profile:check:ci
 - Use `summary.json` and `median-summary.json` for automated regression thresholds and dashboards.
 - For commit-to-commit tracking, prefer repeat-mode medians over single-run readings.
 - Update `scripts/perf/baseline-median-summary.json` only after intentional performance shifts are accepted.
+- Hotspot extraction de-noises wrapper events (for example, `Commit`/`RunTask`) so summaries surface actionable offenders such as `FunctionCall`, `Layout`, and `Paint`.

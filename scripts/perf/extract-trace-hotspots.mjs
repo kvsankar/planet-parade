@@ -12,9 +12,11 @@ const SEGMENT_END_PREFIX = 'perf.segment.end:'
 const ATTRIBUTION_NOISE_NAMES = new Set([
   'RunTask',
   'ThreadControllerImpl::RunTask',
+  'SimpleWatcher::OnHandleReady',
   'BlinkScheduler_PerformMicrotaskCheckpoint',
   'RunMicrotasks',
   'FireAnimationFrame',
+  'Commit',
 ])
 
 function isFiniteNumber(value) {
@@ -282,8 +284,17 @@ function formatOffenderKey(event) {
   return detail ? `${event.name} (${detail})` : event.name
 }
 
-function isAttributionNoise(name) {
-  return ATTRIBUTION_NOISE_NAMES.has(name)
+function isAttributionNoise(event) {
+  if (!event || typeof event !== 'object') return true
+  if (ATTRIBUTION_NOISE_NAMES.has(event.name)) return true
+
+  // FunctionCall events without a real symbol/url are just generic wrappers.
+  if (event.name === 'FunctionCall') {
+    const detail = extractEventDetail(event)
+    return !detail || detail === 'anonymous'
+  }
+
+  return false
 }
 
 function overlapUs(startA, endA, startB, endB) {
@@ -301,7 +312,7 @@ function findDominantChildEvent(task, durationEvents) {
   while (index < durationEvents.length) {
     const event = durationEvents[index]
     if (!isFiniteNumber(event.ts) || event.ts >= taskEnd) break
-    if (event !== task && !isAttributionNoise(event.name)) {
+    if (event !== task && !isAttributionNoise(event)) {
       const eventEnd = event.ts + event.dur
       if (event.ts >= taskStart && eventEnd <= taskEnd) {
         if (!best || event.dur > best.dur) best = event
