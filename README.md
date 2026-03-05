@@ -59,6 +59,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Shared atmosphere model with Planetarium: sunlight/twilight/moonlight sky wash, star attenuation, and Milky Way attenuation
 - Toggleable layers: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic
 - Milky Way style switch: `Poly` (d3-celestial polygons) or `Tex` (NASA texture), default `Tex`
+- Poly and Tex Milky Way modes are playback-time-synchronized so switching styles does not introduce drift during animation
 - Panel-level zoom/pan with touch support; mobile landscape can zoom out enough to show the full sky circle
 - Desktop supports paired charts (default) or optional tabbed view; mobile uses AM/PM tabs
 
@@ -140,7 +141,7 @@ src/
 | [Product Specification](docs/specs.md) | Complete feature requirements, design decisions, and project structure |
 | [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, presets, parameter sweep calibration, and design rationale |
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
-| [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
+| [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and WebGL shader reprojection |
 | [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, visibility/darkness ranking) |
 | [Performance Profiling](docs/performance-profiling.md) | Automated Playwright-driven profiling harness with repeat-run medians, regression gating, and an optimization measures reference ledger |
 

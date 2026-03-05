@@ -133,22 +133,22 @@ Sky chart timestamps (and therefore atmosphere attenuation timing inputs) are ev
 
 ### How it works
 
-`MilkyWayTextureCanvas.tsx` reprojects the equirectangular NASA texture into the sky chart's azimuthal equidistant projection using a Web Worker:
+`MilkyWayTextureCanvas.tsx` reprojects the equirectangular NASA texture into the sky chart's azimuthal equidistant projection in a WebGL fragment shader:
 
-1. **Reverse projection** — For each pixel `(px, py)` in the circular chart area, compute altitude and azimuth: `alt = 90° × (1 - r/R)`, `az = atan2(rx, -ry)` (where `r` is distance from chart center)
-2. **Horizontal → J2000** — Apply the `Rotation_HOR_EQJ` matrix (from astronomy-engine, transposed to row-major) to convert the horizontal unit vector to a J2000 equatorial direction
-3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 - dec)/π` (matching the 3D sphere's texture convention where RA=0h maps to u=0.5)
-4. **Bilinear sample** — Interpolate the 4 nearest texture pixels for smooth output
+1. **Reverse projection** — For each fragment in the circular chart area, compute altitude from radius (`alt = 90° × (1 - r/R)`) and derive horizontal vector components from screen-space direction.
+2. **Horizontal → J2000** — Multiply by the per-frame HOR→EQJ rotation matrix from astronomy-engine.
+3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 + dec)/π`. The `+dec` term is intentional because the shipped `starmap_4k.jpg` orientation is vertically flipped relative to the default +Dec-at-top convention.
+4. **Texture sample + attenuation** — Sample the texture and apply twilight/moon directional attenuation in-shader so sky charts match Planetarium visibility behavior.
 
-After sampling, the worker applies the same twilight/moon directional attenuation model used by Planetarium so both views react consistently to atmosphere settings.
+The canvas is clipped to the chart circle in CSS, and opacity is modulated by the same sky-visibility model used by other chart layers.
 
 ### Architecture
 
-- **Shared Web Worker** — A single inline-blob worker handles all chart instances. Reference-counted (`acquireWorker`/`releaseWorker`) and terminated when no charts are mounted.
-- **Texture caching** — The JPEG is loaded once via an `Image` element, rasterized to a canvas, and transferred to the worker as a typed array.
-- **Instance isolation** — Each `MilkyWayTextureCanvas` component gets a unique instance ID. The worker echoes the ID in results, preventing cross-chart contamination.
-- **Sequence numbers** — Each render request gets an incrementing sequence number. Stale results (from superseded requests) are discarded.
-- **Canvas management** — React does not control `canvas.width`/`canvas.height` attributes (setting them clears the buffer). Dimensions are set imperatively in the worker callback only when they change. A CSS `border-radius: 50%` clip div masks the rectangular canvas to the chart circle.
+- **Per-chart WebGL shell** — Each texture chart instance owns a tiny orthographic WebGL renderer and a full-screen quad shader.
+- **Shared texture cache** — The NASA JPEG is loaded once (`THREE.TextureLoader`) and reused by all chart instances.
+- **Internal render scale** — Texture rendering uses an internal scale factor (currently `0.75`) to lower fill-rate cost while preserving visual quality.
+- **Uniform-driven updates** — Rotation matrix, geometry parameters, and attenuation inputs are updated via uniforms on each chart render tick.
+- **Single playback clock for Poly/Tex** — `SkyChartPanel` drives both polygon Milky Way (`Poly`) and texture Milky Way (`Tex`) from the same render clock/context path, preventing lag/catch-up desynchronization when animating.
 
 ### UI toggle
 

@@ -104,6 +104,7 @@ profiling/optimization workstream (`2026-03-04` to `2026-03-05`).
 | `be2088f` | Scene recompute scope | Prevented full-planet position recompute each tick for overlay-only needs; `InfoDisplay` now computes only the selected body position on demand. | Cuts redundant ephemeris work during playback. |
 | `f867996` | Sky Charts rerender control + panel layout | Wrapped `SkyChartPanel` in `React.memo` with playback-aware prop equality (ignore parent date snapshots while playing) and added CSS `contain: layout paint style` for floating panels. | Reduces avoidable React rerenders and cross-panel layout invalidation. |
 | `d1e1200` | Animation smoothness | Smoothed sky animation timing and stabilized Milky Way update behavior. | Reduces visible jitter/stutter in sky playback. |
+| `9113c83` | Sky Charts Milky Way sync | Corrected texture vertical orientation mapping for chart reprojection and removed the separate polygon MW playback clock so Poly/Tex both use the same render-time contexts. | Fixes Poly/Tex visual alignment and eliminates Poly lag/catch-up jitter during animation. |
 
 ### Profiling and Regression Infrastructure
 
