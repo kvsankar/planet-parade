@@ -2,7 +2,7 @@
   "generatedAt": "2026-03-04T16:51:48.608Z",
   "gitCommit": "826adb6",
   "repeat": 5,
-  "notes": "CI baseline for GitHub-hosted Ubuntu runner. Update only after intentional CI perf shifts.",
+  "notes": "CI baseline for GitHub-hosted Ubuntu runner. Keep aggregate medians conservative; hotspot section seeds offender checks and should be refreshed from CI artifacts when updating performance baselines.",
   "median": {
     "aggregate": {
       "totalProfileMs": 37000,
@@ -26,6 +26,203 @@
         "label": "idle_final",
         "fps": 8.37,
         "p99FrameMs": 133.4
+      }
+    ]
+  },
+  "hotspots": {
+    "generatedAt": "2026-03-05T05:14:55.366Z",
+    "runCount": 3,
+    "runsWithHotspots": 3,
+    "segments": [
+      {
+        "label": "idle_initial",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 54,
+        "medianTotalLongTaskMs": 3345.31,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 3345.31,
+            "medianCount": 54,
+            "medianMaxMs": 75.49
+          }
+        ]
+      },
+      {
+        "label": "solar_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 108,
+        "medianTotalLongTaskMs": 7129.35,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 4862.34,
+            "medianCount": 75,
+            "medianMaxMs": 84.71
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1841,
+            "medianCount": 27,
+            "medianMaxMs": 84.2
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 76.55,
+            "medianCount": 1,
+            "medianMaxMs": 75.92
+          },
+          {
+            "key": "Layerize",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 72.31,
+            "medianCount": 1,
+            "medianMaxMs": 72.31
+          },
+          {
+            "key": "Paint",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 67.02,
+            "medianCount": 1,
+            "medianMaxMs": 67.02
+          }
+        ]
+      },
+      {
+        "label": "planetarium_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 3,
+        "medianTotalLongTaskMs": 151.76,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 100.2,
+            "medianCount": 2,
+            "medianMaxMs": 50.14
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 50.03,
+            "medianCount": 1,
+            "medianMaxMs": 50.03
+          }
+        ]
+      },
+      {
+        "label": "skychart_texture_setup",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 34,
+        "medianTotalLongTaskMs": 2336.38,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1655.58,
+            "medianCount": 25,
+            "medianMaxMs": 79.9
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 514.88,
+            "medianCount": 7,
+            "medianMaxMs": 78.21
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 76.81,
+            "medianCount": 1,
+            "medianMaxMs": 67.34
+          }
+        ]
+      },
+      {
+        "label": "skychart_texture_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 123,
+        "medianTotalLongTaskMs": 8119.98,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 5822.53,
+            "medianCount": 90,
+            "medianMaxMs": 110.64
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1961.26,
+            "medianCount": 28,
+            "medianMaxMs": 84.61
+          },
+          {
+            "key": "Layerize",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 146.94,
+            "medianCount": 2,
+            "medianMaxMs": 77.6
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 65.82,
+            "medianCount": 1,
+            "medianMaxMs": 65.82
+          },
+          {
+            "key": "UpdateLayer",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 65.34,
+            "medianCount": 1,
+            "medianMaxMs": 65.34
+          }
+        ]
+      },
+      {
+        "label": "idle_final",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 41,
+        "medianTotalLongTaskMs": 2494.11,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 2494.11,
+            "medianCount": 41,
+            "medianMaxMs": 74.37
+          }
+        ]
       }
     ]
   }

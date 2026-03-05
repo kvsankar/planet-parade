@@ -1,76 +1,285 @@
 {
-  "generatedAt": "2026-03-04T15:28:18.389Z",
-  "gitCommit": "0ea422e",
-  "repeat": 5,
+  "generatedAt": "2026-03-05T05:14:55.365Z",
+  "gitCommit": "a9bfaa5",
+  "repeat": 3,
   "notes": "Baseline for Playwright repeat profiling regression checks. Update only after intentional performance shifts are accepted.",
   "median": {
     "aggregate": {
-      "totalProfileMs": 37000,
-      "weightedAvgFps": 13.98,
-      "worstP99FrameMs": 100.1,
-      "worstMaxFrameMs": 116.7,
-      "longTaskCount": 1046
+      "totalProfileMs": 34500,
+      "weightedAvgFps": 13.76,
+      "worstP99FrameMs": 100,
+      "worstMaxFrameMs": 116.6,
+      "longTaskCount": 996
     },
     "segments": [
       {
         "label": "idle_initial",
         "durationMs": 4000,
-        "sampledFrames": 57,
-        "fps": 14.25,
-        "avgFrameMs": 70.19,
+        "sampledFrames": 56,
+        "fps": 13.83,
+        "avgFrameMs": 72.32,
         "p95FrameMs": 83.4,
         "p99FrameMs": 83.4,
         "maxFrameMs": 83.4,
-        "longTaskCount": 68,
-        "longTaskMaxMs": 389
+        "longTaskCount": 66,
+        "longTaskMaxMs": 394
       },
       {
         "label": "solar_playback",
         "durationMs": 8000,
-        "sampledFrames": 108,
-        "fps": 13.39,
-        "avgFrameMs": 74.69,
+        "sampledFrames": 106,
+        "fps": 13.14,
+        "avgFrameMs": 76.1,
         "p95FrameMs": 83.4,
-        "p99FrameMs": 99.9,
+        "p99FrameMs": 100,
         "maxFrameMs": 100,
-        "longTaskCount": 183,
-        "longTaskMaxMs": 389
+        "longTaskCount": 179,
+        "longTaskMaxMs": 394
       },
       {
         "label": "planetarium_playback",
         "durationMs": 10000,
-        "sampledFrames": 154,
-        "fps": 15.31,
-        "avgFrameMs": 65.3,
-        "p95FrameMs": 66.8,
+        "sampledFrames": 150,
+        "fps": 14.9,
+        "avgFrameMs": 67.09,
+        "p95FrameMs": 83.3,
         "p99FrameMs": 83.4,
         "maxFrameMs": 83.4,
-        "longTaskCount": 203,
-        "longTaskMaxMs": 390
+        "longTaskCount": 198,
+        "longTaskMaxMs": 394
+      },
+      {
+        "label": "skychart_texture_setup",
+        "durationMs": 2500,
+        "sampledFrames": 34,
+        "fps": 13.31,
+        "avgFrameMs": 75.13,
+        "p95FrameMs": 83.4,
+        "p99FrameMs": 83.4,
+        "maxFrameMs": 83.4,
+        "longTaskCount": 233,
+        "longTaskMaxMs": 489
       },
       {
         "label": "skychart_texture_playback",
-        "durationMs": 12000,
-        "sampledFrames": 160,
-        "fps": 13.27,
-        "avgFrameMs": 75.34,
+        "durationMs": 9500,
+        "sampledFrames": 124,
+        "fps": 13.03,
+        "avgFrameMs": 76.74,
         "p95FrameMs": 83.4,
-        "p99FrameMs": 100.1,
-        "maxFrameMs": 116.7,
-        "longTaskCount": 355,
-        "longTaskMaxMs": 392
+        "p99FrameMs": 100,
+        "maxFrameMs": 116.6,
+        "longTaskCount": 322,
+        "longTaskMaxMs": 489
       },
       {
         "label": "idle_final",
         "durationMs": 3000,
-        "sampledFrames": 42,
-        "fps": 13.77,
-        "avgFrameMs": 72.61,
+        "sampledFrames": 41,
+        "fps": 13.52,
+        "avgFrameMs": 73.98,
         "p95FrameMs": 83.4,
         "p99FrameMs": 83.4,
         "maxFrameMs": 83.4,
-        "longTaskCount": 239,
-        "longTaskMaxMs": 392
+        "longTaskCount": 240,
+        "longTaskMaxMs": 489
+      }
+    ]
+  },
+  "hotspots": {
+    "generatedAt": "2026-03-05T05:14:55.366Z",
+    "runCount": 3,
+    "runsWithHotspots": 3,
+    "segments": [
+      {
+        "label": "idle_initial",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 54,
+        "medianTotalLongTaskMs": 3345.31,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 3345.31,
+            "medianCount": 54,
+            "medianMaxMs": 75.49
+          }
+        ]
+      },
+      {
+        "label": "solar_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 108,
+        "medianTotalLongTaskMs": 7129.35,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 4862.34,
+            "medianCount": 75,
+            "medianMaxMs": 84.71
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1841,
+            "medianCount": 27,
+            "medianMaxMs": 84.2
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 76.55,
+            "medianCount": 1,
+            "medianMaxMs": 75.92
+          },
+          {
+            "key": "Layerize",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 72.31,
+            "medianCount": 1,
+            "medianMaxMs": 72.31
+          },
+          {
+            "key": "Paint",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 67.02,
+            "medianCount": 1,
+            "medianMaxMs": 67.02
+          }
+        ]
+      },
+      {
+        "label": "planetarium_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 3,
+        "medianTotalLongTaskMs": 151.76,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 100.2,
+            "medianCount": 2,
+            "medianMaxMs": 50.14
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 50.03,
+            "medianCount": 1,
+            "medianMaxMs": 50.03
+          }
+        ]
+      },
+      {
+        "label": "skychart_texture_setup",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 34,
+        "medianTotalLongTaskMs": 2336.38,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1655.58,
+            "medianCount": 25,
+            "medianMaxMs": 79.9
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 514.88,
+            "medianCount": 7,
+            "medianMaxMs": 78.21
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 76.81,
+            "medianCount": 1,
+            "medianMaxMs": 67.34
+          }
+        ]
+      },
+      {
+        "label": "skychart_texture_playback",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 123,
+        "medianTotalLongTaskMs": 8119.98,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 5822.53,
+            "medianCount": 90,
+            "medianMaxMs": 110.64
+          },
+          {
+            "key": "Layout",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 1961.26,
+            "medianCount": 28,
+            "medianMaxMs": 84.61
+          },
+          {
+            "key": "Layerize",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 146.94,
+            "medianCount": 2,
+            "medianMaxMs": 77.6
+          },
+          {
+            "key": "PrePaint",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 65.82,
+            "medianCount": 1,
+            "medianMaxMs": 65.82
+          },
+          {
+            "key": "UpdateLayer",
+            "coverageRuns": 2,
+            "coveragePct": 66.67,
+            "medianTotalMs": 65.34,
+            "medianCount": 1,
+            "medianMaxMs": 65.34
+          }
+        ]
+      },
+      {
+        "label": "idle_final",
+        "source": "user-timing-mark",
+        "runsWithSegment": 3,
+        "medianLongTaskCount": 41,
+        "medianTotalLongTaskMs": 2494.11,
+        "offenders": [
+          {
+            "key": "FunctionCall (sL -> node_modules/@react-three/fiber/dist/events-5a94e5eb.esm.js:16027:10 [loop])",
+            "coverageRuns": 3,
+            "coveragePct": 100,
+            "medianTotalMs": 2494.11,
+            "medianCount": 41,
+            "medianMaxMs": 74.37
+          }
+        ]
       }
     ]
   }
