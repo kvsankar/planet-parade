@@ -88,6 +88,41 @@ Regression checking uses:
 - `scripts/perf/baseline-median-summary.json`: committed baseline reference
 - `scripts/perf/baseline-median-summary-ci.json`: CI baseline reference for GitHub-hosted runners
 
+## Optimization Measures (Reference)
+
+This section documents the major optimization measures implemented in the
+profiling/optimization workstream (`2026-03-04` to `2026-03-05`).
+
+### Runtime and Render Path
+
+| Commit | Area | Measure | Intended Effect |
+|--------|------|---------|-----------------|
+| `e132101` | Sky projection pipeline | Added `prepareSkyProjectionContext` and context-based helpers so planets, stars, ecliptic, and MW reuse the same time/observer/rotation solve per chart frame. Also computed sunrise/sunset virtual longitudes in one call via `sunHorizonLongitudes`. | Removes duplicate astronomy-engine transforms and reduces per-frame CPU cost. |
+| `0ea422e` | Sky Charts draw model | Moved stars and constellation edges/labels from SVG node trees to a clipped canvas overlay (`StarfieldCanvasLayer`). | Reduces SVG DOM churn and improves playback/frame consistency. |
+| `7c9d5c1` | Milky Way texture path | Added internal render scaling (`0.75`), avoided repeated WebGL resize work, and skipped draw calls when texture is not ready or effective opacity is zero. | Lowers GPU fill/load and avoids unnecessary GL work during animation. |
+| `a6d24b6` | Playback + time-zone utilities | Switched playback loops to in-place `Date` mutation (`setTime`), throttled React time snapshots (`150ms` in app loop), memoized day-key/range usage, and added bounded day-range cache in `timeZoneDay`. | Reduces allocation churn and repeated timezone/day-boundary computations. |
+| `be2088f` | Scene recompute scope | Prevented full-planet position recompute each tick for overlay-only needs; `InfoDisplay` now computes only the selected body position on demand. | Cuts redundant ephemeris work during playback. |
+| `f867996` | Sky Charts rerender control + panel layout | Wrapped `SkyChartPanel` in `React.memo` with playback-aware prop equality (ignore parent date snapshots while playing) and added CSS `contain: layout paint style` for floating panels. | Reduces avoidable React rerenders and cross-panel layout invalidation. |
+| `d1e1200` | Animation smoothness | Smoothed sky animation timing and stabilized Milky Way update behavior. | Reduces visible jitter/stutter in sky playback. |
+
+### Profiling and Regression Infrastructure
+
+| Commit | Area | Measure | Intended Effect |
+|--------|------|---------|-----------------|
+| `d2b7c79` | Baseline harness | Added automated Playwright profiling run (build/serve/drive/capture/report). | Enables repeatable, scripted profiling instead of ad-hoc runs. |
+| `7f7f242` | Statistical stability | Added repeat-run profiling with median summaries. | Makes performance comparisons less noisy. |
+| `d2ca332` | CI gating | Added regression checker against committed baseline medians. | Fails CI on statistically meaningful regressions. |
+| `3f0774b` | Trace hotspot extraction | Added long-task hotspot extraction from Chrome traces plus CI baseline artifact. | Surfaces where regressions occur, not just aggregate FPS/p99 changes. |
+| `f5e2d9f` | Reporting ergonomics | Added repeat hotspot summary outputs and CI log emission/PR-ready markdown. | Improves triage speed during review. |
+| `a9bfaa5` | Attribution signal quality | Improved hotspot attribution de-noising/signal extraction. | Produces cleaner actionable offender lists. |
+| `26ce3c3` | Source attribution + hotspot gates | Added sourcemap-based hotspot symbolization and hotspot-specific regression thresholds. | Connects regressions to source lines and enforces per-hotspot budget checks. |
+| `826adb6` / `d681924` | Baseline maintenance | Refreshed committed local/CI baselines after accepted optimization shifts. | Keeps gates aligned with current accepted performance envelope. |
+
+### Maintenance Rule
+
+- When a change affects render hot paths, animation cadence, allocation behavior,
+  profiling scripts, or regression thresholds, update this section in the same PR.
+
 ## Tunables (Environment Variables)
 
 - `PROFILE_BASE_URL` (default `http://127.0.0.1:4173`)

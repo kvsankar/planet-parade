@@ -142,7 +142,7 @@ src/
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
 | [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and Web Worker reprojection |
 | [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, visibility/darkness ranking) |
-| [Performance Profiling](docs/performance-profiling.md) | Automated Playwright-driven profiling harness with repeat-run medians and regression gating |
+| [Performance Profiling](docs/performance-profiling.md) | Automated Playwright-driven profiling harness with repeat-run medians, regression gating, and an optimization measures reference ledger |
 
 ## Data Sources
 

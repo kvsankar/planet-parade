@@ -191,6 +191,7 @@ These are architectural and technology choices — not requirements. Alternative
 
 - **Tech stack**: Vite + React + TypeScript, with Three.js via `@react-three/fiber` and `@react-three/drei`. Recharts for the alignment timeline.
 - **Runtime/tooling baseline**: Node 24.x LTS; React 19; Three.js 0.183; `@react-three/fiber` 9; `@react-three/drei` 10; Vite 7; TypeScript 5.9.
+- **Performance reference ledger**: `docs/performance-profiling.md` includes a maintained "Optimization Measures (Reference)" section with commit-traceable runtime and CI profiling optimizations.
 - **Ephemeris**: `astronomy-engine` npm package. Geocentric ecliptic coordinates for alignment computations, J2000 equatorial for star/sky positions.
 - **Alignment algorithm**: combination-based — evaluates every k-planet combination, classifies each as AM/PM/Straddling based on whether the Sun falls inside the ecliptic arc, and reports the tightest span per category per day. Results organized in tabs by combination size. See `docs/alignment-algorithm-analysis.md`.
 - **Coordinate pipeline**: J2000 equatorial (EQJ) from astronomy-engine → ecliptic rotation (23.44° obliquity) → Three.js Y-up mapping.
