@@ -20,22 +20,27 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Two scene modes in one panel: `Solar System` (heliocentric 3D) and `Planetarium` (observer sky dome)
 - Solar System mode shows all planets with orbit lines, labels, inner-planets inset, and per-kind alignment cones from Earth
 - Planetarium mode provides Stellarium-style drag/zoom navigation with horizon, cardinal markers, Alt/Az grid, dashed ecliptic, stars, Milky Way, and constellations
-- Planetarium startup auto-selects the best instant inside the observer-local day (nighttime preferred, then overall best visibility sample if needed), then frames a wide horizon-to-horizon ecliptic view
+- Planetarium startup auto-selects the best instant inside the observer-local day, then frames a wide horizon-to-horizon ecliptic view
+- Startup time selection is mode-aware: `Visibility` mode prefers night if a usable target set is visible; `Geometry` mode picks the best overall sample (day or night)
 - Planetarium includes independent mini time controls (play/pause, ±1/±5 min, 1 min/s to 1 hr/s), separate from the main playback bar
 - Observer location is progressive/opt-in and user-triggered: set via browser geolocation permission, OpenStreetMap map/search widget, or manual coordinates
 - Timezone is inferred from chosen observer coordinates, persisted with location state, and used in sky-time labels/day boundaries (UTC fallback)
 
 ### Planetary Alignments ([algorithm](docs/alignment-algorithm-analysis.md))
-- Select any combination of planets and compute the tightest cluster for every combination size
+- Two analysis modes: `Visibility (PPI)` and `Geometry (Span)`
+- `Visibility` mode analyzes Mercury–Neptune only, excludes Sun-straddling combinations, and ranks by Planet Parade Index (PPI)
+- `Geometry` mode allows Sun/Moon plus planets, includes straddling combinations, and ranks by smallest angular span using intraday sampling across the full local day
+- Visibility-mode Parade Scoring presets are `Practical` (default) and `Hyped` (count-forward)
 - Combination-based classification: AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun)
-- Tabbed results by combination size (e.g. best 7, best 6, best 5 from 7 selected)
+- Per-count evaluation across a selectable body-count range (e.g. best 7, best 6, best 5)
 - Automatic detection of closest-alignment dates with sortable minima table
 - Day-level combo detail and date formatting follow observer local day when a timezone is available
-- Planet count filter chips, planet symbols with tooltips, click-to-navigate and switch tabs
+- Planet count filter chips, planet symbols with tooltips, and click-to-navigate
 - Configurable time ranges from 3 months to 100 years
 
 ### Parade Timeline ([PPI scoring](docs/planet-parade-index.md))
-- Interactive time-series chart plotting PPI and angular span over time
+- Interactive time-series chart plotting ranking metrics over time
+- Visibility mode is PPI-first (with span context); Geometry mode is span-first (PPI hidden/disabled)
 - Simple mode (overall best-of-day) and Advanced mode (per-count lines with toggleable count chips)
 - Zoom and pan with mouse drag, Ctrl+wheel, or pinch gestures
 - Click-to-navigate to any date; current-date indicator with PPI, span, and planet list
@@ -139,10 +144,10 @@ src/
 | Document | Description |
 |----------|-------------|
 | [Product Specification](docs/specs.md) | Complete feature requirements, design decisions, and project structure |
-| [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, presets, parameter sweep calibration, and design rationale |
+| [Planet Parade Index](docs/planet-parade-index.md) | PPI scoring formula, `Practical`/`Hyped` presets (Visibility mode), calibration, and design rationale |
 | [Alignment Algorithm](docs/alignment-algorithm-analysis.md) | Combination-based alignment computation, classification logic, and validation |
 | [Milky Way Texture](docs/milkyway-texture.md) | NASA Deep Star Maps source, EXR conversion, Three.js rendering, and WebGL shader reprojection |
-| [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, visibility/darkness ranking) |
+| [Planetarium Default View](docs/planetarium-default-view.md) | Time-selection and framing algorithm for Planetarium startup (timezone-aware local-day scan, mode-aware night preference) |
 | [Performance Profiling](docs/performance-profiling.md) | Automated Playwright-driven profiling harness with repeat-run medians, regression gating, and an optimization measures reference ledger |
 
 ## Data Sources

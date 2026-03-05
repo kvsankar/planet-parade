@@ -7,6 +7,7 @@ import PPISliders from '../alignment/PPISliders'
 import PlanetaryDataTable from '../alignment/PlanetaryDataTable'
 import { AlignmentState } from '../../hooks/useAlignmentState'
 import { CelestialBodyId } from '../../types'
+import { ANALYZABLE_BODIES, GEOMETRY_ANALYZABLE_BODIES } from '../../constants'
 
 interface AlignmentPanelProps {
   alignment: AlignmentState
@@ -25,6 +26,7 @@ export default function AlignmentPanel({
 }: AlignmentPanelProps) {
   const {
     selectedBodies, setSelectedBodies,
+    analysisMode, setAnalysisMode, rankingMetric,
     startDate, setStartDate,
     durationDays, setDurationDays,
     setMinPlanets, setMaxPlanets,
@@ -44,7 +46,31 @@ export default function AlignmentPanel({
         onStartDateChange={setStartDate}
         onDurationChange={setDurationDays}
       />
-      <PlanetPicker selected={selectedBodies} onChange={setSelectedBodies} />
+      <div className="ppi-sliders">
+        <span className="control-label">Ranking Mode</span>
+        <div className="ppi-preset-row">
+          <button
+            className={`ppi-preset-btn ${analysisMode === 'visibility' ? 'active' : ''}`}
+            onClick={() => setAnalysisMode('visibility')}
+            title="Visibility-first scoring: excludes Sun-straddling combinations and ranks by PPI."
+          >
+            Visibility (PPI)
+          </button>
+          <button
+            className={`ppi-preset-btn ${analysisMode === 'geometry' ? 'active' : ''}`}
+            onClick={() => setAnalysisMode('geometry')}
+            title="Pure geometry search: includes Sun-straddling combinations and ranks by smallest angular span."
+          >
+            Geometry (Span)
+          </button>
+        </div>
+      </div>
+      <PlanetPicker
+        selected={selectedBodies}
+        onChange={setSelectedBodies}
+        options={analysisMode === 'geometry' ? GEOMETRY_ANALYZABLE_BODIES : ANALYZABLE_BODIES}
+        label={analysisMode === 'geometry' ? 'Bodies' : 'Planets'}
+      />
       <PlanetCountRange
         bodyCount={selectedBodies.length}
         effectiveMin={effectiveMin}
@@ -52,7 +78,11 @@ export default function AlignmentPanel({
         setMinPlanets={setMinPlanets}
         setMaxPlanets={setMaxPlanets}
       />
-      <PPISliders weights={ppiWeights} onChange={setPPIWeights} />
+      {analysisMode === 'visibility' ? (
+        <PPISliders weights={ppiWeights} onChange={setPPIWeights} />
+      ) : (
+        <div className="chart-empty">Geometry mode ranks by span only. PPI scoring is disabled.</div>
+      )}
     </>
   )
 
@@ -83,6 +113,7 @@ export default function AlignmentPanel({
     <div className="alignment-tables">
       <MinimaTable
         ppiPeaks={filteredPeaks}
+        rankingMetric={rankingMetric}
         currentDate={currentDateMs}
         onSelect={handlePeakSelect}
         onPrev={handlePrevPeak}

@@ -35,6 +35,13 @@ Each combination is classified as a whole unit — not per-planet. Three cases:
 
 Results are organized in tabs by combination size. Each tab contains a time series with three fields: `morningSep`, `eveningSep`, `straddlingSep` — the tightest span for each category at that date. Local minima are detected per tab and category.
 
+### Mode behavior on top of this core output
+
+The same AM/PM/Straddling classification powers both analysis modes:
+
+- **Visibility mode (`PPI`)**: ranking is PPI-first and straddling combos are excluded from scoring.
+- **Geometry mode (`Span`)**: ranking is span-first and straddling combos are included; Sun/Moon can be part of the analyzed body set.
+
 ### Local-day semantics in the UI
 
 Core combination math is computed on the timeline date grid (`startDate + n days`). UI navigation then applies day-key normalization:

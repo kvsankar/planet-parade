@@ -1,10 +1,11 @@
 import { memo, useState, useMemo, useEffect } from 'react'
-import { AlignmentKind, CelestialBodyId, PPIDayPoint } from '../../types'
-import { SERIES_COLORS, formatDate, ANALYZABLE_BODIES } from '../../constants'
+import { AlignmentKind, CelestialBodyId, PPIDayPoint, RankingMetric } from '../../types'
+import { SERIES_COLORS, formatDate, ANALYSIS_BODY_ORDER } from '../../constants'
 import { getTimeZoneDayKey } from '../../lib/timeZoneDay'
 
 interface MinimaTableProps {
   ppiPeaks: PPIDayPoint[]
+  rankingMetric?: RankingMetric
   currentDate: number | null
   onSelect: (dateMs: number) => void
   onPrev?: () => void
@@ -23,9 +24,10 @@ const KIND_LABELS: Record<AlignmentKind, string> = {
   straddling: 'Straddle',
 }
 
-const SOLAR_RANK = new Map(ANALYZABLE_BODIES.map((b, i) => [b, i]))
+const SOLAR_RANK = new Map(ANALYSIS_BODY_ORDER.map((b, i) => [b, i]))
 
 const BODY_SYMBOL: Record<string, string> = {
+  Sun: '\u2609', Moon: '\u263D',
   Mercury: '\u263F', Venus: '\u2640', Mars: '\u2642', Jupiter: '\u2643',
   Saturn: '\u2644', Uranus: '\u26E2', Neptune: '\u2646',
 }
@@ -48,6 +50,7 @@ interface ComboGroup { key: string; best: ComboEntry; children: ComboEntry[] }
 
 export default memo(function MinimaTable({
   ppiPeaks,
+  rankingMetric = 'ppi',
   currentDate,
   onSelect,
   onPrev,
@@ -59,21 +62,28 @@ export default memo(function MinimaTable({
   selectedDayComboIdx,
   onDayComboSelect,
 }: MinimaTableProps) {
-  const [sortCol, setSortCol] = useState<SortColumn>('ppi')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const showPpi = rankingMetric === 'ppi'
+  const [sortCol, setSortCol] = useState<SortColumn>(showPpi ? 'ppi' : 'span')
+  const [sortDir, setSortDir] = useState<SortDir>(showPpi ? 'desc' : 'asc')
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set())
-  const [daySortCol, setDaySortCol] = useState<DaySortColumn>('ppi')
-  const [daySortDir, setDaySortDir] = useState<SortDir>('desc')
+  const [daySortCol, setDaySortCol] = useState<DaySortColumn>(showPpi ? 'ppi' : 'span')
+  const [daySortDir, setDaySortDir] = useState<SortDir>(showPpi ? 'desc' : 'asc')
 
   useEffect(() => { setExpandedGroups(new Set()) }, [dayDetailCombos])
+  useEffect(() => {
+    setSortCol(showPpi ? 'ppi' : 'span')
+    setSortDir(showPpi ? 'desc' : 'asc')
+    setDaySortCol(showPpi ? 'ppi' : 'span')
+    setDaySortDir(showPpi ? 'desc' : 'asc')
+  }, [showPpi])
 
   const handleSort = (col: SortColumn) => {
     if (sortCol === col) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortCol(col)
-      setSortDir(col === 'ppi' ? 'desc' : 'asc')
+      setSortDir(col === 'span' ? 'asc' : 'desc')
     }
   }
 
@@ -166,7 +176,7 @@ export default memo(function MinimaTable({
             </button>
           )}
         </td>
-        <td className="ppi-cell col-right">{c.ppi.toFixed(1)}</td>
+        {showPpi && <td className="ppi-cell col-right">{c.ppi.toFixed(1)}</td>}
         <td className="col-right">{c.span.toFixed(1)}&deg;</td>
         <td className="col-right">{c.planetCount}</td>
         <td>
@@ -182,7 +192,7 @@ export default memo(function MinimaTable({
   return (
     <div className="minima-table">
       <div className="minima-table-header">
-        <span className="control-label">Best Parades</span>
+        <span className="control-label">{showPpi ? 'Best Parades' : 'Best Clusters'}</span>
         <div className="minima-table-nav">
           <button
             className="minima-nav-btn"
@@ -203,7 +213,7 @@ export default memo(function MinimaTable({
         </div>
       </div>
       {ppiPeaks.length === 0 ? (
-        <div className="chart-empty">No planet parades found.</div>
+        <div className="chart-empty">{showPpi ? 'No planet parades found.' : 'No clusters found.'}</div>
       ) : (
         <div className="minima-scroll">
           <table>
@@ -215,12 +225,14 @@ export default memo(function MinimaTable({
                 >
                   Date{arrow('date')}
                 </th>
-                <th
-                  className="sortable-th col-right"
-                  onClick={() => handleSort('ppi')}
-                >
-                  PPI{arrow('ppi')}
-                </th>
+                {showPpi && (
+                  <th
+                    className="sortable-th col-right"
+                    onClick={() => handleSort('ppi')}
+                  >
+                    PPI{arrow('ppi')}
+                  </th>
+                )}
                 <th
                   className="sortable-th col-right"
                   onClick={() => handleSort('span')}
@@ -245,7 +257,7 @@ export default memo(function MinimaTable({
                   onClick={() => onSelect(m.date)}
                 >
                   <td>{formatDate(m.date, timeZone)}</td>
-                  <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>
+                  {showPpi && <td className="ppi-cell col-right">{m.ppi.toFixed(1)}</td>}
                   <td className="col-right">{m.span.toFixed(1)}&deg;</td>
                   <td className="col-right">{m.planetCount}</td>
                   <td>
@@ -272,7 +284,9 @@ export default memo(function MinimaTable({
                 <thead>
                   <tr>
                     <th></th>
-                    <th className="sortable-th col-right" onClick={() => handleDaySort('ppi')}>PPI{dayArrow('ppi')}</th>
+                    {showPpi && (
+                      <th className="sortable-th col-right" onClick={() => handleDaySort('ppi')}>PPI{dayArrow('ppi')}</th>
+                    )}
                     <th className="sortable-th col-right" onClick={() => handleDaySort('span')}>Span{dayArrow('span')}</th>
                     <th className="sortable-th col-right" onClick={() => handleDaySort('count')}>#{dayArrow('count')}</th>
                     <th>Group</th>

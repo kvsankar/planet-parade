@@ -61,6 +61,7 @@ interface Props {
   timeZone?: string | null
   autoResetToken?: number
   targetComboBodies?: CelestialBodyId[] | null
+  preferNightTargets?: boolean
   onAutoDateChange?: (d: Date) => void
   onFovChange?: (fovDeg: number) => void
 }
@@ -208,6 +209,7 @@ export default function PlanetariumCameraController({
   timeZone,
   autoResetToken,
   targetComboBodies,
+  preferNightTargets = true,
   onAutoDateChange,
   onFovChange,
 }: Props) {
@@ -262,13 +264,15 @@ export default function PlanetariumCameraController({
     }
 
     if (targets.length > 0) {
-      const nightChoice = findBestPlanetariumNightTime(currentDate, observer, targets, timeZone)
-      const sunHorizonTime = findFirstSunOnHorizon(currentDate, observer, timeZone)
-      const fallbackSunHorizonTime = nightChoice && nightChoice.visibleCount > 0 ? null : sunHorizonTime
-      const date = nightChoice?.date ?? fallbackSunHorizonTime ?? currentDate
+      const targetChoice = findBestPlanetariumNightTime(currentDate, observer, targets, timeZone, preferNightTargets)
+      const sunHorizonTime = preferNightTargets ? findFirstSunOnHorizon(currentDate, observer, timeZone) : null
+      const fallbackSunHorizonTime = preferNightTargets && targetChoice && targetChoice.visibleCount > 0
+        ? null
+        : sunHorizonTime
+      const date = targetChoice?.date ?? fallbackSunHorizonTime ?? currentDate
 
       // Keep global simulation time in sync so UI and scene use the same instant.
-      if (nightChoice || sunHorizonTime) {
+      if (targetChoice || sunHorizonTime) {
         if (onAutoDateChange) {
           if (Math.abs(date.getTime() - currentDate.getTime()) > 500) {
             onAutoDateChange(date)
@@ -327,7 +331,7 @@ export default function PlanetariumCameraController({
       planetariumStore.yaw = DEFAULT_YAW
       planetariumStore.pitch = DEFAULT_PITCH
     }
-  }, [camera, observer, autoResetToken, timeZone, onAutoDateChange, setFovDeg])
+  }, [camera, observer, autoResetToken, timeZone, onAutoDateChange, setFovDeg, preferNightTargets])
 
   const trySetPointerCapture = useCallback((pointerId: number) => {
     try {

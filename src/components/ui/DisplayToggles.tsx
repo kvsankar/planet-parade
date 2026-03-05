@@ -31,7 +31,7 @@ export default function DisplayToggles() {
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showPPIOverlay} onChange={togglePPIOverlay} />
-        <span>PPI Info</span>
+        <span>Cluster Info</span>
       </label>
       <label className="control-label" style={{ marginTop: 8 }}>Sky</label>
       <label className="toggle-row">

@@ -5,6 +5,7 @@ import {
   PPIDayPoint,
   PPIResult,
   CountDayBest,
+  RankingMetric,
 } from '../types'
 import { MS_PER_DAY } from '../constants'
 import {
@@ -94,6 +95,62 @@ interface PPIDayEphemeris {
   bodyMags: number[]       // visual magnitudes
 }
 
+export interface ScoringOptions {
+  includeStraddling?: boolean
+  rankingMetric?: RankingMetric
+  sampleStepMs?: number
+  dayRangeStartMs?: number
+  dayRangeEndMs?: number
+}
+
+interface ScoredCombo {
+  date: number
+  ppi: number
+  span: number
+  kind: AlignmentKind
+  planets: CelestialBodyId[]
+  planetCount: number
+  brightness: number
+  elongVisibility: number
+}
+
+const HOUR_MS = 3_600_000
+const DAY_MS = 24 * HOUR_MS
+
+function getGeometrySampleStepMs(durationDays: number): number {
+  if (durationDays > 3650) return 6 * HOUR_MS
+  if (durationDays > 365) return 3 * HOUR_MS
+  return HOUR_MS
+}
+
+function buildSampleOffsets(stepMs: number): number[] {
+  const offsets: number[] = []
+  const safeStep = Math.max(15 * 60_000, Math.min(DAY_MS, stepMs))
+  for (let t = 0; t < DAY_MS; t += safeStep) {
+    offsets.push(t)
+  }
+  if (offsets.length === 0) offsets.push(0)
+  return offsets
+}
+
+function isBetterByRanking(
+  next: Pick<ScoredCombo, 'ppi' | 'span' | 'planetCount'>,
+  prev: Pick<ScoredCombo, 'ppi' | 'span' | 'planetCount'> | null,
+  rankingMetric: RankingMetric,
+): boolean {
+  if (!prev) return true
+
+  if (rankingMetric === 'span') {
+    if (next.span !== prev.span) return next.span < prev.span
+    if (next.planetCount !== prev.planetCount) return next.planetCount > prev.planetCount
+    return next.ppi > prev.ppi
+  }
+
+  if (next.ppi !== prev.ppi) return next.ppi > prev.ppi
+  if (next.planetCount !== prev.planetCount) return next.planetCount > prev.planetCount
+  return next.span < prev.span
+}
+
 /** Main PPI computation across all days and combinations */
 export function computePPIResults(
   bodies: CelestialBodyId[],
@@ -102,19 +159,22 @@ export function computePPIResults(
   minPlanets: number,
   weights: PPIWeights,
   maxPlanets?: number,
+  options?: ScoringOptions,
 ): PPIResult {
+  const includeStraddling = options?.includeStraddling ?? false
+  const rankingMetric = options?.rankingMetric ?? 'ppi'
   const N = bodies.length
   const highK = maxPlanets != null ? Math.min(N, maxPlanets) : N
   const lowK = Math.max(2, minPlanets)
   const numDays = durationDays + 1
   const startMs = startDate.getTime()
+  const sampleStepMs = options?.sampleStepMs
+    ?? (rankingMetric === 'span' ? getGeometrySampleStepMs(durationDays) : DAY_MS)
+  const sampleOffsetsMs = buildSampleOffsets(sampleStepMs)
 
   if (N < 2) return { ppiSeries: [], ppiPeaks: [], spanMinima: [], dates: [], countBests: new Map() }
 
-  // Phase 1: Pre-compute ephemeris for all days
-  const ephemeris: PPIDayEphemeris[] = new Array(numDays)
-  for (let d = 0; d < numDays; d++) {
-    const dateMs = startMs + d * MS_PER_DAY
+  const buildEphemerisAt = (dateMs: number): PPIDayEphemeris => {
     const date = new Date(dateMs)
     const sunLon = getGeocentricEclipticCoords('Sun', date).lon
     const bodyLons: number[] = new Array(N)
@@ -127,23 +187,13 @@ export function computePPIResults(
       bodyAbsElongs[b] = Math.abs(bodyElongs[b])
       bodyMags[b] = getBodyVisualMagnitude(bodies[b] as SkyBodyId, date) ?? 6.5
     }
-    ephemeris[d] = { dateMs, sunLon, bodyLons, bodyElongs, bodyAbsElongs, bodyMags }
+    return { dateMs, sunLon, bodyLons, bodyElongs, bodyAbsElongs, bodyMags }
   }
 
   // Phase 2: For each day, find the best-PPI combo across all k and all kinds
   const bodyIndices = Array.from({ length: N }, (_, i) => i)
 
-  interface DayBest {
-    ppi: number
-    span: number
-    kind: AlignmentKind
-    planets: CelestialBodyId[]
-    planetCount: number
-    brightness: number
-    elongVisibility: number
-  }
-
-  const dayBests: (DayBest | null)[] = new Array(numDays)
+  const dayBests: (ScoredCombo | null)[] = new Array(numDays)
 
   // Per-count tracking
   const countBests = new Map<number, (CountDayBest | null)[]>()
@@ -151,14 +201,17 @@ export function computePPIResults(
     countBests.set(k, new Array(numDays).fill(null))
   }
 
+  const bestTimes = new Array<number>(numDays)
+
   for (let d = 0; d < numDays; d++) {
-    const day = ephemeris[d]
-    let best: DayBest | null = null
+    const dayBaseMs = startMs + d * MS_PER_DAY
+    const daySamples: PPIDayEphemeris[] = sampleOffsetsMs.map((offsetMs) => buildEphemerisAt(dayBaseMs + offsetMs))
+    let best: ScoredCombo | null = null
 
     for (let k = highK; k >= lowK; k--) {
       let bestForK: CountDayBest | null = null
 
-      const evaluate = (combo: number[]) => {
+      const evaluate = (day: PPIDayEphemeris, combo: number[]) => {
         const lons = combo.map((i) => day.bodyLons[i])
         const elongs = combo.map((i) => day.bodyElongs[i])
         const absElongs = combo.map((i) => day.bodyAbsElongs[i])
@@ -166,35 +219,45 @@ export function computePPIResults(
         const span = computeMaxSpan(lons)
         const kind = classifyCombination(elongs, lons, day.sunLon)
 
-        if (kind === 'straddling') return
+        if (!includeStraddling && kind === 'straddling') return
 
         const result = computeComboPPI(k, N, span, mags, absElongs, weights)
-        if (result.ppi > (best?.ppi ?? 0)) {
-          best = {
-            ppi: result.ppi,
-            span,
-            kind,
-            planets: combo.map((i) => bodies[i]),
-            planetCount: k,
-            brightness: result.brightness,
-            elongVisibility: result.elongVisibility,
-          }
+        const scored: ScoredCombo = {
+          date: day.dateMs,
+          ppi: result.ppi,
+          span,
+          kind,
+          planets: combo.map((i) => bodies[i]),
+          planetCount: k,
+          brightness: result.brightness,
+          elongVisibility: result.elongVisibility,
         }
-        if (result.ppi > (bestForK?.ppi ?? 0)) {
+
+        const shouldInclude = rankingMetric === 'span' || scored.ppi > 0
+        if (!shouldInclude) return
+
+        if (isBetterByRanking(scored, best, rankingMetric)) {
+          best = scored
+        }
+        if (isBetterByRanking(scored, bestForK ? { ...bestForK, planetCount: k } : null, rankingMetric)) {
           bestForK = {
-            ppi: result.ppi,
-            span,
-            kind,
-            planets: combo.map((i) => bodies[i]),
+            ppi: scored.ppi,
+            span: scored.span,
+            kind: scored.kind,
+            planets: scored.planets,
           }
         }
       }
 
       if (k === N) {
-        evaluate(bodyIndices)
+        for (const sample of daySamples) {
+          evaluate(sample, bodyIndices)
+        }
       } else {
-        for (const combo of combinations(bodyIndices, k)) {
-          evaluate(combo)
+        for (const sample of daySamples) {
+          for (const combo of combinations(bodyIndices, k)) {
+            evaluate(sample, combo)
+          }
         }
       }
 
@@ -202,21 +265,23 @@ export function computePPIResults(
     }
 
     dayBests[d] = best
+    const bestForDay = dayBests[d]
+    bestTimes[d] = bestForDay ? bestForDay.date : dayBaseMs
   }
 
   // Phase 3: Build ppiSeries
   const ppiSeries: { date: number; ppi: number }[] = new Array(numDays)
   for (let d = 0; d < numDays; d++) {
-    ppiSeries[d] = { date: ephemeris[d].dateMs, ppi: dayBests[d]?.ppi ?? 0 }
+    ppiSeries[d] = { date: bestTimes[d], ppi: dayBests[d]?.ppi ?? 0 }
   }
 
   // Phase 4: Find extrema — PPI peaks and span minima from overall-best series
   const ppiPeaks = findPPIPeaks(ppiSeries, dayBests)
-  const spanSeries = dayBests.map((b, d) => ({ date: ephemeris[d].dateMs, span: b?.span ?? 0 }))
+  const spanSeries = dayBests.map((b, d) => ({ date: bestTimes[d], span: b?.span ?? 0 }))
   const spanMinima = findSpanMinima(spanSeries, dayBests)
 
   // Build dates array
-  const dates = ephemeris.map((e) => e.dateMs)
+  const dates = [...bestTimes]
 
   return { ppiSeries, ppiPeaks, spanMinima, dates, countBests }
 }
@@ -228,45 +293,65 @@ export function computeDayCombos(
   minPlanets: number,
   weights: PPIWeights,
   maxPlanets?: number,
+  options?: ScoringOptions,
 ): PPIDayPoint[] {
+  const includeStraddling = options?.includeStraddling ?? false
+  const rankingMetric = options?.rankingMetric ?? 'ppi'
   const N = bodies.length
   if (N < 2) return []
 
   const highK = maxPlanets != null ? Math.min(N, maxPlanets) : N
   const lowK = Math.max(2, minPlanets)
   const dateMs = date.getTime()
+  const dayRangeStartMs = options?.dayRangeStartMs
+  const dayRangeEndMs = options?.dayRangeEndMs
+  const scanStepMs = options?.sampleStepMs ?? (rankingMetric === 'span' ? 30 * 60_000 : DAY_MS)
+  const sampleTimes = dayRangeStartMs != null && dayRangeEndMs != null && dayRangeEndMs > dayRangeStartMs
+    ? (() => {
+      const out: number[] = []
+      for (let t = dayRangeStartMs; t < dayRangeEndMs; t += Math.max(15 * 60_000, scanStepMs)) out.push(t)
+      if (out.length === 0) out.push(dayRangeStartMs)
+      return out
+    })()
+    : [dateMs]
 
-  // Pre-compute ephemeris for this single day
-  const sunLon = getGeocentricEclipticCoords('Sun', date).lon
-  const bodyLons: number[] = new Array(N)
-  const bodyElongs: number[] = new Array(N)
-  const bodyAbsElongs: number[] = new Array(N)
-  const bodyMags: number[] = new Array(N)
-  for (let b = 0; b < N; b++) {
-    bodyLons[b] = getGeocentricEclipticCoords(bodies[b], date).lon
-    bodyElongs[b] = wrap180(bodyLons[b] - sunLon)
-    bodyAbsElongs[b] = Math.abs(bodyElongs[b])
-    bodyMags[b] = getBodyVisualMagnitude(bodies[b] as SkyBodyId, date) ?? 6.5
-  }
-
-  const results: PPIDayPoint[] = []
   const bodyIndices = Array.from({ length: N }, (_, i) => i)
+  let bestForDay: PPIDayPoint | null = null
+  let bestResultsForDay: PPIDayPoint[] = []
 
-  for (let k = highK; k >= lowK; k--) {
-    const evaluate = (combo: number[]) => {
-      const lons = combo.map((i) => bodyLons[i])
-      const elongs = combo.map((i) => bodyElongs[i])
-      const absElongs = combo.map((i) => bodyAbsElongs[i])
-      const mags = combo.map((i) => bodyMags[i])
-      const span = computeMaxSpan(lons)
-      const kind = classifyCombination(elongs, lons, sunLon)
+  for (const sampleMs of sampleTimes) {
+    const sampleDate = new Date(sampleMs)
+    const sunLon = getGeocentricEclipticCoords('Sun', sampleDate).lon
+    const bodyLons: number[] = new Array(N)
+    const bodyElongs: number[] = new Array(N)
+    const bodyAbsElongs: number[] = new Array(N)
+    const bodyMags: number[] = new Array(N)
+    for (let b = 0; b < N; b++) {
+      bodyLons[b] = getGeocentricEclipticCoords(bodies[b], sampleDate).lon
+      bodyElongs[b] = wrap180(bodyLons[b] - sunLon)
+      bodyAbsElongs[b] = Math.abs(bodyElongs[b])
+      bodyMags[b] = getBodyVisualMagnitude(bodies[b] as SkyBodyId, sampleDate) ?? 6.5
+    }
 
-      if (kind === 'straddling') return
+    const results: PPIDayPoint[] = []
+    let bestForSample: PPIDayPoint | null = null
 
-      const result = computeComboPPI(k, N, span, mags, absElongs, weights)
-      if (result.ppi > 0) {
-        results.push({
-          date: dateMs,
+    for (let k = highK; k >= lowK; k--) {
+      const evaluate = (combo: number[]) => {
+        const lons = combo.map((i) => bodyLons[i])
+        const elongs = combo.map((i) => bodyElongs[i])
+        const absElongs = combo.map((i) => bodyAbsElongs[i])
+        const mags = combo.map((i) => bodyMags[i])
+        const span = computeMaxSpan(lons)
+        const kind = classifyCombination(elongs, lons, sunLon)
+
+        if (!includeStraddling && kind === 'straddling') return
+
+        const result = computeComboPPI(k, N, span, mags, absElongs, weights)
+        if (rankingMetric === 'ppi' && result.ppi <= 0) return
+
+        const point: PPIDayPoint = {
+          date: sampleMs,
           ppi: result.ppi,
           span,
           kind,
@@ -274,21 +359,39 @@ export function computeDayCombos(
           planets: combo.map((i) => bodies[i]),
           brightness: result.brightness,
           elongVisibility: result.elongVisibility,
-        })
+        }
+
+        results.push(point)
+        if (isBetterByRanking(point, bestForSample, rankingMetric)) bestForSample = point
+      }
+
+      if (k === N) {
+        evaluate(bodyIndices)
+      } else {
+        for (const combo of combinations(bodyIndices, k)) {
+          evaluate(combo)
+        }
       }
     }
 
-    if (k === N) {
-      evaluate(bodyIndices)
-    } else {
-      for (const combo of combinations(bodyIndices, k)) {
-        evaluate(combo)
-      }
+    if (!bestForSample) continue
+    if (isBetterByRanking(bestForSample, bestForDay, rankingMetric)) {
+      bestForDay = bestForSample
+      bestResultsForDay = results
     }
   }
 
-  // Sort by PPI descending
-  results.sort((a, b) => b.ppi - a.ppi)
+  const results = bestResultsForDay
+  // Sort by active ranking mode.
+  if (rankingMetric === 'span') {
+    results.sort((a, b) => {
+      if (a.span !== b.span) return a.span - b.span
+      if (a.planetCount !== b.planetCount) return b.planetCount - a.planetCount
+      return b.ppi - a.ppi
+    })
+  } else {
+    results.sort((a, b) => b.ppi - a.ppi)
+  }
   return results
 }
 

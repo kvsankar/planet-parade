@@ -38,14 +38,16 @@ export default function PlanetaryDataTable({ bodies, date, highlightedPlanets }:
       }
     })
 
-    items.push({
-      id: 'Sun' as CelestialBodyId,
-      absLon: sunEcl.lon,
-      lat: sunEcl.lat,
-      color: BODY_META.Sun.color,
-      elongation: 0,
-      mag: getBodyVisualMagnitude('Sun' as SkyBodyId, quantizedDate),
-    })
+    if (!items.some((item) => item.id === 'Sun')) {
+      items.push({
+        id: 'Sun' as CelestialBodyId,
+        absLon: sunEcl.lon,
+        lat: sunEcl.lat,
+        color: BODY_META.Sun.color,
+        elongation: 0,
+        mag: getBodyVisualMagnitude('Sun' as SkyBodyId, quantizedDate),
+      })
+    }
 
     return items
   }, [bodies, quantizedDate])

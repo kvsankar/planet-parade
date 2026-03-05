@@ -5,7 +5,7 @@
 When Planetarium opens (or the active combo/location/day context changes), the app should pick a practical viewing instant that:
 
 1. Shows as much of the target cluster as possible above the horizon.
-2. Prefers darker sky when visibility is tied.
+2. Optionally prefers darker sky when visibility is tied.
 3. Keeps bodies at usable altitudes.
 4. Is deterministic for a given input state.
 5. Starts with a wide horizon-rich ecliptic framing.
@@ -18,6 +18,7 @@ This behavior lives in `src/lib/planetariumDefaultView.ts` and is applied by `Pl
 - `observer`: lat/lon/height
 - `targets`: active combo bodies mapped to `SkyBodyId`
 - `timeZone` (optional): inferred IANA zone from observer coordinates
+- `preferNightVisible` (optional, default `true`): whether to prefer night-only candidates when usable
 
 ## Day Window
 
@@ -49,7 +50,7 @@ Candidates are compared in this order:
 5. Higher `meanAltitude`
 6. Earlier timestamp
 
-## Night Preference Rule
+## Night Preference Rule (Mode-Aware)
 
 Two best candidates are tracked:
 
@@ -58,16 +59,18 @@ Two best candidates are tracked:
 
 Final choice:
 
-- Use `bestNight` **only if** it has at least one visible target (`visibleCount > 0`).
-- Otherwise use `bestAny`.
+- If `preferNightVisible=true`: use `bestNight` **only if** it has at least one visible target (`visibleCount > 0`), otherwise use `bestAny`.
+- If `preferNightVisible=false`: always use `bestAny`.
 
-This keeps nighttime preferred, but avoids returning unusable nights where the target set is entirely below the horizon.
+This allows one shared selector for both analysis modes:
+- **Visibility mode** uses `preferNightVisible=true`.
+- **Geometry mode** uses `preferNightVisible=false` so daytime can be selected if it gives the best framing/visibility for the target set.
 
 ## Sun-Horizon Helper
 
 `findFirstSunOnHorizon` searches nearby sunrise/sunset crossings inside the same evaluated day window (timezone-aware) and returns the one closest to `baseDate`.
 
-`PlanetariumCameraController` keeps this helper as a fallback path, though the main selector (`findBestPlanetariumNightTime`) typically provides the chosen instant directly.
+`PlanetariumCameraController` keeps this helper as a fallback path when night preference is enabled; in all-day mode it is bypassed.
 
 ## Framing Strategy After Time Selection
 
@@ -98,4 +101,4 @@ It does **not** re-run for minute-level edits within the same evaluated day key,
 ## Why This Design
 
 The algorithm avoids hardcoding a single Sun-altitude target (such as always `-12°` or `-15°`).
-Instead, it optimizes visibility first, darkness second, altitude third, while respecting observer-local day boundaries when timezone is known.
+Instead, it optimizes visibility first, darkness second, altitude third, while respecting observer-local day boundaries when timezone is known. The night preference is a mode-level policy toggle, not a hard constraint.

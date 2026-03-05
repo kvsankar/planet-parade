@@ -155,6 +155,7 @@ interface Props {
   autoViewResetToken?: number
   onAutoDateChange?: (d: Date) => void
   targetComboBodies?: CelestialBodyId[] | null
+  preferNightTargets?: boolean
 }
 
 function PlanetariumScene({
@@ -164,6 +165,7 @@ function PlanetariumScene({
   autoViewResetToken,
   onAutoDateChange,
   targetComboBodies,
+  preferNightTargets = true,
 }: Props) {
   const [showMilkyWay, setShowMilkyWay] = useState(true)
   const [showAltAzGrid, setShowAltAzGrid] = useState(true)
@@ -259,6 +261,7 @@ function PlanetariumScene({
           timeZone={timeZone}
           autoResetToken={autoViewResetToken}
           targetComboBodies={targetComboBodies}
+          preferNightTargets={preferNightTargets}
           onAutoDateChange={onAutoDateChange}
           onFovChange={setViewFovDeg}
         />
@@ -343,6 +346,7 @@ function arePlanetariumScenePropsEqual(prev: Props, next: Props): boolean {
     && prev.timeZone === next.timeZone
     && prev.autoViewResetToken === next.autoViewResetToken
     && prev.onAutoDateChange === next.onAutoDateChange
+    && prev.preferNightTargets === next.preferNightTargets
     && sameTargetBodies(prev.targetComboBodies, next.targetComboBodies)
   )
 }

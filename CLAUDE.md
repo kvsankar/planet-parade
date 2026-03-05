@@ -35,7 +35,7 @@ The app uses three distinct state layers to bridge React and Three.js:
 
 2. **Module-level singleton store** (`hooks/useSimulationStore.ts`) — A plain mutable object (`simulationStore`) that mirrors simulation time state. Three.js Canvas components import this directly instead of using Context, because React Context doesn't reliably cross the R3F Canvas boundary. Mutations are synchronous.
 
-3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns `activeTab` (combination size), `bestPerKind` (best combo per AM/PM/Straddling), PPI weights/results, and feeds SkyView, AlignmentCones, and the peaks table via props.
+3. **Domain hooks** (`hooks/useAlignmentState.ts`) — Self-contained state for alignment computation with heavy `useMemo` for expensive astronomy calculations. Owns analysis mode (`visibility` vs `geometry`), ranking metric (`ppi` vs `span`), selected bodies, `bestPerKind` (best combo per AM/PM/Straddling), PPI weights/results, and feeds SkyView, AlignmentCones, and the peaks table via props.
 
 Planetarium and Sky Charts layer toggles are intentionally local component state (`PlanetariumScene`, `SkyChartPanel`) so they can diverge from Solar System display toggles.
 Observer location/timezone state is managed in `hooks/useObserverLocation.ts` and persisted via `lib/observerLocation.ts`.
@@ -64,10 +64,10 @@ astronomy-engine (J2000 equatorial) → ecliptic rotation (23.44° obliquity) �
 ### Key Libraries
 
 - `lib/alignment.ts` — Combination-based alignment computation (`computeAlignmentTabs`, `findBestPerKind`), classification (`classifyCombination`), local minima detection, ecliptic span math. Uses a FIFO ephemeris cache (200k entries) keyed by `"bodyId:dateMs"`.
-- `lib/ppiScoring.ts` — Planet Parade Index computation (`computePPIResults`, `computeComboPPI`). Scores combos by count, compactness, brightness, and visibility. Excludes straddling combos; uses min-elongation visibility gate. See `docs/planet-parade-index.md` for formula and design decisions.
+- `lib/ppiScoring.ts` — Planet Parade Index computation (`computePPIResults`, `computeComboPPI`) plus span-ranking support. Scores combos by count, compactness, brightness, and visibility (PPI mode), with optional straddling inclusion for geometry mode. Uses a min-elongation visibility gate.
 - `lib/astronomy.ts` — Heliocentric/geocentric positions, alt-az, moon phase, magnitude via astronomy-engine.
 - `lib/coordinateConversion.ts` — EQJ↔scene, RA/Dec↔XYZ, ecliptic transforms.
-- `lib/planetariumDefaultView.ts` — Nighttime default-time search for Planetarium startup framing.
+- `lib/planetariumDefaultView.ts` — Mode-aware default-time search for Planetarium startup framing (night-preferred or all-day best).
 - `lib/timeZoneDay.ts` — Local day-key/day-range utilities used by Timeline/Minima navigation, Planetarium day scans, and Sky Charts day anchoring.
 - `lib/observerLocation.ts` — Sanitization and serialization for observer location source, label, accuracy, and inferred timezone.
 - `lib/skyVisibility.ts` + `lib/atmosphereColor.ts` — Shared atmosphere/visibility model used by Planetarium and Sky Charts.

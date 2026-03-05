@@ -266,4 +266,52 @@ describe('computeDayCombos', () => {
       expect(combos[0].ppi).toBeCloseTo(result.ppiSeries[0].ppi, 5)
     }
   }, 60_000)
+
+  it('can rank by span and include straddling combos', () => {
+    const start = new Date('2026-01-01T00:00:00Z').getTime()
+    let straddleDate: Date | null = null
+    for (let d = 0; d < 366; d++) {
+      const date = new Date(start + d * 86_400_000)
+      const combos = computeDayCombos(
+        ['Mercury', 'Venus'],
+        date,
+        2,
+        DEFAULT_PPI_WEIGHTS,
+        undefined,
+        { includeStraddling: true, rankingMetric: 'span' },
+      )
+      if (combos.some((c) => c.kind === 'straddling')) {
+        straddleDate = date
+        break
+      }
+    }
+
+    expect(straddleDate).not.toBeNull()
+    const noStraddle = computeDayCombos(['Mercury', 'Venus'], straddleDate!, 2, DEFAULT_PPI_WEIGHTS)
+    const withStraddle = computeDayCombos(
+      ['Mercury', 'Venus'],
+      straddleDate!,
+      2,
+      DEFAULT_PPI_WEIGHTS,
+      undefined,
+      { includeStraddling: true, rankingMetric: 'span' },
+    )
+    expect(noStraddle.every((c) => c.kind !== 'straddling')).toBe(true)
+    expect(withStraddle.some((c) => c.kind === 'straddling')).toBe(true)
+  }, 60_000)
+
+  it('sorts by span ascending in geometry ranking mode', () => {
+    const combos = computeDayCombos(
+      [...bodies],
+      date,
+      2,
+      DEFAULT_PPI_WEIGHTS,
+      undefined,
+      { includeStraddling: true, rankingMetric: 'span' },
+    )
+    expect(combos.length).toBeGreaterThan(1)
+    for (let i = 1; i < combos.length; i++) {
+      expect(combos[i - 1].span).toBeLessThanOrEqual(combos[i].span)
+    }
+  }, 60_000)
 })

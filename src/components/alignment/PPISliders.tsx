@@ -7,11 +7,11 @@ interface PPISlidersProps {
   onChange: (w: PPIWeights) => void
 }
 
-type PresetId = 'visibility' | 'media' | 'custom'
+type PresetId = 'practical' | 'hyped' | 'custom'
 
 const PRESETS: { id: PresetId; label: string; weights: PPIWeights; desc: string }[] = [
-  { id: 'visibility', label: 'Visibility', weights: DEFAULT_PPI_WEIGHTS, desc: 'Tight bright clusters, visibility-gated' },
-  { id: 'media', label: 'Media', weights: MEDIA_PPI_WEIGHTS, desc: 'Maximum planet count, pure geometry' },
+  { id: 'practical', label: 'Practical', weights: DEFAULT_PPI_WEIGHTS, desc: 'Tight, bright clusters with visibility weighting' },
+  { id: 'hyped', label: 'Hyped', weights: MEDIA_PPI_WEIGHTS, desc: 'Prioritizes larger planet counts; tolerant of wider spans' },
 ]
 
 function detectPreset(w: PPIWeights): PresetId {

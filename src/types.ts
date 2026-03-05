@@ -1,5 +1,6 @@
 export type CelestialBodyId =
   | 'Sun'
+  | 'Moon'
   | 'Mercury'
   | 'Venus'
   | 'Earth'
@@ -112,6 +113,8 @@ export interface PPIDayPoint {
 
 export type ChartMetric = 'ppi' | 'span'
 export type NavMode = 'ppi' | 'span'
+export type AnalysisMode = 'visibility' | 'geometry'
+export type RankingMetric = 'ppi' | 'span'
 
 export interface CountDayBest {
   ppi: number

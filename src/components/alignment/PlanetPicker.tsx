@@ -5,9 +5,16 @@ import { ANALYZABLE_BODIES, BODY_META } from '../../constants'
 interface PlanetPickerProps {
   selected: CelestialBodyId[]
   onChange: (bodies: CelestialBodyId[]) => void
+  options?: CelestialBodyId[]
+  label?: string
 }
 
-export default memo(function PlanetPicker({ selected, onChange }: PlanetPickerProps) {
+export default memo(function PlanetPicker({
+  selected,
+  onChange,
+  options = ANALYZABLE_BODIES,
+  label = 'Planets',
+}: PlanetPickerProps) {
   const toggle = (id: CelestialBodyId) => {
     if (selected.includes(id)) {
       onChange(selected.filter((b) => b !== id))
@@ -18,9 +25,9 @@ export default memo(function PlanetPicker({ selected, onChange }: PlanetPickerPr
 
   return (
     <div className="planet-picker">
-      <span className="control-label">Planets</span>
+      <span className="control-label">{label}</span>
       <div className="planet-chips">
-        {ANALYZABLE_BODIES.map((id) => (
+        {options.map((id) => (
           <button
             key={id}
             className={`planet-chip ${selected.includes(id) ? 'active' : ''}`}

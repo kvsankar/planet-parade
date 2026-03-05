@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric, NavMode } from '../types'
-import { MS_PER_DAY } from '../constants'
+import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric, NavMode, AnalysisMode, RankingMetric } from '../types'
+import { MS_PER_DAY, ANALYZABLE_BODIES, GEOMETRY_ANALYZABLE_BODIES } from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
 import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos, findPPIPeaks, findSpanMinima } from '../lib/ppiScoring'
 import { SkyViewCenter } from '../components/alignment/SkyView'
@@ -18,6 +18,9 @@ export interface AlignmentState {
   setSkyCenter: (c: SkyViewCenter) => void
   visibleSeries: Set<AlignmentKind>
   setVisibleSeries: (v: Set<AlignmentKind>) => void
+  analysisMode: AnalysisMode
+  setAnalysisMode: (m: AnalysisMode) => void
+  rankingMetric: RankingMetric
   setMinPlanets: (n: number) => void
   setMaxPlanets: (n: number) => void
   // Computed
@@ -66,14 +69,36 @@ export function useAlignmentState(
   const [visibleSeries, setVisibleSeries] = useState<Set<AlignmentKind>>(
     () => new Set(['morning', 'evening', 'straddling']),
   )
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('visibility')
   const [minPlanets, setMinPlanets] = useState(2)
   const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
   const [visibleMetrics, setVisibleMetrics] = useState<Set<ChartMetric>>(() => new Set(['ppi', 'span'] as ChartMetric[]))
   const [simpleMode, setSimpleMode] = useState(true)
   const [navMode, setNavMode] = useState<NavMode>('ppi')
+  const rankingMetric: RankingMetric = analysisMode === 'geometry' ? 'span' : 'ppi'
+  const includeStraddling = analysisMode === 'geometry'
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
   const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
+
+  useEffect(() => {
+    const allowed = new Set(analysisMode === 'geometry' ? GEOMETRY_ANALYZABLE_BODIES : ANALYZABLE_BODIES)
+    setSelectedBodies((prev) => {
+      const filtered = prev.filter((id) => allowed.has(id))
+      if (filtered.length >= 2) return filtered
+      const fallback = [...allowed].filter((id) => !filtered.includes(id))
+      return [...filtered, ...fallback].slice(0, Math.min(2, allowed.size))
+    })
+
+    if (analysisMode === 'geometry') {
+      setVisibleMetrics(new Set(['span']))
+      setNavMode('span')
+      setSimpleMode(true)
+    } else {
+      setVisibleMetrics(new Set(['ppi', 'span']))
+      setNavMode('ppi')
+    }
+  }, [analysisMode])
 
   // Available tabs: effectiveMax down to effectiveMin
   const availableTabs = useMemo(() => {
@@ -111,8 +136,20 @@ export function useAlignmentState(
 
   const ppiResult = useMemo((): PPIResult => {
     if (selectedBodies.length < 2) return { ppiSeries: [], ppiPeaks: [], spanMinima: [], dates: [], countBests: new Map() }
-    return computePPIResults(selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax)
-  }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax])
+    return computePPIResults(
+      selectedBodies,
+      startDate,
+      durationDays,
+      effectiveMin,
+      ppiWeights,
+      effectiveMax,
+      {
+        includeStraddling,
+        rankingMetric,
+        sampleStepMs: analysisMode === 'geometry' ? undefined : 24 * 60 * 60 * 1000,
+      },
+    )
+  }, [selectedBodies, startDate, durationDays, effectiveMin, ppiWeights, effectiveMax, includeStraddling, rankingMetric, analysisMode])
 
   const [selectedDayComboIdx, setSelectedDayComboIdx] = useState<number | null>(null)
 
@@ -137,7 +174,7 @@ export function useAlignmentState(
   const chartData = useMemo(() => {
     return ppiResult.dates.map((dateMs, d) => {
       const point: Record<string, number | string | null> = { date: dateMs }
-      let bestPpi = 0
+      let bestPpi: number | null = null
       let bestSpan: number | null = null
       let bestPlanets: string[] | null = null
       for (const [k, bests] of ppiResult.countBests) {
@@ -146,21 +183,52 @@ export function useAlignmentState(
           point[`ppi_${k}`] = b.ppi
           point[`span_${k}`] = b.span
           point[`kind_${k}`] = b.kind
-          if (b.ppi > bestPpi) { bestPpi = b.ppi; bestSpan = b.span; bestPlanets = b.planets as string[] }
+          if (rankingMetric === 'span') {
+            const shouldPick = bestSpan == null
+              || b.span < bestSpan
+              || (b.span === bestSpan && (bestPlanets == null || k > bestPlanets.length))
+            if (shouldPick) {
+              bestPpi = b.ppi
+              bestSpan = b.span
+              bestPlanets = b.planets as string[]
+            }
+          } else {
+            const shouldPick = bestPpi == null
+              || b.ppi > bestPpi
+              || (b.ppi === bestPpi && (bestSpan == null || b.span < bestSpan))
+            if (shouldPick) {
+              bestPpi = b.ppi
+              bestSpan = b.span
+              bestPlanets = b.planets as string[]
+            }
+          }
         }
       }
-      point.best_ppi = bestPpi > 0 ? bestPpi : null
+      point.best_ppi = bestPpi
       point.best_span = bestSpan
       point.best_planets = bestPlanets ? bestPlanets.join(',') : null
       return point
     })
-  }, [ppiResult])
+  }, [ppiResult, rankingMetric])
 
   const dayDetailCombos = useMemo((): PPIDayPoint[] => {
     if (selectedBodies.length < 2) return []
     const dayDate = new Date(currentDayRange.startMs)
-    return computeDayCombos(selectedBodies, dayDate, effectiveMin, ppiWeights, effectiveMax)
-  }, [selectedBodies, currentDayRange.startMs, effectiveMin, ppiWeights, effectiveMax])
+    return computeDayCombos(
+      selectedBodies,
+      dayDate,
+      effectiveMin,
+      ppiWeights,
+      effectiveMax,
+      {
+        includeStraddling,
+        rankingMetric,
+        dayRangeStartMs: analysisMode === 'geometry' ? currentDayRange.startMs : undefined,
+        dayRangeEndMs: analysisMode === 'geometry' ? currentDayRange.endMs : undefined,
+        sampleStepMs: analysisMode === 'geometry' ? 30 * 60 * 1000 : undefined,
+      },
+    )
+  }, [selectedBodies, currentDayRange.startMs, currentDayRange.endMs, effectiveMin, ppiWeights, effectiveMax, includeStraddling, rankingMetric, analysisMode])
 
   const allMinima = useMemo(() => {
     const result: AlignmentMinimum[] = []
@@ -178,16 +246,15 @@ export function useAlignmentState(
     const result: BestPerKind = { morning: null, evening: null, straddling: null }
     if (dayDetailCombos.length === 0) return result
 
-    const dayDate = new Date(currentDayRange.startMs)
-    const sunLon = getGeocentricEclipticCoords('Sun', dayDate).lon
-
     const combosToShow = selectedDayComboIdx !== null && selectedDayComboIdx < dayDetailCombos.length
       ? [dayDetailCombos[selectedDayComboIdx]]
       : [dayDetailCombos[0]]
 
     for (const combo of combosToShow) {
-      const longitudes = combo.planets.map((p) => getGeocentricEclipticCoords(p, dayDate).lon)
-      const elongations = combo.planets.map((p) => wrap180(getGeocentricEclipticCoords(p, dayDate).lon - sunLon))
+      const comboDate = new Date(combo.date)
+      const sunLon = getGeocentricEclipticCoords('Sun', comboDate).lon
+      const longitudes = combo.planets.map((p) => getGeocentricEclipticCoords(p, comboDate).lon)
+      const elongations = combo.planets.map((p) => wrap180(getGeocentricEclipticCoords(p, comboDate).lon - sunLon))
       result[combo.kind] = {
         indices: combo.planets.map((p) => selectedBodies.indexOf(p)),
         bodies: combo.planets,
@@ -299,6 +366,8 @@ export function useAlignmentState(
     durationDays, setDurationDays,
     skyCenter, setSkyCenter,
     visibleSeries, setVisibleSeries,
+    analysisMode, setAnalysisMode,
+    rankingMetric,
     setMinPlanets, setMaxPlanets,
     ppiWeights, setPPIWeights,
     ppiResult, dayDetailCombos, selectedDayComboIdx, setSelectedDayComboIdx,

@@ -20,6 +20,7 @@ export default function ChartPanel({
 }: ChartPanelProps) {
   const {
     chartData,
+    analysisMode,
     selectedBodies,
     startDate,
     durationDays,
@@ -33,11 +34,13 @@ export default function ChartPanel({
     hasPrev, hasNext, todayInRange, jumpToPeak,
     navMode, setNavMode,
   } = alignment
+  const showPpi = analysisMode === 'visibility'
 
   const [focusToken, setFocusToken] = useState(0)
   const bump = () => setFocusToken((t) => t + 1)
 
   const toggleMetric = (m: ChartMetric) => {
+    if (!showPpi && m === 'ppi') return
     const next = new Set(visibleMetrics)
     if (next.has(m)) {
       if (next.size > 1) next.delete(m)
@@ -80,30 +83,39 @@ export default function ChartPanel({
             Advanced
           </button>
         </div>
-        <div className="series-toggle-chips">
-          <button
-            className={`series-chip ${visibleMetrics.has('ppi') ? 'active' : ''}`}
-            style={{
-              borderColor: '#aaa',
-              ...(visibleMetrics.has('ppi') ? { background: 'rgba(255,255,255,0.1)' } : {}),
-            }}
-            onClick={() => toggleMetric('ppi')}
-          >
-            <span className="series-chip-line" style={{ borderBottom: '2px solid #aaa' }} />
-            PPI
-          </button>
-          <button
-            className={`series-chip ${visibleMetrics.has('span') ? 'active' : ''}`}
-            style={{
-              borderColor: '#aaa',
-              ...(visibleMetrics.has('span') ? { background: 'rgba(255,255,255,0.1)' } : {}),
-            }}
-            onClick={() => toggleMetric('span')}
-          >
-            <span className="series-chip-line dashed" style={{ borderBottom: '2px dashed #aaa' }} />
-            Span
-          </button>
-        </div>
+        {showPpi ? (
+          <div className="series-toggle-chips">
+            <button
+              className={`series-chip ${visibleMetrics.has('ppi') ? 'active' : ''}`}
+              style={{
+                borderColor: '#aaa',
+                ...(visibleMetrics.has('ppi') ? { background: 'rgba(255,255,255,0.1)' } : {}),
+              }}
+              onClick={() => toggleMetric('ppi')}
+            >
+              <span className="series-chip-line" style={{ borderBottom: '2px solid #aaa' }} />
+              PPI
+            </button>
+            <button
+              className={`series-chip ${visibleMetrics.has('span') ? 'active' : ''}`}
+              style={{
+                borderColor: '#aaa',
+                ...(visibleMetrics.has('span') ? { background: 'rgba(255,255,255,0.1)' } : {}),
+              }}
+              onClick={() => toggleMetric('span')}
+            >
+              <span className="series-chip-line dashed" style={{ borderBottom: '2px dashed #aaa' }} />
+              Span
+            </button>
+          </div>
+        ) : (
+          <div className="series-toggle-chips">
+            <span className="series-chip active" style={{ borderColor: '#aaa', background: 'rgba(255,255,255,0.1)' }}>
+              <span className="series-chip-line dashed" style={{ borderBottom: '2px dashed #aaa' }} />
+              Span
+            </span>
+          </div>
+        )}
       </div>
       <SeparationChart
         data={chartData}
@@ -124,30 +136,38 @@ export default function ChartPanel({
         />
       </div>
       <div className="chart-controls-row">
-        <div className="series-toggle-chips">
-          <button
-            className={`series-chip ${navMode === 'ppi' ? 'active' : ''}`}
-            style={{
-              borderColor: '#aaa',
-              ...(navMode === 'ppi' ? { background: 'rgba(255,255,255,0.1)' } : {}),
-            }}
-            onClick={() => setNavMode('ppi')}
-            title="Navigate PPI peaks (maxima)"
-          >
-            PPI &#9650;
-          </button>
-          <button
-            className={`series-chip ${navMode === 'span' ? 'active' : ''}`}
-            style={{
-              borderColor: '#aaa',
-              ...(navMode === 'span' ? { background: 'rgba(255,255,255,0.1)' } : {}),
-            }}
-            onClick={() => setNavMode('span')}
-            title="Navigate span minima (tightest clusters)"
-          >
-            Span &#9660;
-          </button>
-        </div>
+        {showPpi ? (
+          <div className="series-toggle-chips">
+            <button
+              className={`series-chip ${navMode === 'ppi' ? 'active' : ''}`}
+              style={{
+                borderColor: '#aaa',
+                ...(navMode === 'ppi' ? { background: 'rgba(255,255,255,0.1)' } : {}),
+              }}
+              onClick={() => setNavMode('ppi')}
+              title="Navigate PPI peaks (maxima)"
+            >
+              PPI &#9650;
+            </button>
+            <button
+              className={`series-chip ${navMode === 'span' ? 'active' : ''}`}
+              style={{
+                borderColor: '#aaa',
+                ...(navMode === 'span' ? { background: 'rgba(255,255,255,0.1)' } : {}),
+              }}
+              onClick={() => setNavMode('span')}
+              title="Navigate span minima (tightest clusters)"
+            >
+              Span &#9660;
+            </button>
+          </div>
+        ) : (
+          <div className="series-toggle-chips">
+            <span className="series-chip active" style={{ borderColor: '#aaa', background: 'rgba(255,255,255,0.1)' }} title="Navigate span minima (tightest clusters)">
+              Span &#9660;
+            </span>
+          </div>
+        )}
         <div className="chart-nav-btns">
           <button
             className="minima-nav-btn"

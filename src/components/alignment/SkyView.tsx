@@ -206,8 +206,10 @@ export default function SkyView({ bodies, date, center, onCenterChange, visibleS
       return { id, absLon: ecl.lon, lat: ecl.lat, color: BODY_META[id].color, elongation: wrap180(ecl.lon - sunLon), magnitude: mag }
     })
 
-    const sunEcl = getGeocentricEclipticCoords('Sun', quantizedDate)
-    items.push({ id: 'Sun' as CelestialBodyId, absLon: sunEcl.lon, lat: sunEcl.lat, color: BODY_META.Sun.color, elongation: 0, magnitude: null })
+    if (!items.some((item) => item.id === 'Sun')) {
+      const sunEcl = getGeocentricEclipticCoords('Sun', quantizedDate)
+      items.push({ id: 'Sun' as CelestialBodyId, absLon: sunEcl.lon, lat: sunEcl.lat, color: BODY_META.Sun.color, elongation: 0, magnitude: null })
+    }
 
     return items.map((c) => ({
       ...c,

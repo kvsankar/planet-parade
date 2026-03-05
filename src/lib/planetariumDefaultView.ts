@@ -71,6 +71,7 @@ export function findBestPlanetariumNightTime(
   observer: ObserverLocation,
   targets: SkyBodyId[],
   timeZone?: string | null,
+  preferNightVisible: boolean = true,
 ): NightViewChoice | null {
   if (targets.length === 0) return null
 
@@ -112,7 +113,9 @@ export function findBestPlanetariumNightTime(
     if (isNight && isBetterNightCandidate(candidate, bestNight)) bestNight = candidate
   }
 
-  const chosen = bestNight && bestNight.visibleCount > 0 ? bestNight : bestAny
+  const chosen = preferNightVisible
+    ? (bestNight && bestNight.visibleCount > 0 ? bestNight : bestAny)
+    : bestAny
   return chosen
     ? {
       date: new Date(chosen.dateMs),

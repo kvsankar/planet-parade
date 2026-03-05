@@ -32,7 +32,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Planet Parade',
       description:
-        'When can you step outside and see most \u2014 or all \u2014 of the planets at once? This app finds those windows by scoring and ranking planet clusters across the time range you choose.',
+        'When can you step outside and see most \u2014 or all \u2014 of the planets at once? This app finds alignment windows across a time range, with either visibility-first scoring or pure geometry ranking.',
     },
   },
   {
@@ -42,7 +42,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Alignments Panel',
       description:
-        'Pick planets, set a time range, and choose the planet-count range. The app evaluates combinations and scores each date using the Planet Parade Index (PPI), then classifies each result as AM, PM, or Straddle.',
+        'Set Ranking Mode first: Visibility (PPI) for observer-friendly parades, or Geometry (Span) for pure angular clustering (including Sun-straddling cases). Then pick bodies, time range, and count range.',
       side: 'right',
     },
   },
@@ -64,7 +64,7 @@ const basicDefs: TourStepDef[] = [
     popover: {
       title: 'Parade Timeline',
       description:
-        'Plots the PPI score and angular span over time. Higher PPI = better parade. Toggle Simple/Advanced to see overall or per-count lines. Click any point to jump to that date.',
+        'Plots the active ranking metric over time. Visibility mode emphasizes PPI (with span as context); Geometry mode is span-first. Toggle Simple/Advanced to see overall or per-count lines, then click any point to jump to that date.',
       side: 'left',
     },
   },
@@ -120,7 +120,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Planet Picker',
       description:
-        'Toggle planets on/off to include them in alignment searches. At least two must be selected. The app evaluates every combination of the selected planets.',
+        'Toggle bodies on/off for alignment searches. At least two must be selected. In Geometry mode, Sun and Moon are available so you can find conjunction-style events (for example Venus-Moon or Mars-Sun).',
       side: 'right',
     },
   },
@@ -148,9 +148,9 @@ const advancedDefs: TourStepDef[] = [
     element: '.ppi-sliders',
     mobileTab: 'align',
     popover: {
-      title: 'PPI Scoring Weights',
+      title: 'Parade Scoring (Visibility Mode)',
       description:
-        'Adjust how the Planet Parade Index scores alignments. Four knobs: Count, Compactness, Brightness, and Visibility gate. Choose a preset (Visibility favors tight bright clusters; Media favors maximum planet count) or fine-tune manually.',
+        'In Visibility mode, adjust Planet Parade Index weights: Count, Compactness, Brightness, and Visibility gate. Use presets (Practical or Hyped) or fine-tune manually. In Geometry mode, this section is disabled because ranking is by span only.',
       side: 'right',
     },
   },
@@ -160,7 +160,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Best Parades Table',
       description:
-        'Lists ranked parade dates. Use Prev/Next beside the title to navigate rows, click any row to jump to that date, and sort by date, PPI, span, or count. The day-detail section below shows best combos for the selected day.',
+        'Lists ranked dates using the active mode metric (PPI in Visibility mode, Span in Geometry mode). Use Prev/Next beside the title to navigate rows, click any row to jump, and sort by date, PPI, span, or count.',
       side: 'right',
     },
   },
@@ -215,7 +215,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Parade Timeline Chart',
       description:
-        'Plots PPI score and angular span over time. In Simple mode, one line shows the best-of-day value; Advanced mode breaks out per-count lines (color-coded by planet count). The golden line marks the current date. Click a point to jump to it.',
+        'Plots ranking metrics across time. In Visibility mode you get PPI-focused ranking with span context; in Geometry mode ranking is span-first. Simple mode shows best-of-day; Advanced mode breaks out per-count lines. The golden line marks current date.',
       side: 'top',
     },
   },
@@ -236,7 +236,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Timeline Navigation',
       description:
-        'Switch navigation mode between PPI peaks (highest scores) and Span minima (tightest clusters). Prev/Next steps by observer local day, not raw UTC timestamps, so date navigation stays consistent with local labels.',
+        'Switch navigation between PPI peaks and Span minima. Geometry mode defaults to Span minima since PPI is not used there. Prev/Next steps by observer local day, not raw UTC timestamps, so labels stay timezone-consistent.',
       side: 'top',
     },
   },
@@ -247,7 +247,7 @@ const advancedDefs: TourStepDef[] = [
     popover: {
       title: 'Ecliptic Longitude Plot',
       description:
-        'Shows planet positions on the ecliptic as seen from Earth. Shaded bands highlight the best cluster for each visible category (AM/PM/Straddle). Planets outside the active combination are dimmed. Span annotations below the axis show arc widths.',
+        'Shows body positions on the ecliptic as seen from Earth. Shaded bands highlight best clusters by category (AM/PM/Straddle). In Visibility mode, straddling is excluded from ranking; in Geometry mode it is included. Non-active bodies are dimmed.',
       side: 'top',
     },
   },

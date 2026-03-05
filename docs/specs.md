@@ -16,11 +16,16 @@ The target audience is astronomy educators, science communicators, and curious h
 
 ### 2.1 Alignment Analysis (Primary Feature)
 
-The alignment analyzer is the heart of the app. The user selects a set of planets (up to 8, excluding Earth), defines a time range, and the app computes how tightly those planets cluster in the sky over time.
+The alignment analyzer is the heart of the app. The user selects bodies, defines a time range, and the app computes how tightly those bodies cluster in the sky over time.
 
 #### Planet selection
 
-The user picks which planets to analyze. Default: Mercury through Neptune (7 planets). Any combination of 2–7 planets can be selected.
+Body availability is mode-dependent:
+
+- **Visibility (PPI) mode**: Mercury through Neptune (7 planets).
+- **Geometry (Span) mode**: Sun, Moon, and Mercury through Neptune (9 bodies).
+
+Any combination of at least 2 bodies can be selected within the active mode's allowed set.
 
 #### Time range
 
@@ -30,7 +35,7 @@ The user picks which planets to analyze. Default: Mercury through Neptune (7 pla
 
 #### Combination-based alignment analysis
 
-The app uses a combination-based approach: given N selected planets, it evaluates every k-planet combination (where k ranges from N down to a user-set minimum) and finds the tightest ecliptic longitude cluster for each. Results are organized in tabs by combination size (e.g., best 7, best 6, best 5 from 7 selected).
+The app uses a combination-based approach: given N selected bodies, it evaluates every k-body combination (where k ranges from N down to a user-set minimum) and finds the tightest ecliptic longitude cluster for each.
 
 Each combination is classified as a whole unit based on its relationship to the Sun:
 
@@ -40,13 +45,24 @@ Each combination is classified as a whole unit based on its relationship to the 
 
 For each day and combination size, the app reports the tightest span per category across all combinations of that size. Day-level detail and date labels are keyed to observer-local day when a timezone is available (UTC fallback).
 
+#### Ranking modes
+
+- **Visibility (PPI)**:
+  - Excludes straddling combinations from scoring.
+  - Ranks results by Planet Parade Index (PPI), with span as supporting context.
+  - Exposes Parade Scoring presets `Practical` (default) and `Hyped`, plus manual weight sliders.
+- **Geometry (Span)**:
+  - Includes straddling combinations.
+  - Ranks results by smallest angular span (PPI disabled).
+  - Uses intraday sampling across the full local day (daytime allowed) to pick best geometry.
+
 #### Minimum planet count
 
-The user can set the minimum combination size to analyze. With 7 planets selected and min 5, the app computes tabs for 7-, 6-, and 5-planet combinations. This is capped at N−3 to keep computation tractable.
+The user can set a combination-size range to analyze (minimum and maximum). With 7 selected bodies and range 5–7, the app computes/plots 7-, 6-, and 5-body combinations.
 
 #### Closest alignments
 
-The app automatically finds local minima — dates when the selected planets cluster tightest — for each combination size and category. These are shown in a sortable table with planet count, planet symbols (hover for names), span, and category. Clicking a row jumps the entire app to that date and switches to the appropriate combination tab. Planet count filter chips let the user show/hide specific sizes. Previous/Next buttons step through minima within the active tab.
+The app automatically finds ranked event dates (PPI peaks or span minima, depending on mode). These are shown in a sortable table with body count, body symbols (hover for names), span, category, and score context. Clicking a row jumps the entire app to that date. Previous/Next buttons follow observer-local day ordering.
 
 #### Colors
 
@@ -57,11 +73,11 @@ Consistent across all views:
 
 ### 2.2 Parade Timeline
 
-An interactive line chart plotting PPI (Planet Parade Index — see [planet-parade-index.md](planet-parade-index.md)) and angular span over time. Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines (e.g., best 7, best 6, best 5) with toggleable count chips. PPI and Span metrics can be toggled independently.
+An interactive line chart plotting the active ranking metrics over time (see [planet-parade-index.md](planet-parade-index.md)). Visibility mode is PPI-first with span context; Geometry mode is span-first (PPI disabled). Simple mode shows the overall best-of-day line; Advanced mode shows per-count lines with toggleable count chips.
 - Click any point to jump to that date.
 - Zoom (Ctrl+scroll, pinch) and pan (drag) when zoomed.
 - Current-date indicator (vertical line) shows PPI, span, and planet list.
-- Navigation mode (PPI peaks or Span minima) with Today/Prev/Next buttons.
+- Navigation mode (PPI peaks or Span minima) with Today/Prev/Next buttons; Geometry mode defaults to Span minima.
 - Peak/minima navigation deduplicates by local day key when observer timezone is available.
 
 ### 2.3 Ecliptic Strip (Ecliptic Projection)
@@ -69,7 +85,8 @@ An interactive line chart plotting PPI (Planet Parade Index — see [planet-para
 A 2D scatter plot of planet positions in ecliptic longitude (X) and latitude (Y):
 
 - **Center modes**: Longitude 0° at center, or Sun at center.
-- **Per-kind shading bands**: colored regions show the best AM, PM, and Straddling cluster spans with degree annotations. Planets not in the active combination are dimmed.
+- **Per-kind shading bands**: colored regions show the best AM, PM, and Straddling cluster spans with degree annotations. In Visibility mode, straddling is context-only (not ranked); in Geometry mode it participates in ranking.
+- **Active-combo emphasis**: bodies not in the active combination are dimmed.
 - **Zoom/pan**: X-axis zoom (1–16×) with drag and pinch support.
 - **Planet data table**: ecliptic longitude, latitude, elongation from Sun, visual magnitude, and AM/PM classification for each body.
 
@@ -99,7 +116,7 @@ The Scene panel has two tabs: **Solar System** and **Planetarium**.
 - **Orbits**: one full orbital period per body, toggleable.
 - **Labels**: toggleable, with overlap detection.
 - **Dynamic sizing**: bodies maintain a consistent apparent pixel size regardless of zoom.
-- **Per-kind alignment cones**: when alignment analysis is active, separate cones from Earth visualize the best AM (orange), PM (blue), and Straddling (grey) clusters for the active combination size.
+- **Per-kind alignment cones**: when alignment analysis is active, separate cones from Earth visualize the best AM (orange), PM (blue), and Straddling (grey) clusters for the active combo.
 - **Celestial background** (all toggleable):
   - NASA Deep Star Maps Milky Way sphere (custom ShaderMaterial, see `docs/milkyway-texture.md`).
   - 192 bright stars with accurate B-V color mapping.
@@ -113,7 +130,7 @@ The Scene panel has two tabs: **Solar System** and **Planetarium**.
 - **Observer-centric sky dome** with horizon, cardinal markers, Alt/Az grid (15° intervals), dashed ecliptic, stars, Milky Way, constellations, Sun/Moon/planets.
 - **Integrated atmosphere** shared with Sky Charts (daylight, twilight, moonlight wash and attenuation).
 - **Stable interaction model**: drag rotates the full sky frame (not independent overlays), axis-lock behavior reduces accidental horizon tilt, wheel/pinch zoom uses FoV range 20°–120°.
-- **Deterministic startup framing**: on mount/day-key/location/combo context changes, evaluates the observer-local day (5-minute samples), prefers nighttime slots with visible targets, and frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
+- **Deterministic startup framing**: on mount/day-key/location/combo context changes, evaluates the observer-local day (5-minute samples), then picks a best sample using mode-aware policy: Visibility mode prefers usable nighttime slots, Geometry mode allows all-day best picks. It then frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
 - **Observer location control**: user-invoked only; supports browser geolocation permission prompt, OpenStreetMap map/search selection, and manual coordinate entry.
 - **Timezone inference**: infer IANA timezone from observer coordinates for local sunrise/sunset, panel time labels, and day-keyed date navigation (fallback UTC).
 
@@ -151,26 +168,27 @@ Two complementary control layers:
 
 | ID    | Requirement |
 |-------|-------------|
-| FR-1  | The user shall be able to select a subset of planets and compute their ecliptic longitude span over a configurable time range using combination-based analysis. |
-| FR-2  | The app shall classify each combination as morning (all west of Sun), evening (all east of Sun), or straddling (Sun inside the arc) and compute separate series per category. |
-| FR-3  | The app shall detect local minima (closest-alignment dates) per combination size and category, and present them in a navigable, filterable table with planet symbols. |
-| FR-4  | The user shall be able to set a minimum combination size; results shall be organized in tabs by planet count. |
-| FR-5  | An interactive timeline chart shall display AM, PM, and Straddling separation series with combination size tabs, zoom, pan, and click-to-navigate. |
-| FR-6  | A sky view shall plot planet positions in ecliptic longitude/latitude with per-kind shading bands, combination size tabs, and span annotations. Non-combo planets shall be dimmed. |
-| FR-7  | A planet data table shall show ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM classification. |
-| FR-8  | Dual azimuthal-equidistant sky charts shall show evening/morning Sun-referenced frames with stars, constellations, Milky Way, Moon phase, and planets. |
-| FR-9  | The Milky Way shall be renderable in both polygon and NASA texture modes, toggled by the user. |
-| FR-10 | A 3D solar system view shall display all bodies at their real heliocentric positions with to-scale orbits. |
-| FR-11 | Per-kind alignment cones from Earth shall visualize the best AM, PM, and Straddling clusters for the active combination size in the 3D view. |
-| FR-12 | The celestial background shall include real stars, constellation lines, and constellation boundaries, all toggleable. |
-| FR-13 | Body positions shall be computed from astronomical ephemeris data for the current simulation date. |
-| FR-14 | The user shall be able to control the simulation date via date picker, timeline slider, or animated playback with selectable speed. |
-| FR-15 | The simulation date range shall span 1975-01-01 to 2075-01-01. |
-| FR-16 | Animation shall update positions every render frame for smooth motion. |
-| FR-17 | Clicking a body shall select it and animate the camera toward it; Follow mode shall track it continuously. |
-| FR-18 | The Scene panel shall provide a Planetarium mode with horizon/cardinal framing and stable drag/zoom controls. |
-| FR-19 | Planetarium startup shall auto-select a deterministic best-view instant with nighttime preference, prioritizing active-cluster visibility while minimizing solar interference. |
-| FR-20 | Observer location changes shall be user-invoked only (browser permission, map/search, or manual coordinates), with inferred timezone applied to day-keyed labels/navigation and sky-day computations. |
+| FR-1  | The user shall be able to select a subset of analyzable bodies and compute their ecliptic span behavior over a configurable time range using combination-based analysis. |
+| FR-2  | The app shall provide two ranking modes: Visibility (PPI, straddling excluded) and Geometry (span-first, straddling included). |
+| FR-3  | The app shall classify each combination as morning (all west of Sun), evening (all east of Sun), or straddling (Sun inside the arc) and compute separate category series. |
+| FR-4  | The app shall present ranked event dates (PPI peaks or span minima, mode-dependent) in a navigable table with body symbols and sortable metrics. |
+| FR-5  | The user shall be able to set minimum/maximum combination size; timeline/chart views shall support per-count breakdowns. |
+| FR-6  | An interactive timeline chart shall display mode-appropriate ranking metrics with zoom, pan, and click-to-navigate. |
+| FR-7  | A sky view shall plot body positions in ecliptic longitude/latitude with per-kind shading bands and span annotations. Non-active-combo bodies shall be dimmed. |
+| FR-8  | A body data table shall show ecliptic longitude, latitude, elongation, visual magnitude, and AM/PM classification. |
+| FR-9  | Dual azimuthal-equidistant sky charts shall show evening/morning Sun-referenced frames with stars, constellations, Milky Way, Moon phase, and planets. |
+| FR-10 | The Milky Way shall be renderable in both polygon and NASA texture modes, toggled by the user. |
+| FR-11 | A 3D solar system view shall display all bodies at their real heliocentric positions with to-scale orbits. |
+| FR-12 | Per-kind alignment cones from Earth shall visualize the best AM, PM, and Straddling clusters for the active combo in the 3D view. |
+| FR-13 | The celestial background shall include real stars, constellation lines, and constellation boundaries, all toggleable. |
+| FR-14 | Body positions shall be computed from astronomical ephemeris data for the current simulation date. |
+| FR-15 | The user shall be able to control the simulation date via date picker, timeline slider, or animated playback with selectable speed. |
+| FR-16 | The simulation date range shall span 1975-01-01 to 2075-01-01. |
+| FR-17 | Animation shall update positions every render frame for smooth motion. |
+| FR-18 | Clicking a body shall select it and animate the camera toward it; Follow mode shall track it continuously. |
+| FR-19 | The Scene panel shall provide a Planetarium mode with horizon/cardinal framing and stable drag/zoom controls. |
+| FR-20 | Planetarium startup shall auto-select a deterministic best-view instant using mode-aware policy (night-preferred in Visibility mode; all-day best in Geometry mode). |
+| FR-21 | Observer location changes shall be user-invoked only (browser permission, map/search, or manual coordinates), with inferred timezone applied to day-keyed labels/navigation and sky-day computations. |
 
 ### 3.2 Non-Functional Requirements
 
@@ -193,13 +211,14 @@ These are architectural and technology choices — not requirements. Alternative
 - **Runtime/tooling baseline**: Node 24.x LTS; React 19; Three.js 0.183; `@react-three/fiber` 9; `@react-three/drei` 10; Vite 7; TypeScript 5.9.
 - **Performance reference ledger**: `docs/performance-profiling.md` includes a maintained "Optimization Measures (Reference)" section with commit-traceable runtime and CI profiling optimizations.
 - **Ephemeris**: `astronomy-engine` npm package. Geocentric ecliptic coordinates for alignment computations, J2000 equatorial for star/sky positions.
-- **Alignment algorithm**: combination-based — evaluates every k-planet combination, classifies each as AM/PM/Straddling based on whether the Sun falls inside the ecliptic arc, and reports the tightest span per category per day. Results organized in tabs by combination size. See `docs/alignment-algorithm-analysis.md`.
+- **Alignment algorithm**: combination-based — evaluates every k-body combination, classifies each as AM/PM/Straddling based on whether the Sun falls inside the ecliptic arc, and reports tightest spans per category per day.
+- **Mode model**: Visibility mode applies PPI ranking with straddling excluded; Geometry mode applies span ranking with straddling included and Sun/Moon selectable.
 - **Coordinate pipeline**: J2000 equatorial (EQJ) from astronomy-engine → ecliptic rotation (23.44° obliquity) → Three.js Y-up mapping.
 - **Scale**: 1 AU = 10 scene units. Celestial sphere radius = 950.
 - **State management**: React contexts for UI state; a module-level mutable store for the live simulation date shared between React and the Three.js render loop.
 - **Animation**: time advanced in Three.js `useFrame` loop. Per-frame position updates from the shared store. React UI updated at throttled rate (~10/sec).
 - **Planetarium view model**: drag updates a shared yaw/pitch store applied to a parent scene group, so sky layers and horizon remain rigidly aligned.
-- **Planetarium default-time strategy**: timezone-aware day-window scan (5-minute steps), lexicographic ranking by visibility/darkness/altitude, nighttime-preferred selection with overall-best fallback. See `docs/planetarium-default-view.md`.
+- **Planetarium default-time strategy**: timezone-aware day-window scan (5-minute steps), lexicographic ranking by visibility/darkness/altitude, with mode-aware night preference (Visibility mode prefers night, Geometry mode allows all-day best). See `docs/planetarium-default-view.md`.
 - **Observer location/timezone model**: progressive opt-in location picker (browser/OSM/manual), persisted `ObserverLocationState`, and inferred IANA timezone (`tz-lookup`) with UTC fallback.
 - **Local day-key model**: shared `timeZoneDay` helpers drive chart/minima day grouping, peak navigation, and day-bound sky computations for Planetarium/Sky Charts.
 - **Sky chart reference frame**: virtual longitudes selected via `sunHorizonLongitude` so Sun is at configurable reference altitude (`0°`, `-6°`, `-12°`) rather than fixed civil sunrise/sunset.
@@ -242,23 +261,23 @@ src/
 │   │   ├── ConstellationLines3D.tsx   39 constellation stick figures
 │   │   └── ConstellationBoundaries3D.tsx  IAU boundary dashed lines
 │   ├── panels/                Floating wrappers (desktop) + sheet panels (mobile)
-│   │   ├── AlignmentPanel.tsx     Planet picker, time range, PPI sliders, minima table
-│   │   ├── ChartPanel.tsx         PPI/span timeline with zoom/pan and count toggles
+│   │   ├── AlignmentPanel.tsx     Ranking mode toggle, body picker, time range, scoring controls, minima table
+│   │   ├── ChartPanel.tsx         Mode-aware ranking timeline (PPI/span) with zoom/pan and count toggles
 │   │   ├── SkyViewPanel.tsx       Ecliptic scatter chart + planet data table
 │   │   ├── SkyChartPanel.tsx      Dual sky charts with layer toggles
 │   │   └── FloatingPanel.tsx      Desktop panel shell (react-rnd)
 │   ├── alignment/             Charts, pickers, tables, sky views
 │   │   ├── StereoSkyChart.tsx     Core azimuthal equidistant projection SVG renderer
 │   │   ├── MilkyWayTextureCanvas.tsx  Web Worker texture reprojection
-│   │   ├── SeparationChart.tsx    Recharts PPI/span timeline (per-count lines)
+│   │   ├── SeparationChart.tsx    Recharts ranking timeline (mode-aware per-count lines)
 │   │   ├── SkyView.tsx            Ecliptic scatter + shading bands
-│   │   ├── PlanetPicker.tsx       Multi-select planet checkboxes
+│   │   ├── PlanetPicker.tsx       Multi-select body checkboxes
 │   │   ├── TimeRangeSelector.tsx  Start date + duration presets
 │   │   ├── PlanetCountRange.tsx   Min/max planet count range selector
-│   │   ├── PPISliders.tsx         PPI weight sliders and preset buttons
+│   │   ├── PPISliders.tsx         Visibility-mode PPI sliders with Practical/Hyped presets
 │   │   ├── PlanetaryDataTable.tsx Ecliptic coordinates, magnitude, AM/PM table
 │   │   ├── AlignmentTimeSlider.tsx  Timeline range scrubber
-│   │   └── MinimaTable.tsx        PPI peaks with click-to-navigate and day-detail combos
+│   │   └── MinimaTable.tsx        Mode-aware ranked events with click-to-navigate and day-detail combos
 │   └── ui/                    Playback, toggles, selector, mobile tabs, help
 │       ├── PlaybackBar.tsx        Date input, play/pause, speed, step navigation
 │       ├── PlaybackControls.tsx   Compact playback controls (mobile)
@@ -275,7 +294,7 @@ src/
 │   ├── useSimulationTime.ts   Date, playback, speed (context)
 │   ├── useSelection.ts        Body selection, follow mode (context)
 │   ├── useDisplaySettings.ts  Toggle states for all display layers (context)
-│   ├── useAlignmentState.ts   Alignment computation, PPI state, chart data, navigation
+│   ├── useAlignmentState.ts   Alignment computation, mode/ranking state, chart data, navigation
 │   ├── usePanelManager.ts     Panel layout, z-ordering, drag/resize
 │   ├── usePlanetPositions.ts  Memoized heliocentric positions
 │   ├── useOrbitPaths.ts       Memoized orbit polylines
@@ -288,7 +307,7 @@ src/
 ├── lib/                       Core computation libraries
 │   ├── astronomy.ts           Positions, alt-az, moon phase, magnitude, MW polygons, HOR↔EQJ
 │   ├── alignment.ts           Combination-based alignment (computeAlignmentTabs, findBestPerKind, classifyCombination), local minima, ephemeris cache
-│   ├── ppiScoring.ts          Planet Parade Index (computePPIResults, computeComboPPI), presets
+│   ├── ppiScoring.ts          Planet Parade Index + span ranking (mode-aware), presets
 │   ├── coordinateConversion.ts EQJ↔Scene, RA/Dec↔XYZ, ecliptic transforms
 │   ├── planetariumDefaultView.ts Planetarium default-time chooser
 │   ├── observerLocation.ts    Observer location state sanitization/serialization

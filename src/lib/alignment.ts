@@ -12,6 +12,7 @@ import { MS_PER_DAY } from '../constants'
 const BODY_MAP: Record<string, Astronomy.Body> = {
   Mercury: Astronomy.Body.Mercury,
   Venus: Astronomy.Body.Venus,
+  Moon: Astronomy.Body.Moon,
   Mars: Astronomy.Body.Mars,
   Jupiter: Astronomy.Body.Jupiter,
   Saturn: Astronomy.Body.Saturn,

@@ -171,7 +171,11 @@ export default function App() {
 
   const ppiOverlay = showPPIOverlay && activeCombo ? (
     <div className="scene-ppi-info">
-      <span className="scene-ppi-value">PPI {activeCombo.ppi.toFixed(1)} &middot; {activeCombo.span.toFixed(1)}&deg;</span>
+      {alignment.analysisMode === 'visibility' ? (
+        <span className="scene-ppi-value">PPI {activeCombo.ppi.toFixed(1)} &middot; {activeCombo.span.toFixed(1)}&deg;</span>
+      ) : (
+        <span className="scene-ppi-value">Span {activeCombo.span.toFixed(1)}&deg; &middot; {activeCombo.planetCount} bodies</span>
+      )}
       <span className="scene-ppi-planets">
         {activeCombo.planets.map((p) => (
           <span key={p} style={{ color: BODY_META[p]?.color ?? '#aaa' }}>{p.slice(0, 3)}</span>
@@ -273,6 +277,7 @@ export default function App() {
                 autoViewResetToken={planetariumViewResetToken}
                 onAutoDateChange={handleSetDate}
                 targetComboBodies={activeCombo?.planets ?? null}
+                preferNightTargets={alignment.analysisMode !== 'geometry'}
               />
             )}
             {sceneView === 'free' && (
@@ -399,6 +404,7 @@ export default function App() {
                   autoViewResetToken={planetariumViewResetToken}
                   onAutoDateChange={handleSetDate}
                   targetComboBodies={activeCombo?.planets ?? null}
+                  preferNightTargets={alignment.analysisMode !== 'geometry'}
                 />
               )}
             </div>

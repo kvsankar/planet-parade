@@ -13,6 +13,7 @@ export const BODY_LIST: CelestialBodyId[] = [
 
 export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
   Sun:     { id: 'Sun',     color: '#FDB813', orbitalPeriodDays: 0,       orbitSamples: 0 },
+  Moon:    { id: 'Moon',    color: '#BFC7D5', orbitalPeriodDays: 27.32,   orbitSamples: 180 },
   Mercury: { id: 'Mercury', color: '#B5B5B5', orbitalPeriodDays: 87.97,   orbitSamples: 180 },
   Venus:   { id: 'Venus',   color: '#E8CDA0', orbitalPeriodDays: 224.7,   orbitSamples: 180 },
   Earth:   { id: 'Earth',   color: '#6B93D6', orbitalPeriodDays: 365.25,  orbitSamples: 360 },
@@ -29,8 +30,18 @@ export const ANALYZABLE_BODIES: CelestialBodyId[] = [
   'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
 
+export const GEOMETRY_ANALYZABLE_BODIES: CelestialBodyId[] = [
+  'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
+]
+
+export const ANALYSIS_BODY_ORDER: CelestialBodyId[] = [
+  'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
+]
+
 /** Per-count colors for the timeline chart */
 export const COUNT_COLORS: Record<number, string> = {
+  9: '#ffd54f',  // amber
+  8: '#ffb74d',  // orange
   7: '#e8d44d',  // gold
   6: '#4fc3f7',  // sky blue
   5: '#66bb6a',  // green
