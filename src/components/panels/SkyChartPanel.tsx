@@ -32,7 +32,6 @@ interface SkyChartPanelProps {
 
 const SKY_CHART_TARGET_FPS = 12
 const SKY_CHART_FRAME_INTERVAL_MS = 1000 / SKY_CHART_TARGET_FPS
-const MW_POLYGON_FRAME_INTERVAL_MS = 350
 const MAX_ZOOM = 16
 const BASE_MIN_ZOOM = 0.35
 const SUN_REFERENCE_ALTITUDES = [0, -6, -12] as const
@@ -102,17 +101,11 @@ function SkyChartPanel({
   const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
   const [sunReferenceAltitudeDeg, setSunReferenceAltitudeDeg] = useState<SunReferenceAltitude>(0)
   const [renderMs, setRenderMs] = useState(() => currentDate.getTime())
-  const [mwPolygonMs, setMwPolygonMs] = useState(() => currentDate.getTime())
   const renderMsRef = useRef(renderMs)
-  const mwPolygonMsRef = useRef(mwPolygonMs)
 
   useEffect(() => {
     renderMsRef.current = renderMs
   }, [renderMs])
-
-  useEffect(() => {
-    mwPolygonMsRef.current = mwPolygonMs
-  }, [mwPolygonMs])
 
   useEffect(() => {
     // During playback, local render clocks are driven from simulationStore.
@@ -120,14 +113,12 @@ function SkyChartPanel({
     if (isPlaying) return
     const nextMs = currentDate.getTime()
     setRenderMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
-    setMwPolygonMs((prev) => (Math.abs(prev - nextMs) >= 1 ? nextMs : prev))
   }, [currentDate, isPlaying])
 
   useEffect(() => {
     if (!isPlaying) return
     let rafId = 0
     let lastPaint = 0
-    let lastMwPolygonPaint = 0
 
     const tick = (now: number) => {
       const nextMs = simulationStore.date.getTime()
@@ -135,12 +126,6 @@ function SkyChartPanel({
         lastPaint = now
         if (Math.abs(nextMs - renderMsRef.current) >= 1) {
           setRenderMs(nextMs)
-        }
-      }
-      if (now - lastMwPolygonPaint >= MW_POLYGON_FRAME_INTERVAL_MS) {
-        lastMwPolygonPaint = now
-        if (Math.abs(nextMs - mwPolygonMsRef.current) >= 1) {
-          setMwPolygonMs(nextMs)
         }
       }
       rafId = requestAnimationFrame(tick)
@@ -163,8 +148,7 @@ function SkyChartPanel({
   const dragRef = useRef<{ startX: number; startY: number; startPan: { x: number; y: number } } | null>(null)
 
   // --- Smooth animation ---
-  // Stars, planets, ecliptic, and observers follow a local high-frequency clock.
-  // MW polygons and texture use coarser quantization (expensive).
+  // Stars, planets, ecliptic, MW polygons, and texture all follow one render clock.
   const currentMs = renderMs
   const renderDate = useMemo(() => new Date(currentMs), [currentMs])
 
@@ -221,24 +205,13 @@ function SkyChartPanel({
     getEclipticAltAzPositionsFromContext(eveningContext),
   [eveningContext])
 
-  // Coarser quantization only for expensive MW computations
-  const mwDate = useMemo(() => new Date(mwPolygonMs), [mwPolygonMs])
-
   const shouldComputeMwPolygons = showMilkyWay && milkyWayStyle === 'polygons'
-  const morningMwContext = useMemo(
-    () => (shouldComputeMwPolygons ? prepareSkyProjectionContext(mwDate, morningObserver) : null),
-    [shouldComputeMwPolygons, mwDate, morningObserver],
-  )
-  const eveningMwContext = useMemo(
-    () => (shouldComputeMwPolygons ? prepareSkyProjectionContext(mwDate, eveningObserver) : null),
-    [shouldComputeMwPolygons, mwDate, eveningObserver],
-  )
   const morningMilkyWay = useMemo(() =>
-    morningMwContext ? getMilkyWayPolygonsFromContext(morningMwContext) : [],
-  [morningMwContext])
+    shouldComputeMwPolygons ? getMilkyWayPolygonsFromContext(morningContext) : [],
+  [shouldComputeMwPolygons, morningContext])
   const eveningMilkyWay = useMemo(() =>
-    eveningMwContext ? getMilkyWayPolygonsFromContext(eveningMwContext) : [],
-  [eveningMwContext])
+    shouldComputeMwPolygons ? getMilkyWayPolygonsFromContext(eveningContext) : [],
+  [shouldComputeMwPolygons, eveningContext])
 
   // HOR→EQJ rotation matrices — updated with the chart render clock.
   const morningRotMatrix = useMemo(() =>

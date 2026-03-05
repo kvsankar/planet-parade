@@ -75,7 +75,8 @@ const fragmentShader = `
 
     float u = 0.5 - ra / TWO_PI;
     u = fract(u + 1.0);
-    float v = (HALF_PI - dec) / PI;
+    // starmap_4k.jpg is vertically flipped relative to +Dec-at-top UV convention.
+    float v = (HALF_PI + dec) / PI;
 
     vec4 tex = texture2D(map, vec2(u, v));
 
