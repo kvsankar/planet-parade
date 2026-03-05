@@ -41,6 +41,7 @@ html, body, #root {
   border-radius: 8px;
   backdrop-filter: blur(8px);
   overflow: hidden;
+  contain: layout paint style;
 }
 
 .panel-drag-handle {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react'
+import { memo, useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { ObserverLocation } from '../../types'
 import {
   findSunrise,
@@ -50,7 +50,11 @@ function formatLatLon(lat: number, lon: number): string {
   return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`
 }
 
-export default function SkyChartPanel({
+function observerEqual(a: ObserverLocation, b: ObserverLocation): boolean {
+  return a.lat === b.lat && a.lon === b.lon && a.height === b.height
+}
+
+function SkyChartPanel({
   currentDate,
   observer,
   timeZone,
@@ -616,3 +620,20 @@ export default function SkyChartPanel({
     </div>
   )
 }
+
+function arePropsEqual(prev: SkyChartPanelProps, next: SkyChartPanelProps): boolean {
+  if (!observerEqual(prev.observer, next.observer)) return false
+  if (prev.timeZone !== next.timeZone) return false
+  if (prev.isMobile !== next.isMobile) return false
+  if (prev.isLandscape !== next.isLandscape) return false
+  if (prev.onOpenLocationPicker !== next.onOpenLocationPicker) return false
+  if (prev.isPlaying !== next.isPlaying) return false
+
+  // During global playback this panel follows simulationStore directly and
+  // intentionally ignores parent date snapshots to avoid duplicate rerenders.
+  if (prev.isPlaying && next.isPlaying) return true
+
+  return prev.currentDate.getTime() === next.currentDate.getTime()
+}
+
+export default memo(SkyChartPanel, arePropsEqual)
