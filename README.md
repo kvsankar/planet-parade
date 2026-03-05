@@ -4,21 +4,19 @@ An advanced planetary alignment analysis and sky-visualization platform. It comb
 
 **Live:** [kvsankar.github.io/planet-parade](https://kvsankar.github.io/planet-parade/) | [sankara.net/astro/planet-parade](https://sankara.net/astro/planet-parade/)
 
-## Why This Is Significant
+## Use Cases
 
-- Two distinct science workflows in one tool: `Visibility (PPI)` for practical observing quality and `Geometry (Span)` for pure orbital geometry.
-- Supports real-world observing and geometric conjunction research, including Sun/Moon use cases (e.g., Venus-Moon and Mars-Sun events).
-- Timezone-aware local-day logic is applied consistently across timeline ranking, peak navigation, sky charts, and planetarium framing.
-- End-to-end visualization stack: heliocentric 3D Solar System, observer-centric planetarium, ecliptic strip, timeline analytics, and dual hemispheric sky charts.
-- Cross-platform UX with desktop floating panels plus mobile portrait/landscape workflows, not a desktop-only demo.
-
-## High-Value Use Cases
-
-1. Find the best naked-eye planet parade windows over months to decades.
-2. Investigate conjunction-style geometry even when visibility is poor, using Geometry mode with straddling enabled.
-3. Compare practical observing quality (`Practical`) versus headline-style count-heavy events (`Hyped`).
-4. Plan from your own location with inferred timezone and local-day-aware navigation.
-5. Teach or validate alignment behavior using synchronized charts, tables, and 3D sky/system views.
+| Use Case | Why It Matters | Where It Is Used |
+|----------|----------------|------------------|
+| Naked-eye planet parade planning (`Visibility` mode) | Ranks events by practical viewing quality (PPI), not just geometry, so observers get realistic targets | Backyard observing, astronomy clubs, public star parties |
+| Pure conjunction geometry analysis (`Geometry` mode) | Finds the tightest angular clusters even when events are not easy to see, including Sun-straddling setups | Research notes, orbital-geometry study, educational demonstrations |
+| Practical vs headline ranking comparison (`Practical` vs `Hyped`) | Lets you choose between observer-first scoring and count-forward "big event" scoring | Media/editorial planning, outreach content, event curation |
+| Sun/Moon-inclusive event exploration | Supports Venus-Moon, Mars-Sun, and similar pair/group studies in the same workflow as planets | Conjunction case studies, classroom examples, comparative astronomy |
+| Observer-location and timezone-aware planning | Keeps date boundaries, minima, and navigation aligned to local civil time | Travel observing, remote observatory scheduling, local meetup planning |
+| Morning vs evening session selection (AM/PM classification) | Separates pre-dawn and post-sunset opportunities for actionable observing windows | Daily observing plans, beginner guidance, night-by-night scheduling |
+| Multi-view validation across synchronized panels | Cross-checks the same event in timeline, strip, sky charts, and 3D scene to reduce misinterpretation | Teaching labs, analysis reviews, debugging or validating model behavior |
+| Long-horizon event scouting (up to 100 years) | Enables strategic discovery of rare or notable future alignment windows | Long-term calendars, curriculum planning, astronomy publishing |
+| Mobile in-field usage (portrait + landscape) | Keeps core analysis available while outside at the telescope or during travel | On-site observing, outreach booths, quick checks away from desktop |
 
 ## Screenshots
 
