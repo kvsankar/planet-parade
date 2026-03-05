@@ -24,7 +24,14 @@ Download URLs follow the pattern:
 https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/<filename>
 ```
 
-We use `starmap_2020_4k.exr` (the combined version) as the source — it includes both the diffuse Milky Way glow and individual bright stars, giving the richest background.
+We use `milkyway_2020_4k.exr` (the diffuse Milky Way-only layer) as the source to avoid duplicating stars that are already rendered by the app's star pipeline.
+
+## Why this choice
+
+- The app already renders stars explicitly (`RealStars` / sky-chart star pipeline), with mode-aware photometry and atmosphere handling.
+- Using NASA's combined `starmap_2020_4k.exr` adds a second star field in the background texture, which makes stars look doubled or noisy in dark regions.
+- Using NASA's `milkyway_2020_4k.exr` keeps the diffuse galactic structure while leaving point stars to the app's dedicated star renderer.
+- `public/starmap_4k.jpg` is intentionally kept in the repo for A/B comparison and quick rollback, but it is no longer the active runtime texture.
 
 ## EXR-to-JPEG Conversion
 
@@ -51,26 +58,26 @@ Median:    0.008
 
 5. **`-evaluate log 2 -normalize -evaluate multiply 0.78`** — Log stretch with highlight cap. Fixes pure-white clipping but the log curve shifts colors brownish and loses dust-lane contrast.
 
-6. **NASA print JPEG used directly** — The `starmap_2020_4k_print.jpg` (1024x512) has perfect tone mapping by NASA, but at 1024x512 the galactic core appears smudged when mapped onto a large sphere. Upscaling with sharpening does not recover the lost detail.
+6. **NASA print JPEG used directly** — The `milkyway_2020_4k_print.jpg` (1024x512) has NASA-authored tone mapping, but at 1024x512 the galactic structure appears soft when mapped onto a large sphere. Upscaling with sharpening does not recover the lost detail.
 
 ### Final conversion (what we ship)
 
 ```bash
-magick starmap_2020_4k.exr -evaluate Pow 0.55 -evaluate multiply 0.93 -quality 92 starmap_4k.jpg
+magick milkyway_2020_4k.exr -evaluate Pow 0.55 -evaluate multiply 0.68 -quality 92 milkyway_4k.jpg
 ```
 
-- **`-evaluate Pow 0.55`** — Power curve (roughly a square root). This is a standard astronomical stretch that boosts faint nebulosity while keeping bright regions below clipping. It maps the mean from 0.016 to ~0.10, closely matching NASA's own print rendering (mean=0.10).
-- **`-evaluate multiply 0.93`** — Scales peak brightness to ~93% of full range, matching the NASA print's max of 0.93 (238/255). Prevents any pixel from reaching pure white.
+- **`-evaluate Pow 0.55`** — Power curve (roughly a square root). This is a standard astronomical stretch that boosts faint nebulosity while keeping core detail intact.
+- **`-evaluate multiply 0.68`** — Keeps the Milky Way layer subtle and close to the prior in-app background luminance, while avoiding bright-star doubling.
 
 Result statistics:
 ```
 Resolution: 4096x2048
-Max:        ~0.93 (no white clipping)
-Mean:       ~0.08
-File size:  ~340 KB (JPEG quality 92)
+Max:        ~0.75
+Mean:       ~0.078
+File size:  ~2.0 MB (JPEG quality 92)
 ```
 
-Compared to the NASA 1024x512 print, this preserves 4x the spatial resolution — dust lanes, dark nebulae, and individual stars in the galactic core are clearly resolved.
+Compared to the NASA 1024x512 print, this preserves 4x the spatial resolution — dust lanes and diffuse galactic structure remain crisp, while foreground stars come from the app's own star renderer.
 
 ## Three.js Rendering Pipeline
 
@@ -124,11 +131,11 @@ The final local visibility is clamped and multiplied into both RGB and alpha, so
 
 ### Asset path
 
-The texture is loaded via `import.meta.env.BASE_URL` (Vite replaces this with the configured `base` path at build time). This ensures the URL resolves correctly regardless of the deployment subdirectory. Do not use absolute paths like `/starmap_4k.jpg` — the app's `base` is `./` (relative).
+The texture is loaded via `import.meta.env.BASE_URL` (Vite replaces this with the configured `base` path at build time). This ensures the URL resolves correctly regardless of the deployment subdirectory. Do not use absolute paths like `/milkyway_4k.jpg` — the app's `base` is `./` (relative).
 
 ## Sky Chart Texture Reprojection
 
-The same `starmap_4k.jpg` texture is also used in the sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
+The same `milkyway_4k.jpg` texture is also used in the sky charts (`StereoSkyChart.tsx`) as a toggleable alternative to the SVG polygon Milky Way.
 Sky chart timestamps (and therefore atmosphere attenuation timing inputs) are evaluated against observer-local day windows when timezone is set, with UTC fallback.
 
 ### How it works
@@ -137,7 +144,7 @@ Sky chart timestamps (and therefore atmosphere attenuation timing inputs) are ev
 
 1. **Reverse projection** — For each fragment in the circular chart area, compute altitude from radius (`alt = 90° × (1 - r/R)`) and derive horizontal vector components from screen-space direction.
 2. **Horizontal → J2000** — Multiply by the per-frame HOR→EQJ rotation matrix from astronomy-engine.
-3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 + dec)/π`. The `+dec` term is intentional because the shipped `starmap_4k.jpg` orientation is vertically flipped relative to the default +Dec-at-top convention.
+3. **J2000 → texture UV** — `u = 0.5 - ra/(2π)`, `v = (π/2 + dec)/π`. The `+dec` term is intentional because the shipped `milkyway_4k.jpg` orientation is vertically flipped relative to the default +Dec-at-top convention.
 4. **Texture sample + attenuation** — Sample the texture and apply twilight/moon directional attenuation in-shader so sky charts match Planetarium visibility behavior.
 
 The canvas is clipped to the chart circle in CSS, and opacity is modulated by the same sky-visibility model used by other chart layers.
@@ -156,31 +163,31 @@ The sky chart layer menu shows `[Poly | Tex]` pills when the Milky Way layer is 
 
 ## Regenerating the texture
 
-If you need to regenerate `public/starmap_4k.jpg` from the source EXR:
+If you need to regenerate `public/milkyway_4k.jpg` from the source EXR:
 
 ```bash
 # Download the 4K EXR (35 MB)
-curl -o starmap_2020_4k.exr \
-  https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/starmap_2020_4k.exr
+curl -o milkyway_2020_4k.exr \
+  https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/milkyway_2020_4k.exr
 
 # Convert to JPEG with power-curve tone mapping
-magick starmap_2020_4k.exr \
+magick milkyway_2020_4k.exr \
   -evaluate Pow 0.55 \
-  -evaluate multiply 0.93 \
+  -evaluate multiply 0.68 \
   -quality 92 \
-  public/starmap_4k.jpg
+  public/milkyway_4k.jpg
 ```
 
 For a higher-resolution version (e.g. 8K for retina displays):
 ```bash
-curl -o starmap_2020_8k.exr \
-  https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/starmap_2020_8k.exr
+curl -o milkyway_2020_8k.exr \
+  https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/milkyway_2020_8k.exr
 
-magick starmap_2020_8k.exr \
+magick milkyway_2020_8k.exr \
   -evaluate Pow 0.55 \
-  -evaluate multiply 0.93 \
+  -evaluate multiply 0.68 \
   -quality 92 \
-  public/starmap_8k.jpg
+  public/milkyway_8k.jpg
 ```
 
 Requires ImageMagick 7 with OpenEXR delegate (`magick` command, not `convert`).

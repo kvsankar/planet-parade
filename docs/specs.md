@@ -100,7 +100,7 @@ Dual hemispheric sky charts showing evening and morning reference frames from a 
 - **Rendered elements**: Sun, Moon (with physically oriented phase limb), planets, 192 bright stars (with spectral color), 39 constellation stick figures and labels, dashed ecliptic curve, Milky Way.
 - **Milky Way rendering**: two modes toggled via `[Poly | Tex]` pills:
   - Polygons — multi-layer SVG fills from d3-celestial data.
-  - Texture — real-time reprojection of a NASA Deep Star Maps JPEG (Gaia DR2, 1.7 billion stars) via Web Worker.
+  - Texture — real-time reprojection of a NASA Deep Star Maps Milky Way-only JPEG (`milkyway_4k.jpg`) via Web Worker, chosen to avoid duplicating bright stars that are already rendered by the app.
 - **Atmosphere model**: optional integrated sunlight/twilight/moonlight rendering shared with Planetarium; dims stars/planets and attenuates Milky Way contrast.
 - **Star appearance parity**: Sky Charts reuse the shared star-photometry/appearance pipeline (spectral color, effective magnitude, contrast, local sky wash), rendered through cached sprite stamps for 2D performance.
 - **Toggleable layers**: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic.
@@ -328,7 +328,8 @@ src/
 └── index.html                 Vite entry point
 
 public/
-└── starmap_4k.jpg             NASA Deep Star Maps 2020 (4096x2048, Gaia DR2)
+├── milkyway_4k.jpg            Active NASA Deep Star Maps 2020 Milky Way-only layer (4096x2048, Gaia DR2)
+└── starmap_4k.jpg             Retained combined stars+MilkyWay variant for A/B testing / fallback
 
 docs/
 ├── specs.md                   This file

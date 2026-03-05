@@ -57,9 +57,9 @@ const fragmentShader = `
 `
 
 /**
- * Renders the NASA Deep Star Maps 2020 (Gaia DR2, 1.7 billion stars) as a
- * background skybox sphere. The texture is an equirectangular projection in
- * J2000 equatorial coordinates (ICRF), centered at RA=0h.
+ * Renders the NASA Deep Star Maps 2020 Milky Way-only layer as a background
+ * skybox sphere. The texture is an equirectangular projection in J2000
+ * equatorial coordinates (ICRF), centered at RA=0h.
  *
  * Uses a custom ShaderMaterial to bypass Three.js color management and tone
  * mapping — the NASA JPEG is already properly tonemapped for display.
@@ -95,7 +95,7 @@ export default memo(function MilkyWaySphere({
   moonWash = 0,
   skyStateRef,
 }: Props) {
-  const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}starmap_4k.jpg`)
+  const texture = useLoader(THREE.TextureLoader, `${import.meta.env.BASE_URL}milkyway_4k.jpg`)
   const meshRef = useRef<THREE.Mesh>(null)
 
   const { geometry, material } = useMemo(() => {

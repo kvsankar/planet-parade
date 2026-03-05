@@ -75,7 +75,7 @@ const fragmentShader = `
 
     float u = 0.5 - ra / TWO_PI;
     u = fract(u + 1.0);
-    // starmap_4k.jpg is vertically flipped relative to +Dec-at-top UV convention.
+    // milkyway_4k.jpg is vertically flipped relative to +Dec-at-top UV convention.
     float v = (HALF_PI + dec) / PI;
 
     vec4 tex = texture2D(map, vec2(u, v));
@@ -127,7 +127,7 @@ function loadTexture(): Promise<THREE.Texture> {
   sharedTexturePromise = new Promise((resolve, reject) => {
     const loader = new THREE.TextureLoader()
     loader.load(
-      `${import.meta.env.BASE_URL}starmap_4k.jpg`,
+      `${import.meta.env.BASE_URL}milkyway_4k.jpg`,
       (texture) => {
         texture.wrapS = THREE.RepeatWrapping
         texture.wrapT = THREE.ClampToEdgeWrapping
