@@ -24,6 +24,7 @@ Body availability is mode-dependent:
 
 - **Visibility (PPI) mode**: Mercury through Neptune (7 planets).
 - **Geometry (Span) mode**: Sun, Moon, and Mercury through Neptune (9 bodies).
+- **Geometry default starter**: `Venus + Moon` with combination range `2–2` (optimized for responsive mode switching).
 
 Any combination of at least 2 bodies can be selected within the active mode's allowed set.
 

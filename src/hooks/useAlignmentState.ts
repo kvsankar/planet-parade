@@ -1,6 +1,13 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { CelestialBodyId, AlignmentKind, AlignmentTabDataPoint, AlignmentMinimum, AlignmentResult, PPIWeights, PPIResult, PPIDayPoint, ChartMetric, NavMode, AnalysisMode, RankingMetric } from '../types'
-import { MS_PER_DAY, ANALYZABLE_BODIES, GEOMETRY_ANALYZABLE_BODIES } from '../constants'
+import {
+  MS_PER_DAY,
+  ANALYZABLE_BODIES,
+  GEOMETRY_ANALYZABLE_BODIES,
+  GEOMETRY_DEFAULT_BODIES,
+  GEOMETRY_DEFAULT_MIN_PLANETS,
+  GEOMETRY_DEFAULT_MAX_PLANETS,
+} from '../constants'
 import { computeAlignmentTabs, getGeocentricEclipticCoords, wrap180, BestPerKind } from '../lib/alignment'
 import { DEFAULT_PPI_WEIGHTS, computePPIResults, computeDayCombos, findPPIPeaks, findSpanMinima } from '../lib/ppiScoring'
 import { SkyViewCenter } from '../components/alignment/SkyView'
@@ -55,6 +62,12 @@ export interface AlignmentState {
   jumpToPeak: (direction: 'prev' | 'next') => void
 }
 
+interface ModeSelectionState {
+  bodies: CelestialBodyId[]
+  min: number
+  max: number
+}
+
 export function useAlignmentState(
   currentDate: Date,
   onDateChange: (d: Date) => void,
@@ -69,7 +82,7 @@ export function useAlignmentState(
   const [visibleSeries, setVisibleSeries] = useState<Set<AlignmentKind>>(
     () => new Set(['morning', 'evening', 'straddling']),
   )
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('visibility')
+  const [analysisMode, setAnalysisModeState] = useState<AnalysisMode>('visibility')
   const [minPlanets, setMinPlanets] = useState(2)
   const [maxPlanets, setMaxPlanets] = useState(7)
   const [visibleCounts, setVisibleCounts] = useState<Set<number>>(() => new Set<number>())
@@ -80,17 +93,56 @@ export function useAlignmentState(
   const includeStraddling = analysisMode === 'geometry'
   const effectiveMin = Math.max(2, Math.min(minPlanets, selectedBodies.length))
   const effectiveMax = Math.min(selectedBodies.length, Math.max(maxPlanets, effectiveMin))
+  const selectedBodiesRef = useRef(selectedBodies)
+  const minPlanetsRef = useRef(minPlanets)
+  const maxPlanetsRef = useRef(maxPlanets)
+  const modeStateRef = useRef<Record<AnalysisMode, ModeSelectionState>>({
+    visibility: {
+      bodies: [...ANALYZABLE_BODIES],
+      min: 2,
+      max: ANALYZABLE_BODIES.length,
+    },
+    geometry: {
+      bodies: [...GEOMETRY_DEFAULT_BODIES],
+      min: GEOMETRY_DEFAULT_MIN_PLANETS,
+      max: GEOMETRY_DEFAULT_MAX_PLANETS,
+    },
+  })
+  const prevModeRef = useRef<AnalysisMode>(analysisMode)
+  selectedBodiesRef.current = selectedBodies
+  minPlanetsRef.current = minPlanets
+  maxPlanetsRef.current = maxPlanets
 
-  useEffect(() => {
-    const allowed = new Set(analysisMode === 'geometry' ? GEOMETRY_ANALYZABLE_BODIES : ANALYZABLE_BODIES)
-    setSelectedBodies((prev) => {
-      const filtered = prev.filter((id) => allowed.has(id))
-      if (filtered.length >= 2) return filtered
-      const fallback = [...allowed].filter((id) => !filtered.includes(id))
-      return [...filtered, ...fallback].slice(0, Math.min(2, allowed.size))
-    })
+  const setAnalysisMode = useCallback((nextMode: AnalysisMode) => {
+    const prevMode = prevModeRef.current
+    if (prevMode === nextMode) return
 
-    if (analysisMode === 'geometry') {
+    modeStateRef.current[prevMode] = {
+      bodies: [...selectedBodiesRef.current],
+      min: minPlanetsRef.current,
+      max: maxPlanetsRef.current,
+    }
+
+    const allowed = new Set(nextMode === 'geometry' ? GEOMETRY_ANALYZABLE_BODIES : ANALYZABLE_BODIES)
+    const target = modeStateRef.current[nextMode]
+    const filtered = target.bodies.filter((id) => allowed.has(id))
+    const fallback = [...allowed].filter((id) => !filtered.includes(id))
+    const nextBodies = filtered.length >= 2
+      ? filtered
+      : [...filtered, ...fallback].slice(0, Math.min(2, allowed.size))
+    const nextMin = Math.max(2, Math.min(target.min, nextBodies.length))
+    const nextMax = Math.max(nextMin, Math.min(target.max, nextBodies.length))
+
+    modeStateRef.current[nextMode] = {
+      bodies: [...nextBodies],
+      min: nextMin,
+      max: nextMax,
+    }
+
+    setSelectedBodies(nextBodies)
+    setMinPlanets(nextMin)
+    setMaxPlanets(nextMax)
+    if (nextMode === 'geometry') {
       setVisibleMetrics(new Set(['span']))
       setNavMode('span')
       setSimpleMode(true)
@@ -98,7 +150,9 @@ export function useAlignmentState(
       setVisibleMetrics(new Set(['ppi', 'span']))
       setNavMode('ppi')
     }
-  }, [analysisMode])
+    setAnalysisModeState(nextMode)
+    prevModeRef.current = nextMode
+  }, [])
 
   // Available tabs: effectiveMax down to effectiveMin
   const availableTabs = useMemo(() => {
@@ -109,10 +163,11 @@ export function useAlignmentState(
     return tabs
   }, [selectedBodies.length, effectiveMin, effectiveMax])
 
-  // Reset maxPlanets when selectedBodies changes
+  // Clamp count range when body selection changes
   const bodiesKey = selectedBodies.join(',')
   useEffect(() => {
-    setMaxPlanets(selectedBodies.length)
+    setMinPlanets((prev) => Math.max(2, Math.min(prev, selectedBodies.length)))
+    setMaxPlanets((prev) => Math.max(2, Math.min(prev, selectedBodies.length)))
   }, [bodiesKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // visibleCounts always matches the planet count range (no per-count toggles)

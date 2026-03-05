@@ -30,6 +30,7 @@ An interactive planetary alignment analyzer and sky visualization tool. Find the
 - Two analysis modes: `Visibility (PPI)` and `Geometry (Span)`
 - `Visibility` mode analyzes Mercury–Neptune only, excludes Sun-straddling combinations, and ranks by Planet Parade Index (PPI)
 - `Geometry` mode allows Sun/Moon plus planets, includes straddling combinations, and ranks by smallest angular span using intraday sampling across the full local day
+- Geometry mode default starter is `Venus + Moon` with count range `2–2` for fast switching; you can expand bodies/counts as needed
 - Visibility-mode Parade Scoring presets are `Practical` (default) and `Hyped` (count-forward)
 - Combination-based classification: AM (pre-dawn), PM (post-sunset), or Straddling (spanning the Sun)
 - Per-count evaluation across a selectable body-count range (e.g. best 7, best 6, best 5)

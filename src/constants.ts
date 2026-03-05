@@ -34,6 +34,13 @@ export const GEOMETRY_ANALYZABLE_BODIES: CelestialBodyId[] = [
   'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
 
+export const GEOMETRY_DEFAULT_BODIES: CelestialBodyId[] = [
+  'Venus', 'Moon',
+]
+
+export const GEOMETRY_DEFAULT_MIN_PLANETS = 2
+export const GEOMETRY_DEFAULT_MAX_PLANETS = 2
+
 export const ANALYSIS_BODY_ORDER: CelestialBodyId[] = [
   'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
 ]
