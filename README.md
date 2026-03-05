@@ -1,8 +1,24 @@
 # Planet Parade
 
-An interactive planetary alignment analyzer and sky visualization tool. Find the best dates to see multiple planets at once, visualize their positions in 3D, and explore the sky as seen from Earth — all in the browser.
+An advanced planetary alignment analysis and sky-visualization platform. It combines ephemeris-grade astronomy, multi-mode ranking, interactive 3D/observer views, and timezone-aware planning workflows in a single browser app.
 
 **Live:** [kvsankar.github.io/planet-parade](https://kvsankar.github.io/planet-parade/) | [sankara.net/astro/planet-parade](https://sankara.net/astro/planet-parade/)
+
+## Why This Is Significant
+
+- Two distinct science workflows in one tool: `Visibility (PPI)` for practical observing quality and `Geometry (Span)` for pure orbital geometry.
+- Supports real-world observing and geometric conjunction research, including Sun/Moon use cases (e.g., Venus-Moon and Mars-Sun events).
+- Timezone-aware local-day logic is applied consistently across timeline ranking, peak navigation, sky charts, and planetarium framing.
+- End-to-end visualization stack: heliocentric 3D Solar System, observer-centric planetarium, ecliptic strip, timeline analytics, and dual hemispheric sky charts.
+- Cross-platform UX with desktop floating panels plus mobile portrait/landscape workflows, not a desktop-only demo.
+
+## High-Value Use Cases
+
+1. Find the best naked-eye planet parade windows over months to decades.
+2. Investigate conjunction-style geometry even when visibility is poor, using Geometry mode with straddling enabled.
+3. Compare practical observing quality (`Practical`) versus headline-style count-heavy events (`Hyped`).
+4. Plan from your own location with inferred timezone and local-day-aware navigation.
+5. Teach or validate alignment behavior using synchronized charts, tables, and 3D sky/system views.
 
 ## Screenshots
 
