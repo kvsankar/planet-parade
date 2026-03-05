@@ -10,6 +10,15 @@ This project includes an automated Playwright profiling harness that:
 - Supports repeat runs with median aggregation (`median-summary.json` / `median-summary.md`)
 - Supports automated regression checks against a committed median baseline
 
+Default scripted segments:
+
+- `idle_initial` (4s)
+- `solar_playback` (8s)
+- `planetarium_playback` (10s)
+- `skychart_texture_setup` (2.5s, diagnostic only)
+- `skychart_texture_playback` (9.5s)
+- `idle_final` (3s)
+
 ## Quick Start
 
 1. Install browser binaries once:
@@ -49,7 +58,7 @@ PERF_MEDIAN_PATH=test-output/perf/repeat-<timestamp>/median-summary.json npm run
 A manual GitHub Actions workflow is included:
 
 - Workflow: `.github/workflows/profile-playwright.yml`
-- Trigger: `workflow_dispatch`
+- Trigger: `workflow_dispatch` + weekly schedule (Mondays 09:00 UTC)
 - Run steps: `perf:profile:repeat:ci` then `perf:profile:check:ci`
 - Artifact: `playwright-profile-artifacts`
 
@@ -87,6 +96,7 @@ Regression checking uses:
 - `PROFILE_SKIP_BUILD=1` to skip `npm run build`
 - `PROFILE_SKIP_SERVER=1` to use an already-running server at `PROFILE_BASE_URL`
 - `PROFILE_HEADFUL=1` to run non-headless
+- `PROFILE_BUILD_SOURCEMAP` (default `1`) build app with sourcemaps for hotspot symbolization
 - `PROFILE_REPEAT` (default `5`) number of runs for `perf:profile:repeat`
 - `PERF_MEDIAN_PATH` path to current median summary (`perf:profile:check`)
 - `PERF_BASELINE_PATH` path to baseline summary (`perf:profile:check`)
@@ -100,6 +110,14 @@ Regression checking uses:
 - `PERF_MAX_SEGMENT_FPS_DROP_PCT` (default `25`)
 - `PERF_MAX_SEGMENT_P99_INCREASE_PCT` (default `40`)
 - `PERF_MAX_SEGMENT_P99_INCREASE_MS` (default `25`)
+- `PERF_HOTSPOT_SYMBOLIZE` (default `1`) map hotspot function calls back to source files/lines
+- `PERF_HOTSPOT_ASSET_ROOTS` comma-separated asset roots for sourcemap lookup (default `dist`)
+- `PERF_HOTSPOT_SEGMENTS` (default `skychart_texture_playback,solar_playback`)
+- `PERF_HOTSPOT_SEGMENT` legacy single-segment override (used if `PERF_HOTSPOT_SEGMENTS` is unset)
+- `PERF_MAX_HOTSPOT_SEGMENT_LONGTASK_INCREASE_PCT` (default `35`)
+- `PERF_MAX_HOTSPOT_SEGMENT_LONGTASK_INCREASE_MS` (default `1200`)
+- `PERF_MAX_HOTSPOT_TOP_OFFENDER_INCREASE_PCT` (default `40`)
+- `PERF_MAX_HOTSPOT_TOP_OFFENDER_INCREASE_MS` (default `900`)
 
 Example (reuse existing `npm run dev` server):
 
@@ -123,6 +141,7 @@ npm run perf:profile:check:ci
 ## Notes
 
 - The scenario is intentionally deterministic to make regressions comparable across commits.
+- Aggregate metrics intentionally exclude `skychart_texture_setup` so one-time UI setup costs do not dominate steady-state regression gating.
 - The harness pre-marks the guided tour as seen, so onboarding overlays do not interfere with scripted clicks.
 - When it starts its own preview server, it uses a strict port (`PROFILE_PORT`) and fails fast if already occupied.
 - For reliable comparisons, run on the same machine, same browser channel, and similar background load.

@@ -3,10 +3,13 @@
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
+import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 
 const DEFAULT_MIN_TASK_MS = 50
 const DEFAULT_TOP_N = 10
+const DEFAULT_SYMBOLIZE = true
 const SEGMENT_START_PREFIX = 'perf.segment.start:'
 const SEGMENT_END_PREFIX = 'perf.segment.end:'
 const ATTRIBUTION_NOISE_NAMES = new Set([
@@ -47,9 +50,35 @@ function parsePositiveNumber(value, fallback) {
   return parsed
 }
 
+function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback
+  const normalized = String(value).toLowerCase().trim()
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return fallback
+}
+
 function round(value, digits = 2) {
   const factor = 10 ** digits
   return Math.round(value * factor) / factor
+}
+
+function normalizePathForDisplay(filePath, cwd) {
+  const absolutePath = path.resolve(filePath)
+  const relativePath = path.relative(cwd, absolutePath)
+  if (!relativePath || relativePath.startsWith('..')) {
+    return absolutePath.replace(/\\/g, '/')
+  }
+  return relativePath.replace(/\\/g, '/')
+}
+
+function parseUrlPath(raw) {
+  if (!raw || typeof raw !== 'string') return ''
+  try {
+    return new URL(raw).pathname || ''
+  } catch {
+    return raw.startsWith('/') ? raw : ''
+  }
 }
 
 function lowerBoundByTs(events, targetTs) {
@@ -254,9 +283,195 @@ function resolveSegmentWindows({ segments, marks, traceRange }) {
   return { windows, warnings }
 }
 
-function extractEventDetail(event) {
+function parsePathList(raw) {
+  if (!raw) return []
+  return String(raw)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
+function buildSourceMapResolver({ cwd, assetRoots }) {
+  const stats = {
+    enabled: true,
+    attempted: 0,
+    resolved: 0,
+    mapFilesLoaded: 0,
+  }
+
+  const resolvedRoots = [...new Set(
+    (Array.isArray(assetRoots) ? assetRoots : [])
+      .map((root) => path.resolve(cwd, root))
+      .filter(Boolean),
+  )]
+  const mapCache = new Map()
+  const generatedPathCache = new Map()
+  const symbolCache = new Map()
+
+  function sourceMapForGeneratedFile(generatedFilePath) {
+    if (mapCache.has(generatedFilePath)) return mapCache.get(generatedFilePath)
+
+    let mapPath = `${generatedFilePath}.map`
+    let mapPayload = null
+
+    if (existsSync(mapPath)) {
+      mapPayload = readFileSync(mapPath, 'utf8')
+    } else {
+      mapPath = ''
+      try {
+        const generatedText = readFileSync(generatedFilePath, 'utf8')
+        const match = generatedText.match(/\/\/[#@]\s*sourceMappingURL=([^\s]+)/)
+        const sourceMapRef = match?.[1]?.trim()
+        if (sourceMapRef?.startsWith('data:application/json;base64,')) {
+          const base64Payload = sourceMapRef.slice('data:application/json;base64,'.length)
+          mapPayload = Buffer.from(base64Payload, 'base64').toString('utf8')
+        } else if (sourceMapRef) {
+          const candidatePath = path.resolve(path.dirname(generatedFilePath), sourceMapRef)
+          if (existsSync(candidatePath)) {
+            mapPath = candidatePath
+            mapPayload = readFileSync(candidatePath, 'utf8')
+          }
+        }
+      } catch {
+        mapPayload = null
+      }
+    }
+
+    if (!mapPayload) {
+      mapCache.set(generatedFilePath, null)
+      return null
+    }
+
+    try {
+      const rawMap = JSON.parse(mapPayload)
+      const traceMap = new TraceMap(rawMap)
+      const sourceRoot = typeof rawMap.sourceRoot === 'string' ? rawMap.sourceRoot : ''
+      const entry = {
+        traceMap,
+        sourceRoot,
+        mapPath: mapPath || generatedFilePath,
+      }
+      mapCache.set(generatedFilePath, entry)
+      stats.mapFilesLoaded += 1
+      return entry
+    } catch {
+      mapCache.set(generatedFilePath, null)
+      return null
+    }
+  }
+
+  function resolveGeneratedFile(urlLike) {
+    if (generatedPathCache.has(urlLike)) return generatedPathCache.get(urlLike)
+
+    const pathname = parseUrlPath(urlLike)
+    if (!pathname) {
+      generatedPathCache.set(urlLike, null)
+      return null
+    }
+
+    const relPath = pathname.replace(/^\/+/, '')
+    const baseName = path.basename(relPath)
+    const candidates = []
+
+    for (const root of resolvedRoots) {
+      candidates.push(path.join(root, relPath))
+      if (baseName && relPath !== baseName) candidates.push(path.join(root, baseName))
+    }
+
+    const uniqueCandidates = [...new Set(candidates)]
+    for (const candidate of uniqueCandidates) {
+      if (existsSync(candidate)) {
+        generatedPathCache.set(urlLike, candidate)
+        return candidate
+      }
+    }
+
+    generatedPathCache.set(urlLike, null)
+    return null
+  }
+
+  function resolveOriginalPosition(data) {
+    const rawUrl = typeof data.url === 'string' ? data.url : data.scriptName
+    const url = typeof rawUrl === 'string' ? rawUrl : ''
+    const lineNumber = Number(data.lineNumber)
+    const columnNumber = Number(data.columnNumber)
+    if (!url || !Number.isFinite(lineNumber)) return null
+
+    const generatedFilePath = resolveGeneratedFile(url)
+    if (!generatedFilePath) return null
+
+    const sourceMapEntry = sourceMapForGeneratedFile(generatedFilePath)
+    if (!sourceMapEntry) return null
+
+    const mapped = originalPositionFor(sourceMapEntry.traceMap, {
+      line: Math.max(1, Math.trunc(lineNumber)),
+      column: Math.max(0, Math.trunc(Number.isFinite(columnNumber) ? columnNumber - 1 : 0)),
+    })
+    if (!mapped?.source || !mapped.line) return null
+
+    const sourcePath = (() => {
+      if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(mapped.source)) return mapped.source
+      const combined = sourceMapEntry.sourceRoot
+        ? path.join(sourceMapEntry.sourceRoot, mapped.source)
+        : mapped.source
+      const absoluteSource = path.resolve(path.dirname(sourceMapEntry.mapPath), combined)
+      if (existsSync(absoluteSource)) return normalizePathForDisplay(absoluteSource, cwd)
+      return combined.replace(/\\/g, '/')
+    })()
+
+    return {
+      sourcePath,
+      line: mapped.line,
+      column: Number.isFinite(mapped.column) ? mapped.column + 1 : null,
+      originalName: typeof mapped.name === 'string' ? mapped.name : '',
+    }
+  }
+
+  function symbolizeFunctionCall(event) {
+    const data = event?.args?.data ?? {}
+    const rawUrl = typeof data.url === 'string' ? data.url : data.scriptName
+    const cacheKey = [
+      rawUrl ?? '',
+      data.lineNumber ?? '',
+      data.columnNumber ?? '',
+      data.functionName ?? '',
+    ].join('|')
+    if (symbolCache.has(cacheKey)) return symbolCache.get(cacheKey)
+
+    stats.attempted += 1
+    const mapped = resolveOriginalPosition(data)
+    if (!mapped) {
+      symbolCache.set(cacheKey, null)
+      return null
+    }
+
+    const functionName = typeof data.functionName === 'string' && data.functionName ? data.functionName : ''
+    const location = mapped.column != null
+      ? `${mapped.sourcePath}:${mapped.line}:${mapped.column}`
+      : `${mapped.sourcePath}:${mapped.line}`
+    const mappedName = mapped.originalName && mapped.originalName !== functionName
+      ? ` [${mapped.originalName}]`
+      : ''
+    const symbol = functionName
+      ? `${functionName} -> ${location}${mappedName}`
+      : `${location}${mappedName}`
+
+    symbolCache.set(cacheKey, symbol)
+    stats.resolved += 1
+    return symbol
+  }
+
+  return {
+    symbolizeFunctionCall,
+    stats,
+  }
+}
+
+function extractEventDetail(event, detailContext) {
   const data = event?.args?.data ?? {}
   if (event.name === 'FunctionCall') {
+    const symbolized = detailContext?.symbolizeFunctionCall?.(event)
+    if (symbolized) return symbolized
     const fn = typeof data.functionName === 'string' && data.functionName ? data.functionName : 'anonymous'
     const url = shortUrl(data.url ?? data.scriptName ?? '')
     return url ? `${fn} @ ${url}` : fn
@@ -278,19 +493,19 @@ function extractEventDetail(event) {
   return genericUrl
 }
 
-function formatOffenderKey(event) {
+function formatOffenderKey(event, detailContext) {
   if (!event) return 'Unattributed RunTask'
-  const detail = extractEventDetail(event)
+  const detail = extractEventDetail(event, detailContext)
   return detail ? `${event.name} (${detail})` : event.name
 }
 
-function isAttributionNoise(event) {
+function isAttributionNoise(event, detailContext) {
   if (!event || typeof event !== 'object') return true
   if (ATTRIBUTION_NOISE_NAMES.has(event.name)) return true
 
   // FunctionCall events without a real symbol/url are just generic wrappers.
   if (event.name === 'FunctionCall') {
-    const detail = extractEventDetail(event)
+    const detail = extractEventDetail(event, detailContext)
     return !detail || detail === 'anonymous'
   }
 
@@ -303,7 +518,7 @@ function overlapUs(startA, endA, startB, endB) {
   return Math.max(0, hi - lo)
 }
 
-function findDominantChildEvent(task, durationEvents) {
+function findDominantChildEvent(task, durationEvents, detailContext) {
   const taskStart = task.ts
   const taskEnd = task.ts + task.dur
   let best = null
@@ -312,7 +527,7 @@ function findDominantChildEvent(task, durationEvents) {
   while (index < durationEvents.length) {
     const event = durationEvents[index]
     if (!isFiniteNumber(event.ts) || event.ts >= taskEnd) break
-    if (event !== task && !isAttributionNoise(event)) {
+    if (event !== task && !isAttributionNoise(event, detailContext)) {
       const eventEnd = event.ts + event.dur
       if (event.ts >= taskStart && eventEnd <= taskEnd) {
         if (!best || event.dur > best.dur) best = event
@@ -333,11 +548,25 @@ export function extractTraceHotspots({
   summary,
   minTaskMs = DEFAULT_MIN_TASK_MS,
   topN = DEFAULT_TOP_N,
+  symbolize = DEFAULT_SYMBOLIZE,
+  assetRoots = ['dist'],
+  cwd = process.cwd(),
 } = {}) {
   const events = asTraceEvents(trace)
   const segments = asSegments(summary)
   const minTaskUs = parsePositiveNumber(minTaskMs, DEFAULT_MIN_TASK_MS) * 1_000
   const topCount = parsePositiveInt(topN, DEFAULT_TOP_N)
+  const detailContext = symbolize
+    ? buildSourceMapResolver({ cwd, assetRoots })
+    : {
+      symbolizeFunctionCall: null,
+      stats: {
+        enabled: false,
+        attempted: 0,
+        resolved: 0,
+        mapFilesLoaded: 0,
+      },
+    }
 
   const metadata = buildMetadata(events)
   const runTaskSummary = summarizeRunTaskByThread(events)
@@ -389,8 +618,8 @@ export function extractTraceHotspots({
       totalLongTaskUs += overlap
       longestLongTaskUs = Math.max(longestLongTaskUs, overlap)
 
-      const dominantEvent = findDominantChildEvent(task, threadDurationEvents)
-      const offenderKey = formatOffenderKey(dominantEvent)
+      const dominantEvent = findDominantChildEvent(task, threadDurationEvents, detailContext)
+      const offenderKey = formatOffenderKey(dominantEvent, detailContext)
       const offender = offenderMap.get(offenderKey) ?? {
         key: offenderKey,
         eventName: dominantEvent?.name ?? 'RunTask',
@@ -449,6 +678,7 @@ export function extractTraceHotspots({
       selectedThread: renderer.selected,
       candidateThreads: renderer.candidates,
       traceRangeUs: traceRange,
+      symbolization: detailContext.stats,
     },
     warnings: windowResolution.warnings,
     segments: segmentSummaries,
@@ -462,6 +692,13 @@ export function formatTraceHotspotsMarkdown(report) {
   lines.push(`- Generated: ${report.generatedAt}`)
   lines.push(`- Long-task threshold: ${report.minTaskMs} ms`)
   lines.push(`- Selected renderer thread: pid=${report.trace.selectedThread.pid} tid=${report.trace.selectedThread.tid} (${report.trace.selectedThread.threadName})`)
+  if (report.trace?.symbolization?.enabled) {
+    lines.push(
+      `- Source symbolization: ${report.trace.symbolization.resolved}/${report.trace.symbolization.attempted} mapped (${report.trace.symbolization.mapFilesLoaded} sourcemap file(s) loaded)`,
+    )
+  } else {
+    lines.push('- Source symbolization: disabled')
+  }
   lines.push('')
 
   for (const segment of report.segments) {
@@ -515,6 +752,8 @@ function parseArgs(argv) {
     outMarkdownPath: '',
     minTaskMs: DEFAULT_MIN_TASK_MS,
     topN: DEFAULT_TOP_N,
+    symbolize: DEFAULT_SYMBOLIZE,
+    assetRoots: [],
   }
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -548,6 +787,19 @@ function parseArgs(argv) {
     if (token === '--top' && next) {
       args.topN = parsePositiveInt(next, DEFAULT_TOP_N)
       i += 1
+      continue
+    }
+    if (token === '--symbolize') {
+      args.symbolize = true
+      continue
+    }
+    if (token === '--no-symbolize') {
+      args.symbolize = false
+      continue
+    }
+    if ((token === '--asset-root' || token === '--asset-roots') && next) {
+      args.assetRoots.push(next)
+      i += 1
     }
   }
 
@@ -562,6 +814,11 @@ async function main() {
   const outJsonPath = parsed.outJsonPath || process.env.PERF_HOTSPOTS_JSON_PATH || path.join(cwd, 'hotspots.json')
   const outMarkdownPath = parsed.outMarkdownPath || process.env.PERF_HOTSPOTS_MD_PATH || path.join(cwd, 'hotspots.md')
 
+  const envSymbolize = parseBoolean(process.env.PERF_HOTSPOT_SYMBOLIZE, parsed.symbolize)
+  const envAssetRoots = parsePathList(process.env.PERF_HOTSPOT_ASSET_ROOTS)
+  const assetRoots = [...parsed.assetRoots, ...envAssetRoots]
+  if (!assetRoots.length) assetRoots.push('dist')
+
   const [traceRaw, summaryRaw] = await Promise.all([
     readFile(tracePath, 'utf8'),
     readFile(summaryPath, 'utf8'),
@@ -572,6 +829,9 @@ async function main() {
     summary: JSON.parse(summaryRaw),
     minTaskMs: parsed.minTaskMs,
     topN: parsed.topN,
+    symbolize: envSymbolize,
+    assetRoots,
+    cwd,
   })
 
   await writeFile(outJsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8')

@@ -17,12 +17,16 @@ const TOUR_STORAGE_KEY = 'planet-parade-tour-seen'
 const SKIP_BUILD = parseBool(process.env.PROFILE_SKIP_BUILD)
 const SKIP_SERVER = parseBool(process.env.PROFILE_SKIP_SERVER)
 const HEADLESS = !parseBool(process.env.PROFILE_HEADFUL)
+const BUILD_SOURCEMAP = parseBool(process.env.PROFILE_BUILD_SOURCEMAP ?? '1')
+const HOTSPOT_SYMBOLIZE = parseBool(process.env.PERF_HOTSPOT_SYMBOLIZE ?? '1')
+const HOTSPOT_ASSET_ROOTS = parsePathList(process.env.PERF_HOTSPOT_ASSET_ROOTS)
 
 const SEGMENTS = [
   { label: 'idle_initial', durationMs: 4_000 },
   { label: 'solar_playback', durationMs: 8_000 },
   { label: 'planetarium_playback', durationMs: 10_000 },
-  { label: 'skychart_texture_playback', durationMs: 12_000 },
+  { label: 'skychart_texture_setup', durationMs: 2_500, includeInAggregate: false },
+  { label: 'skychart_texture_playback', durationMs: 9_500 },
   { label: 'idle_final', durationMs: 3_000 },
 ]
 
@@ -31,12 +35,23 @@ function parseBool(value) {
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase())
 }
 
+function parsePathList(value) {
+  if (!value) return []
+  return String(value)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+}
+
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: options.inheritStdio ? 'inherit' : 'pipe',
       cwd: options.cwd ?? process.cwd(),
-      env: process.env,
+      env: {
+        ...process.env,
+        ...(options.env ?? {}),
+      },
       shell: false,
     })
 
@@ -187,11 +202,13 @@ function maybeMetricTimestampSeconds(metrics) {
 }
 
 function aggregateSegments(segments) {
-  const totalMs = segments.reduce((sum, s) => sum + s.durationMs, 0)
-  const weightedFps = segments.reduce((sum, s) => sum + (s.fps * s.durationMs), 0) / Math.max(totalMs, 1)
-  const worstP99 = Math.max(...segments.map((s) => s.p99FrameMs))
-  const worstMax = Math.max(...segments.map((s) => s.maxFrameMs))
-  const longTasks = segments.reduce((sum, s) => sum + s.longTaskCount, 0)
+  const aggregateSegmentsOnly = segments.filter((segment) => segment.includeInAggregate !== false)
+  const source = aggregateSegmentsOnly.length ? aggregateSegmentsOnly : segments
+  const totalMs = source.reduce((sum, s) => sum + s.durationMs, 0)
+  const weightedFps = source.reduce((sum, s) => sum + (s.fps * s.durationMs), 0) / Math.max(totalMs, 1)
+  const worstP99 = Math.max(...source.map((s) => s.p99FrameMs))
+  const worstMax = Math.max(...source.map((s) => s.maxFrameMs))
+  const longTasks = source.reduce((sum, s) => sum + s.longTaskCount, 0)
   return {
     totalProfileMs: totalMs,
     weightedAvgFps: Number(weightedFps.toFixed(2)),
@@ -220,10 +237,10 @@ function formatSummaryMarkdown({ startedAt, endedAt, config, gitCommit, segments
   lines.push('')
   lines.push('## Segments')
   lines.push('')
-  lines.push('| Segment | Duration (ms) | FPS | p95 frame (ms) | p99 frame (ms) | Max frame (ms) | Long tasks |')
-  lines.push('|---|---:|---:|---:|---:|---:|---:|')
+  lines.push('| Segment | In aggregate | Duration (ms) | FPS | p95 frame (ms) | p99 frame (ms) | Max frame (ms) | Long tasks |')
+  lines.push('|---|---|---:|---:|---:|---:|---:|---:|')
   for (const segment of segments) {
-    lines.push(`| ${segment.label} | ${segment.durationMs} | ${segment.fps} | ${segment.p95FrameMs} | ${segment.p99FrameMs} | ${segment.maxFrameMs} | ${segment.longTaskCount} |`)
+    lines.push(`| ${segment.label} | ${segment.includeInAggregate === false ? 'no' : 'yes'} | ${segment.durationMs} | ${segment.fps} | ${segment.p95FrameMs} | ${segment.p99FrameMs} | ${segment.maxFrameMs} | ${segment.longTaskCount} |`)
   }
   lines.push('')
   lines.push('## Notes')
@@ -366,7 +383,7 @@ async function runScenario(page, cdp, segments) {
       await sleep(700)
     }
 
-    if (segment.label === 'skychart_texture_playback') {
+    if (segment.label === 'skychart_texture_setup') {
       await safeClick(page.locator('.scene-view-tab').filter({ hasText: 'Solar System' }))
       await sleep(400)
       await safeClick(page.locator('.skychart-layer-btn'))
@@ -387,6 +404,7 @@ async function runScenario(page, cdp, segments) {
     results.push({
       label: segment.label,
       durationMs: segment.durationMs,
+      includeInAggregate: segment.includeInAggregate !== false,
       sampledFrames: frameStats.sampledFrames,
       fps: Number(frameStats.fps.toFixed(2)),
       avgFrameMs: Number(frameStats.avgFrameMs.toFixed(2)),
@@ -414,6 +432,8 @@ async function main() {
     headless: HEADLESS,
     skipBuild: SKIP_BUILD,
     skipServer: SKIP_SERVER,
+    buildSourcemap: BUILD_SOURCEMAP,
+    hotspotSymbolize: HOTSPOT_SYMBOLIZE,
   }
 
   let gitCommit = 'unknown'
@@ -425,7 +445,12 @@ async function main() {
 
   if (!SKIP_BUILD) {
     console.log('[profile] Building app...')
-    await run(npmCmd, ['run', 'build'], { inheritStdio: true })
+    await run(npmCmd, ['run', 'build'], {
+      inheritStdio: true,
+      env: {
+        VITE_BUILD_SOURCEMAP: BUILD_SOURCEMAP ? '1' : '0',
+      },
+    })
   }
 
   let server = null
@@ -530,9 +555,13 @@ async function main() {
 
     let hotspots = null
     try {
+      const hotspotAssetRoots = HOTSPOT_ASSET_ROOTS.length ? HOTSPOT_ASSET_ROOTS : ['dist']
       hotspots = extractTraceHotspots({
         trace: JSON.parse(traceContent),
         summary,
+        symbolize: HOTSPOT_SYMBOLIZE,
+        assetRoots: hotspotAssetRoots,
+        cwd: process.cwd(),
       })
       await writeFile(hotspotsJsonPath, `${JSON.stringify(hotspots, null, 2)}\n`, 'utf8')
       await writeFile(hotspotsMarkdownPath, formatTraceHotspotsMarkdown(hotspots), 'utf8')
@@ -556,6 +585,11 @@ async function main() {
     console.log(`[profile] Long tasks: ${aggregate.longTaskCount}`)
     if (hotspots) {
       console.log(`[profile] Hotspots: ${hotspotsJsonPath}`)
+      if (hotspots.trace?.symbolization?.enabled) {
+        console.log(
+          `[profile] Hotspot symbolization: ${hotspots.trace.symbolization.resolved}/${hotspots.trace.symbolization.attempted} mapped`,
+        )
+      }
     }
   } finally {
     if (context && !playwrightTraceStopped) {

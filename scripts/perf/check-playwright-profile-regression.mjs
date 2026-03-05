@@ -21,6 +21,15 @@ const segmentLabels = parseSegmentLabels(
 const maxSegmentFpsDropPct = parseNumber(process.env.PERF_MAX_SEGMENT_FPS_DROP_PCT, 25)
 const maxSegmentP99IncreasePct = parseNumber(process.env.PERF_MAX_SEGMENT_P99_INCREASE_PCT, 40)
 const maxSegmentP99IncreaseMs = parseNumber(process.env.PERF_MAX_SEGMENT_P99_INCREASE_MS, 25)
+const hotspotSegmentLabels = parseSegmentLabels(
+  process.env.PERF_HOTSPOT_SEGMENTS,
+  process.env.PERF_HOTSPOT_SEGMENT,
+  ['skychart_texture_playback', 'solar_playback'],
+)
+const maxHotspotSegmentLongTaskIncreasePct = parseNumber(process.env.PERF_MAX_HOTSPOT_SEGMENT_LONGTASK_INCREASE_PCT, 35)
+const maxHotspotSegmentLongTaskIncreaseMs = parseNumber(process.env.PERF_MAX_HOTSPOT_SEGMENT_LONGTASK_INCREASE_MS, 1200)
+const maxHotspotTopOffenderIncreasePct = parseNumber(process.env.PERF_MAX_HOTSPOT_TOP_OFFENDER_INCREASE_PCT, 40)
+const maxHotspotTopOffenderIncreaseMs = parseNumber(process.env.PERF_MAX_HOTSPOT_TOP_OFFENDER_INCREASE_MS, 900)
 
 const allowMissingBaseline = parseBool(process.env.PERF_ALLOW_MISSING_BASELINE)
 
@@ -60,12 +69,14 @@ async function readJson(filePath) {
 function extractMetrics(summary) {
   const aggregate = summary?.median?.aggregate ?? summary?.aggregate
   const segments = summary?.median?.segments ?? summary?.segments
+  const hotspots = summary?.hotspots ?? summary?.median?.hotspots ?? null
   if (!aggregate || !Array.isArray(segments)) {
     throw new Error('Invalid summary JSON: expected aggregate/segments or median.aggregate/median.segments')
   }
   return {
     aggregate,
     segments,
+    hotspots,
     commit: summary?.gitCommit ?? 'unknown',
     generatedAt: summary?.generatedAt ?? summary?.endedAt ?? 'unknown',
   }
@@ -75,7 +86,13 @@ function getSegment(segments, label) {
   return segments.find((segment) => segment.label === label)
 }
 
-function evaluateChecks({ baseline, current }) {
+function getHotspotSegment(hotspots, label) {
+  const segments = hotspots?.segments
+  if (!Array.isArray(segments)) return null
+  return segments.find((segment) => segment.label === label) ?? null
+}
+
+function evaluateChecks({ baseline, current, includeHotspotChecks }) {
   const checks = []
 
   const baselineWeightedFps = Number(baseline.aggregate.weightedAvgFps)
@@ -158,6 +175,65 @@ function evaluateChecks({ baseline, current }) {
     })
   }
 
+  if (includeHotspotChecks) {
+    for (const segmentLabel of hotspotSegmentLabels) {
+      const baselineHotspot = getHotspotSegment(baseline.hotspots, segmentLabel)
+      const currentHotspot = getHotspotSegment(current.hotspots, segmentLabel)
+
+      if (!baselineHotspot || !currentHotspot) {
+        checks.push({
+          name: `hotspot:${segmentLabel}`,
+          ok: false,
+          baseline: baselineHotspot ? 'present' : 'missing',
+          current: currentHotspot ? 'present' : 'missing',
+          expected: 'both present',
+        })
+        continue
+      }
+
+      const baselineSegmentLongTaskMs = Number(baselineHotspot.medianTotalLongTaskMs)
+      const currentSegmentLongTaskMs = Number(currentHotspot.medianTotalLongTaskMs)
+      const hotspotSegmentCeiling = Math.max(
+        baselineSegmentLongTaskMs * (1 + (maxHotspotSegmentLongTaskIncreasePct / 100)),
+        baselineSegmentLongTaskMs + maxHotspotSegmentLongTaskIncreaseMs,
+      )
+      checks.push({
+        name: `hotspot:${segmentLabel}:totalLongTaskMs`,
+        ok: currentSegmentLongTaskMs <= hotspotSegmentCeiling,
+        baseline: baselineSegmentLongTaskMs,
+        current: currentSegmentLongTaskMs,
+        expected: `<= ${round(hotspotSegmentCeiling)}`,
+      })
+
+      const baselineTop = baselineHotspot.offenders?.[0] ?? null
+      const currentTop = currentHotspot.offenders?.[0] ?? null
+      if (!baselineTop || !currentTop) {
+        checks.push({
+          name: `hotspot:${segmentLabel}:topOffender`,
+          ok: false,
+          baseline: baselineTop ? 'present' : 'missing',
+          current: currentTop ? 'present' : 'missing',
+          expected: 'both present',
+        })
+        continue
+      }
+
+      const baselineTopMs = Number(baselineTop.medianTotalMs)
+      const currentTopMs = Number(currentTop.medianTotalMs)
+      const hotspotTopCeiling = Math.max(
+        baselineTopMs * (1 + (maxHotspotTopOffenderIncreasePct / 100)),
+        baselineTopMs + maxHotspotTopOffenderIncreaseMs,
+      )
+      checks.push({
+        name: `hotspot:${segmentLabel}:topOffenderMs`,
+        ok: currentTopMs <= hotspotTopCeiling,
+        baseline: `${baselineTop.key} (${baselineTopMs})`,
+        current: `${currentTop.key} (${currentTopMs})`,
+        expected: `<= ${round(hotspotTopCeiling)}`,
+      })
+    }
+  }
+
   return checks
 }
 
@@ -192,8 +268,14 @@ async function main() {
   console.log(`[perf-check] Baseline: ${baselinePath} (commit ${baseline.commit}, generated ${baseline.generatedAt})`)
   console.log(`[perf-check] Current:  ${currentPath} (commit ${current.commit}, generated ${current.generatedAt})`)
   console.log(`[perf-check] Segment checks: ${segmentLabels.join(', ')}`)
+  const includeHotspotChecks = Array.isArray(baseline.hotspots?.segments) && Array.isArray(current.hotspots?.segments)
+  if (includeHotspotChecks) {
+    console.log(`[perf-check] Hotspot checks: ${hotspotSegmentLabels.join(', ')}`)
+  } else {
+    console.log('[perf-check] Hotspot checks: skipped (hotspot data missing in baseline or current summary)')
+  }
 
-  const checks = evaluateChecks({ baseline, current })
+  const checks = evaluateChecks({ baseline, current, includeHotspotChecks })
   printChecks(checks)
 
   const failures = checks.filter((check) => !check.ok)
