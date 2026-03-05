@@ -33,7 +33,6 @@ interface ContentsProps {
   twilightWashLocal: number
   moonWashLocal: number
   starVisibilityLocal: number
-  moonGlowStrengthLocal: number
   sunDirectionLocal: [number, number, number]
   moonDirectionLocal: [number, number, number]
   atmosphereLocal: AtmosphereAppearance
@@ -57,7 +56,6 @@ function PlanetariumContents({
   twilightWashLocal,
   moonWashLocal,
   starVisibilityLocal,
-  moonGlowStrengthLocal,
   sunDirectionLocal,
   moonDirectionLocal,
   atmosphereLocal,
@@ -97,9 +95,12 @@ function PlanetariumContents({
         )}
         {showStarsLocal && (
           <RealStars
+            mode="atmospheric"
             brightness={2.0}
             visibility={starVisibilityLocal}
-            moonGlowStrength={moonGlowStrengthLocal}
+            twilightWash={twilightWashLocal}
+            moonWash={moonWashLocal}
+            sunDirection={sunDirectionLocal}
             moonDirection={moonDirectionLocal}
             extinctionCoeff={starExtinctionCoeffLocal}
             skyStateRef={skyStateRef}
@@ -240,7 +241,6 @@ function PlanetariumScene({
           twilightWashLocal={skyStateRef.current.twilightWash}
           moonWashLocal={skyStateRef.current.moonWash}
           starVisibilityLocal={skyStateRef.current.starVisibility}
-          moonGlowStrengthLocal={skyStateRef.current.moonGlowStrength}
           sunDirectionLocal={skyStateRef.current.sunDirection}
           moonDirectionLocal={skyStateRef.current.moonDirection}
           atmosphereLocal={skyStateRef.current.atmosphere}

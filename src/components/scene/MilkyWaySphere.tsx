@@ -167,6 +167,7 @@ export default memo(function MilkyWaySphere({
       ref={meshRef}
       geometry={geometry}
       material={material}
+      renderOrder={-50}
       rotation={MW_ROTATION}
       scale={MW_SCALE}
       raycast={NO_RAYCAST}

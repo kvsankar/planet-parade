@@ -4,60 +4,8 @@ import * as THREE from 'three'
 import { STAR_CATALOG } from '../../data/starCatalog'
 import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 import { DEFAULT_EXTINCTION_COEFF } from '../../lib/starVisibility'
+import { magnitudeToSpriteSize, spectralClassToRgb, type StarRenderMode } from '../../lib/starAppearance'
 import { PlanetariumSkyState } from './planetariumSkyState'
-
-// Approximate B-V color index for each spectral class (main sequence averages)
-const SPECTRAL_BV: Record<string, number> = {
-  O: -0.33, B: -0.17, A: 0.0, F: 0.42, G: 0.65, K: 1.15, M: 1.60,
-}
-
-/**
- * Convert B-V color index to RGB using Planck blackbody approximation.
- * B-V → effective temperature → sRGB via CIE chromaticity.
- * Based on Ballesteros (2012) formula for T_eff and Hernandez-Andres (2001)
- * correlated color temperature to chromaticity conversion.
- */
-function bvToRgb(bv: number): [number, number, number] {
-  // Clamp B-V to valid range
-  bv = Math.max(-0.4, Math.min(2.0, bv))
-
-  // Ballesteros (2012): T = 4600 * (1/(0.92*BV + 1.7) + 1/(0.92*BV + 0.62))
-  const t = 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62))
-
-  // Approximate sRGB from color temperature using polynomial fit
-  // (Tanner Helland / CIE-based approximation, widely used in open-source)
-  let r: number, g: number, b: number
-  const temp = t / 100
-
-  // Red channel
-  if (temp <= 66) {
-    r = 1.0
-  } else {
-    r = 1.292936 * Math.pow(temp - 60, -0.1332047592)
-  }
-
-  // Green channel
-  if (temp <= 66) {
-    g = 0.3900815 * Math.log(temp) - 0.6318414
-  } else {
-    g = 1.129891 * Math.pow(temp - 60, -0.0755148492)
-  }
-
-  // Blue channel
-  if (temp >= 66) {
-    b = 1.0
-  } else if (temp <= 19) {
-    b = 0.0
-  } else {
-    b = 0.5432068 * Math.log(temp - 10) - 1.19625408
-  }
-
-  return [
-    Math.max(0, Math.min(1, r)),
-    Math.max(0, Math.min(1, g)),
-    Math.max(0, Math.min(1, b)),
-  ]
-}
 
 // Vertex shader: pass size and color to fragment stage
 const vertexShader = `
@@ -89,7 +37,9 @@ const vertexShader = `
 const fragmentShader = `
   uniform float uHaloBoost;
   uniform float uVisibility;
-  uniform float uMoonGlowStrength;
+  uniform float uTwilightWash;
+  uniform float uMoonWash;
+  uniform vec3 uSunDir;
   uniform vec3 uMoonDir;
   varying vec3 vColor;
   varying vec3 vWorldDir;
@@ -103,12 +53,25 @@ const fragmentShader = `
     float k = clamp(core + halo, 0.0, 1.0);
     if (k < 0.002) discard;
 
-    // Moonlight boosts local sky brightness near the Moon; faint stars fade first.
-    float moonDot = clamp(dot(normalize(vWorldDir), normalize(uMoonDir)), -1.0, 1.0);
-    float moonAng = acos(moonDot);
-    float localMoon = exp(-0.5 * pow(moonAng / 0.35, 2.0)); // ~20deg sigma
-    float localDim = 1.0 - clamp(uMoonGlowStrength * 0.70 * localMoon, 0.0, 0.90);
-    float visibility = clamp(uVisibility * localDim, 0.0, 1.0);
+    float faintness = clamp((vEffMag + 2.0) / 8.0, 0.0, 1.0);
+    float localVisibility = 1.0;
+
+    if (uTwilightWash > 0.001) {
+      float sunDot = clamp(dot(normalize(vWorldDir), normalize(uSunDir)), -1.0, 1.0);
+      float sunAng = acos(sunDot);
+      float sunKernel = exp(-0.5 * pow(sunAng / 0.45, 2.0));
+      localVisibility *= 1.0 - 0.58 * uTwilightWash * (0.35 + 0.65 * faintness) * sunKernel;
+    }
+
+    if (uMoonWash > 0.001) {
+      float moonDot = clamp(dot(normalize(vWorldDir), normalize(uMoonDir)), -1.0, 1.0);
+      float moonAng = acos(moonDot);
+      float moonKernel = exp(-0.5 * pow(moonAng / 0.34, 2.0));
+      localVisibility *= 1.0 - 0.40 * uMoonWash * (0.25 + 0.75 * faintness) * moonKernel;
+    }
+
+    localVisibility = clamp(localVisibility, 0.15, 1.0);
+    float visibility = clamp(uVisibility * localVisibility, 0.0, 1.0);
     float limMag = mix(-1.0, 6.5, visibility);
     float magContrast = 1.0 - smoothstep(limMag - 0.7, limMag + 0.5, vEffMag);
 
@@ -134,13 +97,10 @@ function getSharedGeometry() {
     positions[i * 3 + 1] = y
     positions[i * 3 + 2] = z
 
-    // Magnitude → point size in pixels.
-    // Range: Sirius (mag -1.46) → ~5px, faintest (mag ~4.5) → ~1px
-    sizes[i] = Math.max(1.0, Math.min(5.0, 3.0 - star.mag * 0.5))
+    sizes[i] = magnitudeToSpriteSize(star.mag)
     mags[i] = star.mag
 
-    const bv = SPECTRAL_BV[star.spectral] ?? 0.0
-    const [r, g, b] = bvToRgb(bv)
+    const [r, g, b] = spectralClassToRgb(star.spectral)
     colors[i * 3] = r
     colors[i * 3 + 1] = g
     colors[i * 3 + 2] = b
@@ -156,22 +116,30 @@ function getSharedGeometry() {
 }
 
 interface Props {
+  mode?: StarRenderMode
   brightness?: number // 1.0 = default, >1 = brighter (larger points + stronger halo)
   visibility?: number // 0 = fully washed out, 1 = dark-sky visibility
-  moonGlowStrength?: number
+  twilightWash?: number
+  moonWash?: number
+  sunDirection?: [number, number, number]
   moonDirection?: [number, number, number]
   extinctionCoeff?: number
   skyStateRef?: MutableRefObject<PlanetariumSkyState>
 }
 
 export default memo(function RealStars({
+  mode = 'atmospheric',
   brightness = 1.0,
   visibility = 1,
-  moonGlowStrength = 0,
+  twilightWash = 0,
+  moonWash = 0,
+  sunDirection = [0, 1, 0],
   moonDirection = [0, 1, 0],
   extinctionCoeff = DEFAULT_EXTINCTION_COEFF,
   skyStateRef,
 }: Props) {
+  const isSpaceMode = mode === 'space'
+
   const { geometry, material } = useMemo(() => {
     const geo = getSharedGeometry()
 
@@ -181,10 +149,12 @@ export default memo(function RealStars({
       uniforms: {
         uSizeScale: { value: brightness },
         uHaloBoost: { value: 0.06 * brightness },
-        uVisibility: { value: visibility },
-        uMoonGlowStrength: { value: moonGlowStrength },
+        uVisibility: { value: isSpaceMode ? 1 : visibility },
+        uTwilightWash: { value: isSpaceMode ? 0 : twilightWash },
+        uMoonWash: { value: isSpaceMode ? 0 : moonWash },
+        uSunDir: { value: new THREE.Vector3(...sunDirection).normalize() },
         uMoonDir: { value: new THREE.Vector3(...moonDirection).normalize() },
-        uExtinctionCoeff: { value: extinctionCoeff },
+        uExtinctionCoeff: { value: isSpaceMode ? 0 : extinctionCoeff },
       },
       transparent: true,
       depthWrite: false,
@@ -192,7 +162,7 @@ export default memo(function RealStars({
     })
 
     return { geometry: geo, material: mat }
-  }, [brightness])
+  }, [brightness, isSpaceMode])
 
   // Update uniforms if brightness changes after mount
   useEffect(() => {
@@ -201,26 +171,41 @@ export default memo(function RealStars({
   }, [brightness, material])
 
   useEffect(() => {
-    material.uniforms.uVisibility.value = visibility
-  }, [material, visibility])
+    material.uniforms.uVisibility.value = isSpaceMode ? 1 : visibility
+  }, [isSpaceMode, material, visibility])
 
   useEffect(() => {
-    material.uniforms.uMoonGlowStrength.value = moonGlowStrength
-  }, [material, moonGlowStrength])
+    material.uniforms.uTwilightWash.value = isSpaceMode ? 0 : twilightWash
+  }, [isSpaceMode, material, twilightWash])
+
+  useEffect(() => {
+    material.uniforms.uMoonWash.value = isSpaceMode ? 0 : moonWash
+  }, [isSpaceMode, material, moonWash])
+
+  useEffect(() => {
+    material.uniforms.uSunDir.value.set(sunDirection[0], sunDirection[1], sunDirection[2]).normalize()
+  }, [material, sunDirection])
 
   useEffect(() => {
     material.uniforms.uMoonDir.value.set(moonDirection[0], moonDirection[1], moonDirection[2]).normalize()
   }, [material, moonDirection])
 
   useEffect(() => {
-    material.uniforms.uExtinctionCoeff.value = extinctionCoeff
-  }, [material, extinctionCoeff])
+    material.uniforms.uExtinctionCoeff.value = isSpaceMode ? 0 : extinctionCoeff
+  }, [extinctionCoeff, isSpaceMode, material])
 
   useFrame(() => {
+    if (isSpaceMode) return
     const sky = skyStateRef?.current
     if (!sky) return
     material.uniforms.uVisibility.value = sky.starVisibility
-    material.uniforms.uMoonGlowStrength.value = sky.moonGlowStrength
+    material.uniforms.uTwilightWash.value = sky.twilightWash
+    material.uniforms.uMoonWash.value = sky.moonWash
+    material.uniforms.uSunDir.value.set(
+      sky.sunDirection[0],
+      sky.sunDirection[1],
+      sky.sunDirection[2],
+    ).normalize()
     material.uniforms.uMoonDir.value.set(
       sky.moonDirection[0],
       sky.moonDirection[1],
@@ -229,5 +214,5 @@ export default memo(function RealStars({
     material.uniforms.uExtinctionCoeff.value = sky.starExtinctionCoeff
   })
 
-  return <points geometry={geometry} material={material} />
+  return <points geometry={geometry} material={material} renderOrder={20} />
 })

@@ -7,6 +7,14 @@ import { CONSTELLATIONS } from '../../data/constellationLines'
 import { getMoonGlowVisuals } from '../../lib/moonGlow'
 import { getNightSkyVisibility, type NightSkyVisibility } from '../../lib/skyVisibility'
 import { effectiveStarMagnitude, limitingMagnitudeFromSkyVisibility, starContrastFactor } from '../../lib/starVisibility'
+import {
+  canvasRadiiFromBaseRadius,
+  canvasRadiiFromEffectiveMagnitude,
+  computeStarPhotometry,
+  magnitudeToCanvasRadius,
+  rgbToCss,
+  spectralClassToRgb,
+} from '../../lib/starAppearance'
 import { colorToCss, getAtmosphereAppearance } from '../../lib/atmosphereColor'
 import MilkyWayTextureCanvas from './MilkyWayTextureCanvas'
 
@@ -58,11 +66,6 @@ function bodyColor(id: SkyBodyId): string {
   return BODY_META[id as CelestialBodyId]?.color ?? '#888'
 }
 
-/** Unified magnitude → dot radius. Brighter (lower mag) = larger. */
-function magToRadius(mag: number): number {
-  return Math.max(1.0, Math.min(6.0, 3.5 - mag * 0.55))
-}
-
 const SUN_RADIUS = 8
 const MOON_RADIUS = 7
 
@@ -77,6 +80,84 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+function rgbToRgba([r, g, b]: [number, number, number], alpha: number): string {
+  const rr = Math.round(clamp(r, 0, 1) * 255)
+  const gg = Math.round(clamp(g, 0, 1) * 255)
+  const bb = Math.round(clamp(b, 0, 1) * 255)
+  return `rgba(${rr}, ${gg}, ${bb}, ${clamp(alpha, 0, 1)})`
+}
+
+interface StarSpriteStamp {
+  canvas: HTMLCanvasElement
+  halfSizeCss: number
+  drawSizeCss: number
+}
+
+function starSpriteKey(
+  color: [number, number, number],
+  baseRadius: number,
+  dpr: number,
+): string {
+  const rr = Math.round(clamp(color[0], 0, 1) * 255)
+  const gg = Math.round(clamp(color[1], 0, 1) * 255)
+  const bb = Math.round(clamp(color[2], 0, 1) * 255)
+  const quantRadius = Math.round(baseRadius * 20) / 20
+  const quantDpr = Math.round(dpr * 100) / 100
+  return `${rr}:${gg}:${bb}:${quantRadius}:${quantDpr}`
+}
+
+function createStarSpriteStamp(
+  color: [number, number, number],
+  baseRadius: number,
+  dpr: number,
+): StarSpriteStamp {
+  const { coreRadius, haloRadius } = canvasRadiiFromBaseRadius(baseRadius)
+  const halfSizeCss = Math.ceil(haloRadius + 1)
+  const drawSizeCss = halfSizeCss * 2
+  const sizePx = Math.max(2, Math.ceil(drawSizeCss * dpr))
+  const canvas = document.createElement('canvas')
+  canvas.width = sizePx
+  canvas.height = sizePx
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return { canvas, halfSizeCss, drawSizeCss }
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  const cx = halfSizeCss
+  const cy = halfSizeCss
+  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, haloRadius)
+  gradient.addColorStop(0.0, rgbToRgba(color, 0.95))
+  gradient.addColorStop(0.40, rgbToRgba(color, 0.34))
+  gradient.addColorStop(1.0, rgbToRgba(color, 0))
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(cx, cy, haloRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = rgbToCss(color)
+  ctx.beginPath()
+  ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  return { canvas, halfSizeCss, drawSizeCss }
+}
+
+function getStarSpriteStamp(
+  cache: Map<string, StarSpriteStamp>,
+  color: [number, number, number],
+  baseRadius: number,
+  dpr: number,
+): StarSpriteStamp {
+  if (cache.size > 512) cache.clear()
+  const key = starSpriteKey(color, baseRadius, dpr)
+  const cached = cache.get(key)
+  if (cached) return cached
+
+  const created = createStarSpriteStamp(color, Math.round(baseRadius * 20) / 20, dpr)
+  cache.set(key, created)
+  return created
+}
+
 function altAzToHorDirection(altitude: number, azimuth: number): [number, number, number] {
   const altRad = altitude * DEG_TO_RAD
   const azRad = azimuth * DEG_TO_RAD
@@ -89,11 +170,6 @@ function altAzToHorDirection(altitude: number, azimuth: number): [number, number
 }
 
 const MW_OPACITIES: Record<string, number> = { ol1: 0.02, ol2: 0.03, ol3: 0.04, ol4: 0.05, ol5: 0.06 }
-
-const SPECTRAL_COLORS: Record<string, string> = {
-  O: '#9db4ff', B: '#aabfff', A: '#cad8ff', F: '#f8f7ff',
-  G: '#fff4e8', K: '#ffd2a1', M: '#ffcc6f',
-}
 
 const CARDINALS: [string, number][] = [
   ['N', 0],
@@ -194,9 +270,11 @@ interface ProjectedStarPoint {
   y: number
   starIndex: number
   altitude: number
+  direction: [number, number, number]
   name?: string
   mag: number
   spectral: string
+  color: [number, number, number]
 }
 
 interface ConstellationSegmentRender {
@@ -228,9 +306,8 @@ interface StarfieldCanvasLayerProps {
   showAtmosphere: boolean
   limitingMagnitude: number
   skyVisibility: NightSkyVisibility
-  sunProj: { x: number; y: number } | null
-  moonProj: { x: number; y: number } | null
-  moonGlowStrength: number
+  sunDirectionHor: [number, number, number] | null
+  moonDirectionHor: [number, number, number] | null
 }
 
 function StarfieldCanvasLayer({
@@ -248,11 +325,11 @@ function StarfieldCanvasLayer({
   showAtmosphere,
   limitingMagnitude,
   skyVisibility,
-  sunProj,
-  moonProj,
-  moonGlowStrength,
+  sunDirectionHor,
+  moonDirectionHor,
 }: StarfieldCanvasLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const spriteCacheRef = useRef<Map<string, StarSpriteStamp>>(new Map())
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -315,45 +392,53 @@ function StarfieldCanvasLayer({
     }
 
     if (showStars) {
+      const starMode = showAtmosphere ? 'atmospheric' : 'space'
+
       for (const s of projectedStars) {
         const sx = cx + s.x
         const sy = cy + s.y
-        const color = SPECTRAL_COLORS[s.spectral] ?? '#ccc'
-        const effMag = showAtmosphere ? effectiveStarMagnitude(s.mag, s.altitude) : s.mag
-        const contrast = showAtmosphere ? starContrastFactor(effMag, limitingMagnitude) : 1
-        const rad = magToRadius(effMag)
+        const color = s.color
+        const colorCss = rgbToCss(color)
+        const photometry = computeStarPhotometry({
+          mode: starMode,
+          catalogMagnitude: s.mag,
+          altitudeDeg: s.altitude,
+          skyVisibility: skyVisibility.starVisibility,
+          limitingMagnitude,
+          direction: s.direction,
+          sunDirection: sunDirectionHor,
+          moonDirection: moonDirectionHor,
+          twilightWash: skyVisibility.twilightWash,
+          moonWash: skyVisibility.moonWash,
+        })
+        const radii = canvasRadiiFromEffectiveMagnitude(photometry.effectiveMagnitude, 1)
         const isAbove = s.altitude >= 0
-        let opacity = (isAbove ? 0.85 : 0.3) * skyVisibility.starVisibility * contrast
-
-        // Proximity dimming for faint stars (mag > 2.0)
-        if (showAtmosphere && s.mag > 2.0) {
-          const glowRadius = R * 0.4
-          if (sunProj) {
-            const dSun = Math.sqrt((s.x - sunProj.x) ** 2 + (s.y - sunProj.y) ** 2)
-            if (dSun < glowRadius) opacity *= 0.6 + 0.4 * (dSun / glowRadius)
-          }
-          if (moonProj && moonGlowStrength > 0) {
-            const dMoon = Math.sqrt((s.x - moonProj.x) ** 2 + (s.y - moonProj.y) ** 2)
-            if (dMoon < glowRadius) {
-              opacity *= 1 - Math.min(0.6, moonGlowStrength * 0.45) * (1 - dMoon / glowRadius)
-            }
-          }
-        }
+        const opacity = (isAbove ? 0.85 : 0.3) * photometry.visibilityFactor
 
         if (opacity <= 0.001) continue
-        ctx.globalAlpha = opacity
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(sx, sy, rad, 0, Math.PI * 2)
-        ctx.fill()
+        const sprite = getStarSpriteStamp(
+          spriteCacheRef.current,
+          color,
+          radii.baseRadius,
+          dpr,
+        )
+
+        ctx.globalAlpha = Math.min(1, opacity)
+        ctx.drawImage(
+          sprite.canvas,
+          sx - sprite.halfSizeCss,
+          sy - sprite.halfSizeCss,
+          sprite.drawSizeCss,
+          sprite.drawSizeCss,
+        )
 
         if (showStarLabels && s.name) {
           ctx.globalAlpha = Math.min(1, opacity * 0.7)
-          ctx.fillStyle = color
+          ctx.fillStyle = colorCss
           ctx.font = '7px sans-serif'
           ctx.textAlign = 'left'
           ctx.textBaseline = 'middle'
-          ctx.fillText(s.name, sx + rad + 2, sy + 2.5)
+          ctx.fillText(s.name, sx + radii.baseRadius + 2, sy + 2.5)
         }
       }
     }
@@ -375,9 +460,8 @@ function StarfieldCanvasLayer({
     showAtmosphere,
     limitingMagnitude,
     skyVisibility,
-    sunProj,
-    moonProj,
-    moonGlowStrength,
+    sunDirectionHor,
+    moonDirectionHor,
   ])
 
   return (
@@ -478,9 +562,11 @@ export default function StereoSkyChart({
         ...projectAltAz(s.altitude, s.azimuth, R),
         starIndex: s.starIndex,
         altitude: s.altitude,
+        direction: altAzToHorDirection(s.altitude, s.azimuth),
         name: cat.name,
         mag: cat.mag,
         spectral: cat.spectral,
+        color: spectralClassToRgb(cat.spectral),
       }
     })
   }, [stars, R])
@@ -851,9 +937,8 @@ export default function StereoSkyChart({
         showAtmosphere={showAtmosphere}
         limitingMagnitude={limitingMagnitude}
         skyVisibility={skyVisibility}
-        sunProj={sunProj}
-        moonProj={moonProj}
-        moonGlowStrength={moonGlow.strength}
+        sunDirectionHor={sunProj ? sunDirectionHor : null}
+        moonDirectionHor={moonProj ? moonDirectionHor : null}
       />
 
       <svg
@@ -879,7 +964,7 @@ export default function StereoSkyChart({
             const effMag = showAtmosphere && !isSun && !isMoon && rawMag != null
               ? effectiveStarMagnitude(rawMag, p.altitude)
               : rawMag
-            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magToRadius(effMag ?? 2)
+            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magnitudeToCanvasRadius(effMag ?? 2)
             const isAboveHorizon = p.altitude >= 0
             const contrast = showAtmosphere && !isSun && !isMoon && effMag != null
               ? starContrastFactor(effMag, limitingMagnitude)

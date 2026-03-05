@@ -35,6 +35,8 @@ An advanced planetary alignment analysis and sky-visualization platform. It comb
 ### Space & Sky Panel
 - Two scene modes in one panel: `Solar System` (heliocentric 3D) and `Planetarium` (observer sky dome)
 - Solar System mode shows all planets with orbit lines, labels, inner-planets inset, and per-kind alignment cones from Earth
+- Shared star rendering model across all views (Solar System, Planetarium, Sky Charts): common spectral color mapping, magnitude sizing law, and core+halo appearance profile
+- Mode-aware star photometry: `Solar System` uses space mode (no atmospheric extinction/twilight wash), while `Planetarium` uses atmospheric mode (extinction + sky wash)
 - Planetarium mode provides Stellarium-style drag/zoom navigation with horizon, cardinal markers, Alt/Az grid, dashed ecliptic, stars, Milky Way, and constellations
 - Planetarium startup auto-selects the best instant inside the observer-local day, then frames a wide horizon-to-horizon ecliptic view
 - Startup time selection is mode-aware: `Visibility` mode prefers night if a usable target set is visible; `Geometry` mode picks the best overall sample (day or night)
@@ -78,7 +80,8 @@ An advanced planetary alignment analysis and sky-visualization platform. It comb
 - Observer location is shared with Planetarium and can be changed on demand from Sky Charts controls
 - Sunrise/sunset anchors and AM/PM labels are computed from the current observer-local day window
 - Sun, Moon (phase with sun-facing limb), planets, 192 stars, 39 constellations, dashed ecliptic, and Milky Way
-- Shared atmosphere model with Planetarium: sunlight/twilight/moonlight sky wash, star attenuation, and Milky Way attenuation
+- Shared atmosphere and star-photometry model with Planetarium: sunlight/twilight/moonlight sky wash, star attenuation, and Milky Way attenuation
+- Stars are rendered via cached sprite stamps derived from the shared star profile, so Sky Charts visually track Planetarium/Solar System star styling while staying performant
 - Toggleable layers: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic
 - Milky Way style switch: `Poly` (d3-celestial polygons) or `Tex` (NASA texture), default `Tex`
 - Poly and Tex Milky Way modes are playback-time-synchronized so switching styles does not introduce drift during animation

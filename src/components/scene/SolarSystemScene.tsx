@@ -60,7 +60,7 @@ function SceneContents({ positions, orbitPaths, visibleSeries, bestPerKind }: Pr
     <LabelRegistryProvider>
       <ambientLight intensity={0.15} />
       {showMilkyWay && <MilkyWaySphere />}
-      {showStars && <RealStars />}
+      {showStars && <RealStars mode="space" brightness={2.0} />}
       {showConstellations && <ConstellationLines3D />}
       {showConstellationBoundaries && <ConstellationBoundaries3D />}
       <Sun />

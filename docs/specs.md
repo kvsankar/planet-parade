@@ -102,6 +102,7 @@ Dual hemispheric sky charts showing evening and morning reference frames from a 
   - Polygons — multi-layer SVG fills from d3-celestial data.
   - Texture — real-time reprojection of a NASA Deep Star Maps JPEG (Gaia DR2, 1.7 billion stars) via Web Worker.
 - **Atmosphere model**: optional integrated sunlight/twilight/moonlight rendering shared with Planetarium; dims stars/planets and attenuates Milky Way contrast.
+- **Star appearance parity**: Sky Charts reuse the shared star-photometry/appearance pipeline (spectral color, effective magnitude, contrast, local sky wash), rendered through cached sprite stamps for 2D performance.
 - **Toggleable layers**: Stars, Milky Way, Atmosphere, Star Labels, Planet Labels, Moon, Constellation Edges, Constellation Labels, Alt/Az Grid, Ecliptic.
 - **Layout modes**: desktop paired AM/PM charts by default with optional tabbed mode; mobile always tabbed.
 - **Zoom/Pan**: 1–16× with mouse/touch. Mobile landscape allows zooming out enough to fit the full circular sky.
@@ -120,7 +121,7 @@ The Scene panel has two tabs: **Solar System** and **Planetarium**.
 - **Per-kind alignment cones**: when alignment analysis is active, separate cones from Earth visualize the best AM (orange), PM (blue), and Straddling (grey) clusters for the active combo.
 - **Celestial background** (all toggleable):
   - NASA Deep Star Maps Milky Way sphere (custom ShaderMaterial, see `docs/milkyway-texture.md`).
-  - 192 bright stars with accurate B-V color mapping.
+  - 192 bright stars with accurate B-V color mapping, rendered in explicit `space` mode (no atmospheric extinction/twilight wash).
   - 39 constellation stick figures.
   - IAU constellation boundary lines.
 - **Camera**: rotate (drag), zoom (scroll), pan (right-drag). Body selection animates camera toward the body. Follow mode tracks the selected body continuously.
@@ -129,7 +130,7 @@ The Scene panel has two tabs: **Solar System** and **Planetarium**.
 #### Planetarium tab
 
 - **Observer-centric sky dome** with horizon, cardinal markers, Alt/Az grid (15° intervals), dashed ecliptic, stars, Milky Way, constellations, Sun/Moon/planets.
-- **Integrated atmosphere** shared with Sky Charts (daylight, twilight, moonlight wash and attenuation).
+- **Integrated atmosphere** shared with Sky Charts (daylight, twilight, moonlight wash and attenuation), including atmospheric star photometry mode.
 - **Stable interaction model**: drag rotates the full sky frame (not independent overlays), axis-lock behavior reduces accidental horizon tilt, wheel/pinch zoom uses FoV range 20°–120°.
 - **Deterministic startup framing**: on mount/day-key/location/combo context changes, evaluates the observer-local day (5-minute samples), then picks a best sample using mode-aware policy: Visibility mode prefers usable nighttime slots, Geometry mode allows all-day best picks. It then frames a wide horizon-to-horizon ecliptic view (see `docs/planetarium-default-view.md`).
 - **Observer location control**: user-invoked only; supports browser geolocation permission prompt, OpenStreetMap map/search selection, and manual coordinate entry.
@@ -224,6 +225,7 @@ These are architectural and technology choices — not requirements. Alternative
 - **Local day-key model**: shared `timeZoneDay` helpers drive chart/minima day grouping, peak navigation, and day-bound sky computations for Planetarium/Sky Charts.
 - **Sky chart reference frame**: virtual longitudes selected via `sunHorizonLongitude` so Sun is at configurable reference altitude (`0°`, `-6°`, `-12°`) rather than fixed civil sunrise/sunset.
 - **Atmosphere rendering**: shared sky-visibility and chromatic atmosphere model used by both Planetarium and Sky Charts.
+- **Star rendering model**: shared `starAppearance` pipeline across Solar System, Planetarium, and Sky Charts with explicit photometry modes (`space` vs `atmospheric`) and renderer-adaptive outputs (3D shader points vs 2D sprite stamps).
 - **Sky chart texture**: Web Worker with inline blob source, shared across chart instances with reference counting and instance-ID isolation. See `docs/milkyway-texture.md`.
 - **Milky Way sphere**: custom ShaderMaterial bypassing Three.js color management. `phiStart=π` on SphereGeometry for RA alignment.
 - **Asset paths**: `import.meta.env.BASE_URL` prefix for all `public/` assets (Vite `base: './'`).

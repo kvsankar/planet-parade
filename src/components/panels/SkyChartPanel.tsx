@@ -301,6 +301,24 @@ function SkyChartPanel({
   pairSizeRef.current = { w: pairW, h: pairH }
   containerSizeRef.current = containerSize
 
+  const clampPanToBounds = useCallback((rawX: number, rawY: number) => {
+    const pairDims = pairSizeRef.current
+    const viewport = containerSizeRef.current
+    const maxX = Math.max(0, (pairDims.w - viewport.w) / 2)
+    const maxY = Math.max(0, (pairDims.h - viewport.h) / 2)
+    return {
+      x: Math.max(-maxX, Math.min(maxX, rawX)),
+      y: Math.max(-maxY, Math.min(maxY, rawY)),
+    }
+  }, [])
+
+  useEffect(() => {
+    const clamped = clampPanToBounds(panRef.current.x, panRef.current.y)
+    if (clamped.x === panRef.current.x && clamped.y === panRef.current.y) return
+    panRef.current = clamped
+    setPan(clamped)
+  }, [clampPanToBounds, pairW, pairH, containerSize.w, containerSize.h])
+
   const maxPanX = Math.max(0, (pairW - containerSize.w) / 2)
   const maxPanY = Math.max(0, (pairH - containerSize.h) / 2)
   const cpx = Math.max(-maxPanX, Math.min(maxPanX, pan.x))
@@ -312,8 +330,9 @@ function SkyChartPanel({
     if (!el) return
 
     const applyPan = (rawX: number, rawY: number) => {
-      panRef.current = { x: rawX, y: rawY }
-      setPan({ x: rawX, y: rawY })
+      const clamped = clampPanToBounds(rawX, rawY)
+      panRef.current = clamped
+      setPan(clamped)
     }
 
     const onWheel = (e: WheelEvent) => {
@@ -324,6 +343,9 @@ function SkyChartPanel({
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return
+      if (zoomRef.current <= 1 + 1e-3) return
+      const target = e.target as HTMLElement | null
+      if (target?.closest('button, input, select, textarea, label, a')) return
       e.preventDefault()
       dragRef.current = { startX: e.clientX, startY: e.clientY, startPan: { ...panRef.current } }
 
@@ -400,7 +422,7 @@ function SkyChartPanel({
       el.removeEventListener('touchend', onTouchEnd)
       el.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [minZoom])
+  }, [clampPanToBounds, minZoom])
 
   const toggleProps = {
     showStars, showStarLabels, showPlanetLabels,
