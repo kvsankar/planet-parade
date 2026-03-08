@@ -275,7 +275,10 @@ export default function App() {
       {emulateLandscapeMobile ? 'Desktop View' : 'Mobile Landscape'}
     </button>
   ) : null
-  const showMobilePlaybackBar = emulateLandscapeMobile || (sceneView === 'free' && mobileTab !== 'align')
+  const showMobilePlaybackBar = emulateLandscapeMobile
+    || mobileTab === 'timeline'
+    || mobileTab === 'sky'
+    || mobileTab === 'charts'
   const showMobileScene = mobileTab === 'scene'
 
   const mobileLayout = (
