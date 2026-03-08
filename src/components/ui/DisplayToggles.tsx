@@ -1,4 +1,5 @@
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
+import { CONTROL_LABELS, CONTROL_SECTIONS } from '../../lib/controlLabels'
 
 export default function DisplayToggles() {
   const {
@@ -12,43 +13,44 @@ export default function DisplayToggles() {
 
   return (
     <div className="control-section">
-      <label className="control-label">Display</label>
+      <label className="control-label">{CONTROL_SECTIONS.view}</label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={forceInner} onChange={toggleForceInner} />
+        <span>{CONTROL_LABELS.innerSolarSystem}</span>
+      </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showOrbits} onChange={toggleOrbits} />
-        <span>Orbits</span>
+        <span>{CONTROL_LABELS.orbits}</span>
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showLabels} onChange={toggleLabels} />
-        <span>Labels</span>
+        <span>{CONTROL_LABELS.bodyLabels}</span>
       </label>
-      <label className="toggle-row">
-        <input type="checkbox" checked={forceInner} onChange={toggleForceInner} />
-        <span>Inner Solar System</span>
-      </label>
+      <label className="control-label" style={{ marginTop: 8 }}>{CONTROL_SECTIONS.alignment}</label>
       <label className="toggle-row">
         <input type="checkbox" checked={showCones} onChange={toggleCones} />
-        <span>Alignment Cones</span>
+        <span>{CONTROL_LABELS.alignmentCones}</span>
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showPPIOverlay} onChange={togglePPIOverlay} />
-        <span>Cluster Info</span>
+        <span>{CONTROL_LABELS.paradeInfo}</span>
       </label>
-      <label className="control-label" style={{ marginTop: 8 }}>Sky</label>
+      <label className="control-label" style={{ marginTop: 8 }}>{CONTROL_SECTIONS.sky}</label>
       <label className="toggle-row">
         <input type="checkbox" checked={showStars} onChange={toggleStars} />
-        <span>Stars</span>
+        <span>{CONTROL_LABELS.stars}</span>
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showMilkyWay} onChange={toggleMilkyWay} />
-        <span>Milky Way</span>
+        <span>{CONTROL_LABELS.milkyWay}</span>
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showConstellations} onChange={toggleConstellations} />
-        <span>Constellations</span>
+        <span>{CONTROL_LABELS.constellationEdges}</span>
       </label>
       <label className="toggle-row">
         <input type="checkbox" checked={showConstellationBoundaries} onChange={toggleConstellationBoundaries} />
-        <span>Boundaries</span>
+        <span>{CONTROL_LABELS.constellationBoundaries}</span>
       </label>
     </div>
   )

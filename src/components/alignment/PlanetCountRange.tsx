@@ -40,7 +40,7 @@ export default function PlanetCountRange({ bodyCount, effectiveMin, effectiveMax
   return (
     <div className="min-planets-control">
       <label className="control-label">
-        Planet count
+        Body Count
         <span className="planet-range-label">{effectiveMin === effectiveMax ? effectiveMin : `${effectiveMin}\u2013${effectiveMax}`}</span>
       </label>
       {chips}

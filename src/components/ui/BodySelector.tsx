@@ -36,7 +36,7 @@ export default function BodySelector() {
           {selectedBodyId && (
             <label className="toggle-row" style={{ marginTop: '6px' }}>
               <input type="checkbox" checked={followMode} onChange={toggleFollow} />
-              <span>Follow</span>
+              <span>Follow Body</span>
             </label>
           )}
         </>

@@ -297,6 +297,7 @@ export default function App() {
                 observer={observer}
                 currentDate={currentDate}
                 timeZone={observerState.timeZone}
+                onOpenLocationPicker={openLocationPicker}
                 autoViewResetToken={planetariumViewResetToken}
                 onAutoDateChange={handleSetDate}
                 targetComboBodies={activeCombo?.planets ?? null}
@@ -432,6 +433,7 @@ export default function App() {
                   observer={observer}
                   currentDate={currentDate}
                   timeZone={observerState.timeZone}
+                  onOpenLocationPicker={openLocationPicker}
                   autoViewResetToken={planetariumViewResetToken}
                   onAutoDateChange={handleSetDate}
                   targetComboBodies={activeCombo?.planets ?? null}

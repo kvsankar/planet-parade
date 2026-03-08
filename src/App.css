@@ -1450,23 +1450,24 @@ select option {
 .planetarium-grid-toggles {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   background: rgba(10, 10, 20, 0.75);
   backdrop-filter: blur(4px);
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 8px;
+  padding: 8px 10px;
   z-index: 1;
   pointer-events: auto;
+  white-space: nowrap;
 }
 
 .planetarium-layer-menu {
   position: absolute;
   top: 6px;
-  right: 6px;
+  left: 6px;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 4px;
   pointer-events: auto;
 }
@@ -1512,6 +1513,7 @@ select option {
   font-size: 10px;
   color: #999;
   user-select: none;
+  margin-bottom: 0;
 }
 
 .planetarium-brightness-control {
@@ -1879,7 +1881,7 @@ select option {
 
 .skychart-layer-menu {
   position: absolute;
-  bottom: 4px;
+  top: 6px;
   left: 6px;
   z-index: 1;
 }
@@ -1905,7 +1907,7 @@ select option {
 
 .skychart-layer-dropdown {
   position: absolute;
-  bottom: 32px;
+  top: 32px;
   left: 0;
   background: rgba(10, 10, 20, 0.92);
   border-radius: 8px;
@@ -1925,6 +1927,10 @@ select option {
   font-size: 10px;
   color: #9aa4bc;
   margin-bottom: 2px;
+}
+
+.skychart-reference-controls .control-label {
+  margin-bottom: 0;
 }
 
 .skychart-reference-title {

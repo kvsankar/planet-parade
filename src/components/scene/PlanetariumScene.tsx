@@ -23,8 +23,10 @@ import {
   SKY_BRIGHTNESS_LABELS,
   SKY_BRIGHTNESS_LEVELS,
   SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR,
+  SKY_STAR_MAGNITUDE_SPREAD_FACTOR,
   SKY_STAR_BRIGHTNESS_FACTOR,
 } from '../../lib/skyBrightness'
+import { CONTROL_LABELS, CONTROL_SECTIONS } from '../../lib/controlLabels'
 
 const CANVAS_STYLE = { background: '#000000' }
 const STEREOGRAPHIC_CAMERA_DISTANCE = CELESTIAL_SPHERE_RADIUS * 1.02
@@ -59,6 +61,7 @@ interface ContentsProps {
   showEclipticGrid: boolean
   showStarsLocal: boolean
   starBrightnessFactor: number
+  starMagnitudeSpreadFactor: number
   showConstellationEdgesLocal: boolean
   constellationEdgeBrightnessFactor: number
   showPlanetLabelsLocal: boolean
@@ -85,6 +88,7 @@ function PlanetariumContents({
   showEclipticGrid,
   showStarsLocal,
   starBrightnessFactor,
+  starMagnitudeSpreadFactor,
   showConstellationEdgesLocal,
   constellationEdgeBrightnessFactor,
   showPlanetLabelsLocal,
@@ -119,6 +123,7 @@ function PlanetariumContents({
           <RealStars
             mode="atmospheric"
             brightness={2.0 * starBrightnessFactor}
+            magnitudeSpread={starMagnitudeSpreadFactor}
             visibility={starVisibilityLocal}
             visibilityScale={starVisibilityScale}
             twilightWash={twilightWashLocal}
@@ -139,6 +144,7 @@ function PlanetariumContents({
         showLabels={showPlanetLabelsLocal}
         showMoon={showMoonLocal}
         showAtmosphere={showAtmosphereLocal}
+        magnitudeSpreadFactor={starMagnitudeSpreadFactor}
       />
       {showEclipticGrid && <PlanetariumEclipticGrid observer={observer} />}
       <PlanetariumHorizon showCardinalLabels />
@@ -176,6 +182,7 @@ interface Props {
   observer: ObserverLocation
   currentDate: Date
   timeZone?: string | null
+  onOpenLocationPicker?: () => void
   autoViewResetToken?: number
   onAutoDateChange?: (d: Date) => void
   targetComboBodies?: CelestialBodyId[] | null
@@ -188,6 +195,7 @@ function PlanetariumScene({
   observer,
   currentDate,
   timeZone,
+  onOpenLocationPicker,
   autoViewResetToken,
   onAutoDateChange,
   targetComboBodies,
@@ -195,6 +203,7 @@ function PlanetariumScene({
   skyBrightnessLevel,
   onSkyBrightnessLevelChange,
 }: Props) {
+  const { showConstellationBoundaries, toggleConstellationBoundaries } = useDisplaySettings()
   const [showMilkyWay, setShowMilkyWay] = useState(true)
   const [showAltAzGrid, setShowAltAzGrid] = useState(true)
   const [showEclipticGrid, setShowEclipticGrid] = useState(true)
@@ -209,6 +218,7 @@ function PlanetariumScene({
   const [showLayerMenu, setShowLayerMenu] = useState(false)
   const layerMenuRef = useRef<HTMLDivElement>(null)
   const starBrightnessFactor = SKY_STAR_BRIGHTNESS_FACTOR[skyBrightnessLevel]
+  const starMagnitudeSpreadFactor = SKY_STAR_MAGNITUDE_SPREAD_FACTOR[skyBrightnessLevel]
   const starVisibilityScale = PLANETARIUM_STAR_VISIBILITY_SCALE[skyBrightnessLevel]
   const constellationEdgeBrightnessFactor = SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR[skyBrightnessLevel]
   const constellationEdgeScale = PLANETARIUM_CONSTELLATION_EDGE_SCALE[skyBrightnessLevel]
@@ -280,9 +290,10 @@ function PlanetariumScene({
           showAtmosphereLocal={showAtmosphere}
           showAltAzGrid={showAltAzGrid}
           showEclipticGrid={showEclipticGrid}
-          showStarsLocal={showStars}
-          starBrightnessFactor={starBrightnessFactor}
-          showConstellationEdgesLocal={showConstellationEdges}
+              showStarsLocal={showStars}
+              starBrightnessFactor={starBrightnessFactor}
+              starMagnitudeSpreadFactor={starMagnitudeSpreadFactor}
+              showConstellationEdgesLocal={showConstellationEdges}
           constellationEdgeBrightnessFactor={constellationEdgeBrightnessFactor * constellationEdgeScale}
           showPlanetLabelsLocal={showPlanetLabels}
           showMoonLocal={showMoon}
@@ -312,63 +323,92 @@ function PlanetariumScene({
         </button>
         {showLayerMenu && (
           <div className="planetarium-grid-toggles">
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showStars} onChange={() => setShowStars((v) => !v)} />
-              <span>Stars</span>
-            </label>
-            <div className="planetarium-grid-toggle planetarium-brightness-control">
-              <span>Brightness</span>
-              <span className="skychart-mw-pills">
-                {SKY_BRIGHTNESS_LEVELS.map((level) => (
-                  <button
-                    key={level}
-                    className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onSkyBrightnessLevelChange(level)
-                    }}
-                  >
-                    {SKY_BRIGHTNESS_LABELS[level]}
-                  </button>
-                ))}
-              </span>
+            <div className="control-section">
+              <label className="control-label">{CONTROL_SECTIONS.view}</label>
+              {onOpenLocationPicker && (
+                <button
+                  type="button"
+                  className="skychart-location-open-btn"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setShowLayerMenu(false)
+                    onOpenLocationPicker()
+                  }}
+                >
+                  {CONTROL_LABELS.setLocation}
+                </button>
+              )}
             </div>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showMilkyWay} onChange={() => setShowMilkyWay((v) => !v)} />
-              <span>Milky Way</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showAtmosphere} onChange={() => setShowAtmosphere((v) => !v)} />
-              <span>Atmosphere</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showStarLabels} onChange={() => setShowStarLabels((v) => !v)} />
-              <span>Star Labels</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showPlanetLabels} onChange={() => setShowPlanetLabels((v) => !v)} />
-              <span>Planet Labels</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showMoon} onChange={() => setShowMoon((v) => !v)} />
-              <span>Moon</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showConstellationEdges} onChange={() => setShowConstellationEdges((v) => !v)} />
-              <span>Constellation Edges</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showConstellationLabels} onChange={() => setShowConstellationLabels((v) => !v)} />
-              <span>Constellation Labels</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showAltAzGrid} onChange={() => setShowAltAzGrid((v) => !v)} />
-              <span>Alt/Az Grid</span>
-            </label>
-            <label className="planetarium-grid-toggle">
-              <input type="checkbox" checked={showEclipticGrid} onChange={() => setShowEclipticGrid((v) => !v)} />
-              <span>Ecliptic</span>
-            </label>
+            <div className="control-section">
+              <label className="control-label">{CONTROL_SECTIONS.sky}</label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showStars} onChange={() => setShowStars((v) => !v)} />
+                <span>{CONTROL_LABELS.stars}</span>
+              </label>
+              <div className="toggle-row planetarium-grid-toggle planetarium-brightness-control">
+                <span>{CONTROL_LABELS.brightness}</span>
+                <span className="skychart-mw-pills">
+                  {SKY_BRIGHTNESS_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        onSkyBrightnessLevelChange(level)
+                      }}
+                    >
+                      {SKY_BRIGHTNESS_LABELS[level]}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showMilkyWay} onChange={() => setShowMilkyWay((v) => !v)} />
+                <span>{CONTROL_LABELS.milkyWay}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showAtmosphere} onChange={() => setShowAtmosphere((v) => !v)} />
+                <span>{CONTROL_LABELS.atmosphere}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showMoon} onChange={() => setShowMoon((v) => !v)} />
+                <span>{CONTROL_LABELS.moon}</span>
+              </label>
+            </div>
+            <div className="control-section">
+              <label className="control-label">{CONTROL_SECTIONS.labels}</label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showPlanetLabels} onChange={() => setShowPlanetLabels((v) => !v)} />
+                <span>{CONTROL_LABELS.planetLabels}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showStarLabels} onChange={() => setShowStarLabels((v) => !v)} />
+                <span>{CONTROL_LABELS.starLabels}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showConstellationLabels} onChange={() => setShowConstellationLabels((v) => !v)} />
+                <span>{CONTROL_LABELS.constellationLabels}</span>
+              </label>
+            </div>
+            <div className="control-section">
+              <label className="control-label">{CONTROL_SECTIONS.guides}</label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showConstellationEdges} onChange={() => setShowConstellationEdges((v) => !v)} />
+                <span>{CONTROL_LABELS.constellationEdges}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showConstellationBoundaries} onChange={toggleConstellationBoundaries} />
+                <span>{CONTROL_LABELS.constellationBoundaries}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showAltAzGrid} onChange={() => setShowAltAzGrid((v) => !v)} />
+                <span>{CONTROL_LABELS.altAzGrid}</span>
+              </label>
+              <label className="toggle-row planetarium-grid-toggle">
+                <input type="checkbox" checked={showEclipticGrid} onChange={() => setShowEclipticGrid((v) => !v)} />
+                <span>{CONTROL_LABELS.ecliptic}</span>
+              </label>
+            </div>
           </div>
         )}
       </div>
@@ -395,6 +435,7 @@ function arePlanetariumScenePropsEqual(prev: Props, next: Props): boolean {
     && prev.observer.lon === next.observer.lon
     && prev.observer.height === next.observer.height
     && prev.timeZone === next.timeZone
+    && prev.onOpenLocationPicker === next.onOpenLocationPicker
     && prev.autoViewResetToken === next.autoViewResetToken
     && prev.onAutoDateChange === next.onAutoDateChange
     && prev.preferNightTargets === next.preferNightTargets

@@ -80,10 +80,12 @@ const fragmentShader = `
   }
 `
 
-// Shared geometry — positions and colors never change, computed once
-let sharedGeo: THREE.BufferGeometry | null = null
-function getSharedGeometry() {
-  if (sharedGeo) return sharedGeo
+// Shared geometry cache keyed by spread factor; positions/colors stay static.
+const sharedGeometryBySpread = new Map<number, THREE.BufferGeometry>()
+function getSharedGeometry(magnitudeSpread = 1) {
+  const spreadKey = Math.round(magnitudeSpread * 100) / 100
+  const cached = sharedGeometryBySpread.get(spreadKey)
+  if (cached) return cached
 
   const count = STAR_CATALOG.length
   const positions = new Float32Array(count * 3)
@@ -98,7 +100,7 @@ function getSharedGeometry() {
     positions[i * 3 + 1] = y
     positions[i * 3 + 2] = z
 
-    sizes[i] = magnitudeToSpriteSize(star.mag)
+    sizes[i] = magnitudeToSpriteSize(star.mag, spreadKey)
     mags[i] = star.mag
 
     const [r, g, b] = spectralClassToRgb(star.spectral)
@@ -112,13 +114,17 @@ function getSharedGeometry() {
   geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
   geo.setAttribute('aMag', new THREE.BufferAttribute(mags, 1))
   geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
-  sharedGeo = geo
+  if (sharedGeometryBySpread.size > 8) {
+    sharedGeometryBySpread.clear()
+  }
+  sharedGeometryBySpread.set(spreadKey, geo)
   return geo
 }
 
 interface Props {
   mode?: StarRenderMode
   brightness?: number // 1.0 = default, >1 = brighter (larger points + stronger halo)
+  magnitudeSpread?: number // 1.0 = default bright-vs-faint size spread
   visibility?: number // 0 = fully washed out, 1 = dark-sky visibility
   visibilityScale?: number // multiplier for atmospheric visibility (Planetarium parity tuning)
   twilightWash?: number
@@ -132,6 +138,7 @@ interface Props {
 export default memo(function RealStars({
   mode = 'atmospheric',
   brightness = 1.0,
+  magnitudeSpread = 1.0,
   visibility = 1,
   visibilityScale = 1,
   twilightWash = 0,
@@ -144,7 +151,7 @@ export default memo(function RealStars({
   const isSpaceMode = mode === 'space'
 
   const { geometry, material } = useMemo(() => {
-    const geo = getSharedGeometry()
+    const geo = getSharedGeometry(magnitudeSpread)
 
     const mat = new THREE.ShaderMaterial({
       vertexShader,
@@ -166,7 +173,7 @@ export default memo(function RealStars({
     })
 
     return { geometry: geo, material: mat }
-  }, [brightness, isSpaceMode])
+  }, [brightness, isSpaceMode, magnitudeSpread])
 
   // Update uniforms if brightness changes after mount
   useEffect(() => {

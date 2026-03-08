@@ -46,6 +46,7 @@ interface StereoSkyChartProps {
   milkyWayStyle?: 'polygons' | 'texture'
   horToEqjMatrix?: number[][]
   starBrightnessFactor?: number
+  starMagnitudeSpreadFactor?: number
   constellationEdgeBrightnessFactor?: number
 }
 
@@ -311,6 +312,7 @@ interface StarfieldCanvasLayerProps {
   sunDirectionHor: [number, number, number] | null
   moonDirectionHor: [number, number, number] | null
   starBrightnessFactor: number
+  starMagnitudeSpreadFactor: number
   constellationEdgeBrightnessFactor: number
 }
 
@@ -332,6 +334,7 @@ function StarfieldCanvasLayer({
   sunDirectionHor,
   moonDirectionHor,
   starBrightnessFactor,
+  starMagnitudeSpreadFactor,
   constellationEdgeBrightnessFactor,
 }: StarfieldCanvasLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -419,7 +422,11 @@ function StarfieldCanvasLayer({
           twilightWash: skyVisibility.twilightWash,
           moonWash: skyVisibility.moonWash,
         })
-        const radii = canvasRadiiFromEffectiveMagnitude(photometry.effectiveMagnitude, 1)
+        const radii = canvasRadiiFromEffectiveMagnitude(
+          photometry.effectiveMagnitude,
+          1,
+          starMagnitudeSpreadFactor,
+        )
         const isAbove = s.altitude >= 0
         const opacity = clamp((isAbove ? 0.85 : 0.3) * photometry.visibilityFactor * starBrightnessFactor, 0, 1)
 
@@ -471,6 +478,7 @@ function StarfieldCanvasLayer({
     sunDirectionHor,
     moonDirectionHor,
     starBrightnessFactor,
+    starMagnitudeSpreadFactor,
     constellationEdgeBrightnessFactor,
   ])
 
@@ -509,6 +517,7 @@ export default function StereoSkyChart({
   milkyWayStyle = 'polygons',
   horToEqjMatrix,
   starBrightnessFactor = 1,
+  starMagnitudeSpreadFactor = 1,
   constellationEdgeBrightnessFactor = 1,
 }: StereoSkyChartProps) {
   const MARGIN = hideTitle ? 18 : 28
@@ -952,6 +961,7 @@ export default function StereoSkyChart({
         sunDirectionHor={sunProj ? sunDirectionHor : null}
         moonDirectionHor={moonProj ? moonDirectionHor : null}
         starBrightnessFactor={starBrightnessFactor}
+        starMagnitudeSpreadFactor={starMagnitudeSpreadFactor}
         constellationEdgeBrightnessFactor={constellationEdgeBrightnessFactor}
       />
 
@@ -978,7 +988,11 @@ export default function StereoSkyChart({
             const effMag = showAtmosphere && !isSun && !isMoon && rawMag != null
               ? effectiveStarMagnitude(rawMag, p.altitude)
               : rawMag
-            const rad = isSun ? SUN_RADIUS : isMoon ? MOON_RADIUS : magnitudeToCanvasRadius(effMag ?? 2)
+            const rad = isSun
+              ? SUN_RADIUS
+              : isMoon
+                ? MOON_RADIUS
+                : magnitudeToCanvasRadius(effMag ?? 2, starMagnitudeSpreadFactor)
             const isAboveHorizon = p.altitude >= 0
             const contrast = showAtmosphere && !isSun && !isMoon && effMag != null
               ? starContrastFactor(effMag, limitingMagnitude)

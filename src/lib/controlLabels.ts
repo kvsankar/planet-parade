@@ -1,0 +1,31 @@
+export const CONTROL_SECTIONS = {
+  view: 'View',
+  alignment: 'Alignment',
+  sky: 'Sky',
+  labels: 'Labels',
+  guides: 'Guides',
+  reference: 'Reference',
+} as const
+
+export const CONTROL_LABELS = {
+  innerSolarSystem: 'Inner Solar System',
+  orbits: 'Orbits',
+  bodyLabels: 'Body Labels',
+  stars: 'Stars',
+  milkyWay: 'Milky Way',
+  atmosphere: 'Atmosphere',
+  moon: 'Moon',
+  brightness: 'Brightness',
+  planetLabels: 'Planet Labels',
+  starLabels: 'Star Labels',
+  constellationEdges: 'Constellation Edges',
+  constellationLabels: 'Constellation Labels',
+  constellationBoundaries: 'Constellation Boundaries',
+  altAzGrid: 'Alt/Az Grid',
+  ecliptic: 'Ecliptic',
+  alignmentCones: 'Alignment Cones',
+  paradeInfo: 'Parade Info',
+  tabbedView: 'Tabbed View',
+  sunAltitude: 'Sun Altitude',
+  setLocation: 'Set Location',
+} as const

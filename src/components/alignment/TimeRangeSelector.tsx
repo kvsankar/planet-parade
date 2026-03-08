@@ -66,7 +66,7 @@ export default function TimeRangeSelector({
   return (
     <div className="time-range-selector">
       <div className="time-range-row">
-        <label className="control-label">Start</label>
+        <label className="control-label">Start Date</label>
         <input
           type="date"
           className="date-input"

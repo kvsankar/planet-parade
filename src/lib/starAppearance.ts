@@ -12,6 +12,35 @@ function clamp01(value: number): number {
   return clamp(value, 0, 1)
 }
 
+const MAG_BRIGHT_REFERENCE = -4
+const MAG_FAINT_REFERENCE = 6.5
+const MAG_BRIGHT_FLUX = Math.pow(10, -0.4 * MAG_BRIGHT_REFERENCE)
+const MAG_FAINT_FLUX = Math.pow(10, -0.4 * MAG_FAINT_REFERENCE)
+
+interface MagnitudeSizeCurveParams {
+  minSize: number
+  maxSize: number
+  baseGamma: number
+  relativeSpread?: number
+}
+
+function relativeFluxFromMagnitude(magnitude: number): number {
+  const clampedMagnitude = clamp(magnitude, MAG_BRIGHT_REFERENCE, MAG_FAINT_REFERENCE)
+  const flux = Math.pow(10, -0.4 * clampedMagnitude)
+  return clamp01((flux - MAG_FAINT_FLUX) / (MAG_BRIGHT_FLUX - MAG_FAINT_FLUX))
+}
+
+function sizeFromMagnitudeCurve(
+  magnitude: number,
+  { minSize, maxSize, baseGamma, relativeSpread = 1 }: MagnitudeSizeCurveParams,
+): number {
+  const normalizedFlux = relativeFluxFromMagnitude(magnitude)
+  const spread = clamp(relativeSpread, 0.6, 1.7)
+  const gamma = clamp(baseGamma / spread, 0.2, 0.75)
+  const size = minSize + (maxSize - minSize) * Math.pow(normalizedFlux, gamma)
+  return clamp(size, minSize, maxSize)
+}
+
 const SPECTRAL_BV: Record<string, number> = {
   O: -0.33,
   B: -0.17,
@@ -79,13 +108,33 @@ export type StarRenderMode = 'atmospheric' | 'space'
  * Core size law used by GPU point sprites (`gl_PointSize`) in 3D views.
  * Other renderers should derive from this to keep magnitude spread aligned.
  */
-export function magnitudeToSpriteSize(magnitude: number): number {
-  return clamp(3.0 - magnitude * 0.5, 1.0, 5.0)
+export function magnitudeToSpriteSize(magnitude: number, relativeSpread = 1): number {
+  return sizeFromMagnitudeCurve(magnitude, {
+    minSize: 0.9,
+    maxSize: 6.6,
+    baseGamma: 0.35,
+    relativeSpread,
+  })
 }
 
 /** Legacy dot sizing used by non-star markers in 2D charts. */
-export function magnitudeToCanvasRadius(magnitude: number): number {
-  return clamp(3.5 - magnitude * 0.55, 1.0, 6.0)
+export function magnitudeToCanvasRadius(magnitude: number, relativeSpread = 1): number {
+  return sizeFromMagnitudeCurve(magnitude, {
+    minSize: 0.9,
+    maxSize: 7.8,
+    baseGamma: 0.3,
+    relativeSpread,
+  })
+}
+
+/** Per-body marker scale for 3D planet dots in Planetarium. */
+export function magnitudeToPlanetMarkerScale(magnitude: number, relativeSpread = 1): number {
+  return sizeFromMagnitudeCurve(magnitude, {
+    minSize: 0.7,
+    maxSize: 1.7,
+    baseGamma: 0.36,
+    relativeSpread,
+  })
 }
 
 export function magnitudeToFaintness(effectiveMagnitude: number): number {
@@ -107,8 +156,9 @@ export const STAR_CANVAS_STYLE = {
 export function canvasBaseRadiusFromEffectiveMagnitude(
   effectiveMagnitude: number,
   adapterScale = 1,
+  relativeSpread = 1,
 ): number {
-  const baseSize = magnitudeToSpriteSize(effectiveMagnitude)
+  const baseSize = magnitudeToSpriteSize(effectiveMagnitude, relativeSpread)
   const curved = 0.34 + 0.40 * Math.pow(baseSize, 1.35)
   return clamp(
     curved * adapterScale,
@@ -135,9 +185,10 @@ export function canvasRadiiFromBaseRadius(baseRadius: number): CanvasStarRadii {
 export function canvasRadiiFromEffectiveMagnitude(
   effectiveMagnitude: number,
   adapterScale = 1,
+  relativeSpread = 1,
 ): CanvasStarRadii {
   return canvasRadiiFromBaseRadius(
-    canvasBaseRadiusFromEffectiveMagnitude(effectiveMagnitude, adapterScale),
+    canvasBaseRadiusFromEffectiveMagnitude(effectiveMagnitude, adapterScale, relativeSpread),
   )
 }
 

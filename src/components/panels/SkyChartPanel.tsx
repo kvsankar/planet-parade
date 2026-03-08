@@ -23,8 +23,10 @@ import {
   SKY_BRIGHTNESS_LABELS,
   SKY_BRIGHTNESS_LEVELS,
   SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR,
+  SKY_STAR_MAGNITUDE_SPREAD_FACTOR,
   SKY_STAR_BRIGHTNESS_FACTOR,
 } from '../../lib/skyBrightness'
+import { CONTROL_LABELS, CONTROL_SECTIONS } from '../../lib/controlLabels'
 
 interface SkyChartPanelProps {
   currentDate: Date
@@ -111,6 +113,7 @@ function SkyChartPanel({
   const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
   const [sunReferenceAltitudeDeg, setSunReferenceAltitudeDeg] = useState<SunReferenceAltitude>(0)
   const starBrightnessFactor = SKY_STAR_BRIGHTNESS_FACTOR[skyBrightnessLevel]
+  const starMagnitudeSpreadFactor = SKY_STAR_MAGNITUDE_SPREAD_FACTOR[skyBrightnessLevel]
   const constellationEdgeBrightnessFactor = SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR[skyBrightnessLevel]
   const [renderMs, setRenderMs] = useState(() => currentDate.getTime())
   const renderMsRef = useRef(renderMs)
@@ -445,6 +448,7 @@ function SkyChartPanel({
     hideTitle: !!isMobile,
     milkyWayStyle,
     starBrightnessFactor,
+    starMagnitudeSpreadFactor,
     constellationEdgeBrightnessFactor,
   }
 
@@ -544,82 +548,79 @@ function SkyChartPanel({
               <button className="skychart-layer-btn" onClick={() => setLayerMenuOpen(o => !o)} aria-label="Layers">☰</button>
               {layerMenuOpen && (
                 <div className="skychart-layer-dropdown">
-                  {!isMobile && (
-                    <label className="skychart-toggle">
-                      <input
-                        type="checkbox"
-                        checked={showTabbedDesktop}
-                        onChange={() => {
-                          setShowTabbedDesktop((v) => !v)
-                          setPan({ x: 0, y: 0 })
+                  <div className="control-section">
+                    <label className="control-label">{CONTROL_SECTIONS.view}</label>
+                    {!isMobile && (
+                      <label className="toggle-row skychart-toggle">
+                        <input
+                          type="checkbox"
+                          checked={showTabbedDesktop}
+                          onChange={() => {
+                            setShowTabbedDesktop((v) => !v)
+                            setPan({ x: 0, y: 0 })
+                          }}
+                        />
+                        <span>{CONTROL_LABELS.tabbedView}</span>
+                      </label>
+                    )}
+                    <div className="skychart-reference-controls">
+                      <span className="control-label skychart-reference-title">{CONTROL_LABELS.sunAltitude}</span>
+                      <span className="skychart-reference-pills">
+                        {SUN_REFERENCE_ALTITUDES.map((altitude) => (
+                          <button
+                            key={altitude}
+                            className={`skychart-reference-pill${sunReferenceAltitudeDeg === altitude ? ' active' : ''}`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              setSunReferenceAltitudeDeg(altitude)
+                            }}
+                          >
+                            {formatSignedDegrees(altitude)}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                    {onOpenLocationPicker && (
+                      <button
+                        type="button"
+                        className="skychart-location-open-btn"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setLayerMenuOpen(false)
+                          onOpenLocationPicker()
                         }}
-                      />
-                      Tabbed View
+                      >
+                        {CONTROL_LABELS.setLocation}
+                      </button>
+                    )}
+                  </div>
+                  <div className="control-section">
+                    <label className="control-label">{CONTROL_SECTIONS.sky}</label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showStars} onChange={() => setShowStars(v => !v)} />
+                      <span>{CONTROL_LABELS.stars}</span>
                     </label>
-                  )}
-                  <div className="skychart-reference-controls">
-                    <span className="skychart-reference-title">Sun Altitude</span>
-                    <span className="skychart-reference-pills">
-                      {SUN_REFERENCE_ALTITUDES.map((altitude) => (
-                        <button
-                          key={altitude}
-                          className={`skychart-reference-pill${sunReferenceAltitudeDeg === altitude ? ' active' : ''}`}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setSunReferenceAltitudeDeg(altitude)
-                          }}
-                        >
-                          {formatSignedDegrees(altitude)}
-                        </button>
-                      ))}
-                    </span>
-                  </div>
-                  <div className="skychart-reference-controls">
-                    <span className="skychart-reference-title">Brightness</span>
-                    <span className="skychart-mw-pills">
-                      {SKY_BRIGHTNESS_LEVELS.map((level) => (
-                        <button
-                          key={level}
-                          className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            onSkyBrightnessLevelChange(level)
-                          }}
-                        >
-                          {SKY_BRIGHTNESS_LABELS[level]}
-                        </button>
-                      ))}
-                    </span>
-                  </div>
-                  {onOpenLocationPicker && (
-                    <button
-                      type="button"
-                      className="skychart-location-open-btn"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setLayerMenuOpen(false)
-                        onOpenLocationPicker()
-                      }}
-                    >
-                      Set Location
-                    </button>
-                  )}
-                  {([
-                    ['Stars', showStars, setShowStars],
-                    ['Milky Way', showMilkyWay, setShowMilkyWay],
-                    ['Atmosphere', showAtmosphere, setShowAtmosphere],
-                    ['Star Labels', showStarLabels, setShowStarLabels],
-                    ['Planet Labels', showPlanetLabels, setShowPlanetLabels],
-                    ['Moon', showMoon, setShowMoon],
-                    ['Constellation Edges', showConstellationEdges, setShowConstellationEdges],
-                    ['Constellation Labels', showConstellationLabels, setShowConstellationLabels],
-                    ['Alt/Az Grid', showAltAzGrid, setShowAltAzGrid],
-                    ['Ecliptic', showEcliptic, setShowEcliptic],
-                  ] as [string, boolean, React.Dispatch<React.SetStateAction<boolean>>][]).map(([label, val, setter]) => (
-                    <label key={label} className="skychart-toggle">
-                      <input type="checkbox" checked={val} onChange={() => setter(v => !v)} />
-                      {label}
-                      {label === 'Milky Way' && val && (
+                    <div className="toggle-row skychart-toggle skychart-reference-controls">
+                      <span className="control-label skychart-reference-title">{CONTROL_LABELS.brightness}</span>
+                      <span className="skychart-mw-pills">
+                        {SKY_BRIGHTNESS_LEVELS.map((level) => (
+                          <button
+                            key={level}
+                            className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              onSkyBrightnessLevelChange(level)
+                            }}
+                          >
+                            {SKY_BRIGHTNESS_LABELS[level]}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showMilkyWay} onChange={() => setShowMilkyWay(v => !v)} />
+                      <span>{CONTROL_LABELS.milkyWay}</span>
+                      {showMilkyWay && (
                         <span className="skychart-mw-pills" onClick={(e) => e.preventDefault()}>
                           <button
                             className={`skychart-mw-pill${milkyWayStyle === 'polygons' ? ' active' : ''}`}
@@ -636,7 +637,45 @@ function SkyChartPanel({
                         </span>
                       )}
                     </label>
-                  ))}
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showAtmosphere} onChange={() => setShowAtmosphere(v => !v)} />
+                      <span>{CONTROL_LABELS.atmosphere}</span>
+                    </label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showMoon} onChange={() => setShowMoon(v => !v)} />
+                      <span>{CONTROL_LABELS.moon}</span>
+                    </label>
+                  </div>
+                  <div className="control-section">
+                    <label className="control-label">{CONTROL_SECTIONS.labels}</label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showPlanetLabels} onChange={() => setShowPlanetLabels(v => !v)} />
+                      <span>{CONTROL_LABELS.planetLabels}</span>
+                    </label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showStarLabels} onChange={() => setShowStarLabels(v => !v)} />
+                      <span>{CONTROL_LABELS.starLabels}</span>
+                    </label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showConstellationLabels} onChange={() => setShowConstellationLabels(v => !v)} />
+                      <span>{CONTROL_LABELS.constellationLabels}</span>
+                    </label>
+                  </div>
+                  <div className="control-section">
+                    <label className="control-label">{CONTROL_SECTIONS.guides}</label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showConstellationEdges} onChange={() => setShowConstellationEdges(v => !v)} />
+                      <span>{CONTROL_LABELS.constellationEdges}</span>
+                    </label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showAltAzGrid} onChange={() => setShowAltAzGrid(v => !v)} />
+                      <span>{CONTROL_LABELS.altAzGrid}</span>
+                    </label>
+                    <label className="toggle-row skychart-toggle">
+                      <input type="checkbox" checked={showEcliptic} onChange={() => setShowEcliptic(v => !v)} />
+                      <span>{CONTROL_LABELS.ecliptic}</span>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>

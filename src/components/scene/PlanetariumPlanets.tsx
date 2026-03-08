@@ -11,6 +11,7 @@ import { getAtmosphereAppearance } from '../../lib/atmosphereColor'
 import { getNightSkyVisibility } from '../../lib/skyVisibility'
 import { DEFAULT_EXTINCTION_COEFF, effectiveStarMagnitude, limitingMagnitudeFromSkyVisibility, starContrastFactor } from '../../lib/starVisibility'
 import { BODY_META } from '../../constants'
+import { magnitudeToPlanetMarkerScale } from '../../lib/starAppearance'
 
 const PLANET_RADIUS = CELESTIAL_SPHERE_RADIUS * 0.98
 const ABOVE_HORIZON_EPS_DEG = -0.1
@@ -36,6 +37,7 @@ interface Props {
   showLabels?: boolean
   showMoon?: boolean
   showAtmosphere?: boolean
+  magnitudeSpreadFactor?: number
 }
 
 function moonPhasePath(r: number, illumination: number, litToRight: boolean): string {
@@ -122,9 +124,11 @@ export default function PlanetariumPlanets({
   showLabels = true,
   showMoon = true,
   showAtmosphere = true,
+  magnitudeSpreadFactor = 1,
 }: Props) {
   const { camera } = useThree()
   const bodyGroupRefs = useRef<Map<SkyBodyId, THREE.Group>>(new Map())
+  const bodyVisualRefs = useRef<Map<SkyBodyId, THREE.Object3D>>(new Map())
   const labelElementRefs = useRef<Map<SkyBodyId, HTMLDivElement>>(new Map())
   const sunGlowRef = useRef<THREE.Sprite>(null)
   const moonGlowRef = useRef<THREE.Sprite>(null)
@@ -311,6 +315,22 @@ export default function PlanetariumPlanets({
     const moonDir = bodyDirections.get('Moon') ?? null
 
     for (const bodyId of SKY_BODIES) {
+      const visual = bodyVisualRefs.current.get(bodyId)
+      if (visual) {
+        let sizeScale = 1
+        if (bodyId !== 'Sun' && bodyId !== 'Moon') {
+          const rawMagForSize = cachedMagnitudes[bodyId]
+          if (rawMagForSize != null) {
+            const altitudeForSize = bodyAltitudes.get(bodyId) ?? -90
+            const effMagForSize = showAtmosphere
+              ? effectiveStarMagnitude(rawMagForSize, altitudeForSize, DEFAULT_EXTINCTION_COEFF)
+              : rawMagForSize
+            sizeScale = magnitudeToPlanetMarkerScale(effMagForSize, magnitudeSpreadFactor)
+          }
+        }
+        visual.scale.set(sizeScale, sizeScale, sizeScale)
+      }
+
       if (bodyId === 'Moon') continue
       const mat = planetMaterials.get(bodyId)
       if (!mat) continue
@@ -407,7 +427,14 @@ export default function PlanetariumPlanets({
             {isMoon ? (
               <sprite material={moonMaterial} scale={[MOON_SPRITE_SIZE, MOON_SPRITE_SIZE, 1]} renderOrder={20} />
             ) : (
-              <mesh material={mat} renderOrder={20}>
+              <mesh
+                material={mat}
+                renderOrder={20}
+                ref={(obj) => {
+                  if (obj) bodyVisualRefs.current.set(bodyId, obj)
+                  else bodyVisualRefs.current.delete(bodyId)
+                }}
+              >
                 <sphereGeometry args={[size, 16, 16]} />
               </mesh>
             )}
