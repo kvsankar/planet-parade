@@ -276,6 +276,7 @@ export default function App() {
     </button>
   ) : null
   const showMobilePlaybackBar = emulateLandscapeMobile
+    || (mobileTab === 'scene' && sceneView === 'free')
     || mobileTab === 'timeline'
     || mobileTab === 'sky'
     || mobileTab === 'charts'
