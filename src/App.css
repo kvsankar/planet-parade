@@ -1346,6 +1346,14 @@ select option {
   width: 100%;
 }
 
+.planetarium-jump-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
 .planetarium-info-text {
   font-family: monospace;
   font-size: 10px;
@@ -1400,6 +1408,19 @@ select option {
 .planetarium-speed-row {
   display: flex;
   gap: 2px;
+  width: 100%;
+}
+
+.planetarium-date-input {
+  min-height: 24px;
+  font-size: 10px;
+  padding: 2px 4px;
+}
+
+.planetarium-speed-select {
+  width: 100%;
+  min-height: 24px;
+  font-size: 10px;
 }
 
 .planetarium-speed-btn {
@@ -1491,6 +1512,16 @@ select option {
   font-size: 10px;
   color: #999;
   user-select: none;
+}
+
+.planetarium-brightness-control {
+  justify-content: space-between;
+  gap: 8px;
+  cursor: default;
+}
+
+.planetarium-brightness-control .skychart-mw-pills {
+  margin-left: 0;
 }
 
 .planetarium-grid-toggle input[type="checkbox"] {
@@ -2418,7 +2449,8 @@ select option {
   display: none;
 }
 
-.app-force-mobile-landscape .playback-bar .playback-today-btn {
+.app-force-mobile-landscape .playback-bar .playback-today-btn,
+.app-force-mobile-landscape .playback-bar .playback-now-btn {
   display: inline-flex;
   min-height: 24px;
   font-size: 10px;
@@ -2656,12 +2688,13 @@ select option {
     justify-content: center;
   }
 
-  /* Hide nav buttons (±1, ±5) on mobile — keep date, today, play, speed */
+  /* Hide nav buttons (±1, ±5) on mobile — keep date, now/today, play, speed */
   .playback-bar .minima-nav-btn {
     display: none;
   }
 
-  .playback-bar .playback-today-btn {
+  .playback-bar .playback-today-btn,
+  .playback-bar .playback-now-btn {
     display: inline-flex;
     min-height: 24px;
     font-size: 10px;
@@ -2725,6 +2758,24 @@ select option {
     width: 32px;
     height: 32px;
     font-size: 18px;
+  }
+
+  .planetarium-time-controls {
+    max-width: calc(100% - 16px);
+    padding: 6px 8px;
+  }
+
+  .planetarium-jump-row .planetarium-time-btn,
+  .planetarium-time-row .planetarium-time-btn {
+    min-height: 28px;
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .planetarium-jump-row .planetarium-date-input,
+  .planetarium-speed-select {
+    min-height: 28px;
+    font-size: 11px;
   }
 
   .mobile-menu-btn {

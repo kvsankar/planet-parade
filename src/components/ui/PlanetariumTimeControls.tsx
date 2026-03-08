@@ -1,14 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { simulationStore } from '../../hooks/useSimulationStore'
-import { MS_PER_DAY } from '../../constants'
+import { DATE_MAX, DATE_MIN, SPEED_OPTIONS } from '../../constants'
 import { ObserverLocation } from '../../types'
-
-const SPEED_OPTIONS = [
-  { label: '1 min/s', value: 1 / 1440 },
-  { label: '5 min/s', value: 5 / 1440 },
-  { label: '15 min/s', value: 15 / 1440 },
-  { label: '1 hr/s', value: 1 / 24 },
-]
 const BASE_BOTTOM_PX = 12
 const SAFE_GAP_PX = 8
 
@@ -64,70 +57,44 @@ function formatDateTime(date: Date, timeZone?: string | null): string {
 
 interface Props {
   onDateChange: (d: Date) => void
+  isPlaying: boolean
+  speed: number
+  onTogglePlay: () => void
+  onSetSpeed: (s: number) => void
   observer: ObserverLocation
   currentDate: Date
   timeZone?: string | null
   onOpenLocationPicker?: () => void
 }
 
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+}
+
 export default function PlanetariumTimeControls({
   onDateChange,
+  isPlaying,
+  speed,
+  onTogglePlay,
+  onSetSpeed,
   observer,
   currentDate,
   timeZone,
   onOpenLocationPicker,
 }: Props) {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [speed, setSpeed] = useState(SPEED_OPTIONS[0].value)
   const rootRef = useRef<HTMLDivElement>(null)
   const [bottomPx, setBottomPx] = useState(BASE_BOTTOM_PX)
   const bottomPxRef = useRef(BASE_BOTTOM_PX)
-  const lastFrameRef = useRef<number | null>(null)
-  const uiUpdateRef = useRef(0)
 
   useEffect(() => {
     bottomPxRef.current = bottomPx
   }, [bottomPx])
-
-  useEffect(() => {
-    return () => {
-      lastFrameRef.current = null
-    }
-  }, [])
 
   const stepMinutes = useCallback((minutes: number) => {
     const newMs = simulationStore.date.getTime() + minutes * 60 * 1000
     simulationStore.date.setTime(newMs)
     onDateChange(new Date(newMs))
   }, [onDateChange])
-
-  useEffect(() => {
-    if (!isPlaying) {
-      lastFrameRef.current = null
-      return
-    }
-
-    let rafId = 0
-    const tick = (now: number) => {
-      if (lastFrameRef.current !== null) {
-        const elapsedSec = (now - lastFrameRef.current) / 1000
-        const capped = Math.min(elapsedSec, 0.1)
-        const newMs = simulationStore.date.getTime() + speed * capped * MS_PER_DAY
-        simulationStore.date.setTime(newMs)
-
-        // Keep UI updates lightweight while playing.
-        if (now - uiUpdateRef.current > 100) {
-          uiUpdateRef.current = now
-          onDateChange(new Date(newMs))
-        }
-      }
-      lastFrameRef.current = now
-      rafId = requestAnimationFrame(tick)
-    }
-
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [isPlaying, speed, onDateChange])
 
   const updateBottomOffset = useCallback(() => {
     const controlsEl = rootRef.current
@@ -185,9 +152,6 @@ export default function PlanetariumTimeControls({
     }
   }, [updateBottomOffset])
 
-  // Find current speed in options for highlighting
-  const currentSpeedIdx = SPEED_OPTIONS.findIndex((o) => Math.abs(o.value - speed) < 1e-8)
-
   return (
     <div ref={rootRef} className="planetarium-time-controls" style={{ bottom: `${bottomPx}px` }}>
       <div className="planetarium-info-row">
@@ -205,25 +169,44 @@ export default function PlanetariumTimeControls({
           <span className="planetarium-info-text">{formatLatLon(observer.lat, observer.lon)}</span>
         )}
       </div>
+      <div className="planetarium-jump-row">
+        <input
+          type="date"
+          className="playback-date-input planetarium-date-input"
+          value={currentDate.toISOString().slice(0, 10)}
+          min={DATE_MIN.toISOString().slice(0, 10)}
+          max={DATE_MAX.toISOString().slice(0, 10)}
+          onChange={(e) => {
+            const d = new Date(e.target.value + 'T00:00:00Z')
+            if (!isNaN(d.getTime())) onDateChange(d)
+          }}
+        />
+        <button className="planetarium-time-btn" onClick={() => onDateChange(new Date())} title="Jump to current time">
+          Now
+        </button>
+        <button className="planetarium-time-btn" onClick={() => onDateChange(startOfUtcDay(new Date()))} title="Jump to start of today (UTC)">
+          Today
+        </button>
+      </div>
       <div className="planetarium-time-row">
         <button className="planetarium-time-btn" onClick={() => stepMinutes(-5)} title="-5 min">-5m</button>
         <button className="planetarium-time-btn" onClick={() => stepMinutes(-1)} title="-1 min">-1m</button>
-        <button className="planetarium-time-btn planetarium-play-btn" onClick={() => setIsPlaying((v) => !v)}>
+        <button className="planetarium-time-btn planetarium-play-btn" onClick={onTogglePlay}>
           {isPlaying ? '\u23F8' : '\u25B6'}
         </button>
         <button className="planetarium-time-btn" onClick={() => stepMinutes(1)} title="+1 min">+1m</button>
         <button className="planetarium-time-btn" onClick={() => stepMinutes(5)} title="+5 min">+5m</button>
       </div>
       <div className="planetarium-speed-row">
-        {SPEED_OPTIONS.map((opt, i) => (
-          <button
-            key={opt.label}
-            className={`planetarium-speed-btn${i === currentSpeedIdx ? ' active' : ''}`}
-            onClick={() => setSpeed(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
+        <select
+          value={speed}
+          onChange={(e) => onSetSpeed(Number(e.target.value))}
+          className="speed-select planetarium-speed-select"
+        >
+          {SPEED_OPTIONS.map((opt) => (
+            <option key={opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
     </div>
   )

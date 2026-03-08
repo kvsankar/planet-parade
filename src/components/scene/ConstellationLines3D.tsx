@@ -7,7 +7,13 @@ import { raDecToSceneSphere, CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinat
 // Pre-compute star positions on the celestial sphere
 const starPositions = STAR_CATALOG.map((s) => raDecToSceneSphere(s.ra, s.dec, CELESTIAL_SPHERE_RADIUS))
 
-export default memo(function ConstellationLines3D() {
+interface Props {
+  opacity?: number
+}
+
+export default memo(function ConstellationLines3D({
+  opacity = 0.1,
+}: Props) {
   const { geometry, material } = useMemo(() => {
     // Count total segments
     let segCount = 0
@@ -36,12 +42,12 @@ export default memo(function ConstellationLines3D() {
     const mat = new THREE.LineBasicMaterial({
       color: 0x334466,
       transparent: true,
-      opacity: 0.1,
+      opacity,
       depthWrite: false,
     })
 
     return { geometry: geo, material: mat }
-  }, [])
+  }, [opacity])
 
   return <lineSegments geometry={geometry} material={material} />
 })

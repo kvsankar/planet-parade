@@ -37,6 +37,7 @@ const vertexShader = `
 const fragmentShader = `
   uniform float uHaloBoost;
   uniform float uVisibility;
+  uniform float uVisibilityScale;
   uniform float uTwilightWash;
   uniform float uMoonWash;
   uniform vec3 uSunDir;
@@ -71,7 +72,7 @@ const fragmentShader = `
     }
 
     localVisibility = clamp(localVisibility, 0.15, 1.0);
-    float visibility = clamp(uVisibility * localVisibility, 0.0, 1.0);
+    float visibility = clamp(uVisibility * uVisibilityScale * localVisibility, 0.0, 1.0);
     float limMag = mix(-1.0, 6.5, visibility);
     float magContrast = 1.0 - smoothstep(limMag - 0.7, limMag + 0.5, vEffMag);
 
@@ -119,6 +120,7 @@ interface Props {
   mode?: StarRenderMode
   brightness?: number // 1.0 = default, >1 = brighter (larger points + stronger halo)
   visibility?: number // 0 = fully washed out, 1 = dark-sky visibility
+  visibilityScale?: number // multiplier for atmospheric visibility (Planetarium parity tuning)
   twilightWash?: number
   moonWash?: number
   sunDirection?: [number, number, number]
@@ -131,6 +133,7 @@ export default memo(function RealStars({
   mode = 'atmospheric',
   brightness = 1.0,
   visibility = 1,
+  visibilityScale = 1,
   twilightWash = 0,
   moonWash = 0,
   sunDirection = [0, 1, 0],
@@ -150,6 +153,7 @@ export default memo(function RealStars({
         uSizeScale: { value: brightness },
         uHaloBoost: { value: 0.06 * brightness },
         uVisibility: { value: isSpaceMode ? 1 : visibility },
+        uVisibilityScale: { value: isSpaceMode ? 1 : visibilityScale },
         uTwilightWash: { value: isSpaceMode ? 0 : twilightWash },
         uMoonWash: { value: isSpaceMode ? 0 : moonWash },
         uSunDir: { value: new THREE.Vector3(...sunDirection).normalize() },
@@ -173,6 +177,10 @@ export default memo(function RealStars({
   useEffect(() => {
     material.uniforms.uVisibility.value = isSpaceMode ? 1 : visibility
   }, [isSpaceMode, material, visibility])
+
+  useEffect(() => {
+    material.uniforms.uVisibilityScale.value = isSpaceMode ? 1 : visibilityScale
+  }, [isSpaceMode, material, visibilityScale])
 
   useEffect(() => {
     material.uniforms.uTwilightWash.value = isSpaceMode ? 0 : twilightWash

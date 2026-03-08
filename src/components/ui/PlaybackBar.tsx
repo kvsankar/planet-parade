@@ -17,6 +17,10 @@ function addDays(date: Date, days: number): Date {
   return d
 }
 
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+}
+
 export default memo(function PlaybackBar({
   currentDate,
   isPlaying,
@@ -41,10 +45,17 @@ export default memo(function PlaybackBar({
       />
       <button
         className="minima-nav-btn playback-today-btn"
-        onClick={() => onDateChange(new Date())}
-        title="Jump to today"
+        onClick={() => onDateChange(startOfUtcDay(new Date()))}
+        title="Jump to start of today (UTC)"
       >
         Today
+      </button>
+      <button
+        className="minima-nav-btn playback-now-btn"
+        onClick={() => onDateChange(new Date())}
+        title="Jump to current time"
+      >
+        Now
       </button>
       <button className="minima-nav-btn" onClick={() => onDateChange(addDays(currentDate, -5))} title="Back 5 days">
         &#9664;&#9664; 5
@@ -67,7 +78,7 @@ export default memo(function PlaybackBar({
         className="speed-select"
       >
         {SPEED_OPTIONS.map((s) => (
-          <option key={s} value={s}>{s} d/s</option>
+          <option key={s.label} value={s.value}>{s.label}</option>
         ))}
       </select>
       {extraActions}

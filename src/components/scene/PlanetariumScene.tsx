@@ -14,16 +14,32 @@ import MilkyWaySphere from './MilkyWaySphere'
 import ConstellationLines3D from './ConstellationLines3D'
 import ConstellationBoundaries3D from './ConstellationBoundaries3D'
 import { useDisplaySettings } from '../../hooks/useDisplaySettings'
-import { CelestialBodyId, ObserverLocation } from '../../types'
+import { CelestialBodyId, ObserverLocation, SkyBrightnessLevel } from '../../types'
 import { CELESTIAL_SPHERE_RADIUS } from '../../lib/coordinateConversion'
 import { AtmosphereAppearance } from '../../lib/atmosphereColor'
 import { simulationStore } from '../../hooks/useSimulationStore'
 import { PlanetariumSkyState, computePlanetariumSkyState } from './planetariumSkyState'
+import {
+  SKY_BRIGHTNESS_LABELS,
+  SKY_BRIGHTNESS_LEVELS,
+  SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR,
+  SKY_STAR_BRIGHTNESS_FACTOR,
+} from '../../lib/skyBrightness'
 
 const CANVAS_STYLE = { background: '#000000' }
 const STEREOGRAPHIC_CAMERA_DISTANCE = CELESTIAL_SPHERE_RADIUS * 1.02
 const DISK_MASK_ENABLE_FOV = 120
 const PLANETARIUM_MW_BASE_OPACITY = 0.45
+const PLANETARIUM_STAR_VISIBILITY_SCALE: Record<SkyBrightnessLevel, number> = {
+  low: 1,
+  med: 1.35,
+  high: 1.7,
+}
+const PLANETARIUM_CONSTELLATION_EDGE_SCALE: Record<SkyBrightnessLevel, number> = {
+  low: 1,
+  med: 1.5,
+  high: 1.8,
+}
 
 interface ContentsProps {
   observer: ObserverLocation
@@ -33,6 +49,7 @@ interface ContentsProps {
   twilightWashLocal: number
   moonWashLocal: number
   starVisibilityLocal: number
+  starVisibilityScale: number
   sunDirectionLocal: [number, number, number]
   moonDirectionLocal: [number, number, number]
   atmosphereLocal: AtmosphereAppearance
@@ -41,7 +58,9 @@ interface ContentsProps {
   showAltAzGrid: boolean
   showEclipticGrid: boolean
   showStarsLocal: boolean
+  starBrightnessFactor: number
   showConstellationEdgesLocal: boolean
+  constellationEdgeBrightnessFactor: number
   showPlanetLabelsLocal: boolean
   showMoonLocal: boolean
   showStarLabelsLocal: boolean
@@ -56,6 +75,7 @@ function PlanetariumContents({
   twilightWashLocal,
   moonWashLocal,
   starVisibilityLocal,
+  starVisibilityScale,
   sunDirectionLocal,
   moonDirectionLocal,
   atmosphereLocal,
@@ -64,7 +84,9 @@ function PlanetariumContents({
   showAltAzGrid,
   showEclipticGrid,
   showStarsLocal,
+  starBrightnessFactor,
   showConstellationEdgesLocal,
+  constellationEdgeBrightnessFactor,
   showPlanetLabelsLocal,
   showMoonLocal,
   showStarLabelsLocal,
@@ -96,8 +118,9 @@ function PlanetariumContents({
         {showStarsLocal && (
           <RealStars
             mode="atmospheric"
-            brightness={2.0}
+            brightness={2.0 * starBrightnessFactor}
             visibility={starVisibilityLocal}
+            visibilityScale={starVisibilityScale}
             twilightWash={twilightWashLocal}
             moonWash={moonWashLocal}
             sunDirection={sunDirectionLocal}
@@ -107,7 +130,7 @@ function PlanetariumContents({
           />
         )}
         {showStarLabelsLocal && <PlanetariumStarLabels />}
-        {showConstellationEdgesLocal && <ConstellationLines3D />}
+        {showConstellationEdgesLocal && <ConstellationLines3D opacity={0.1 * constellationEdgeBrightnessFactor} />}
         {showConstellationLabelsLocal && <PlanetariumConstellationLabels />}
         {showConstellationBoundaries && <ConstellationBoundaries3D />}
       </PlanetariumWorldRotation>
@@ -157,6 +180,8 @@ interface Props {
   onAutoDateChange?: (d: Date) => void
   targetComboBodies?: CelestialBodyId[] | null
   preferNightTargets?: boolean
+  skyBrightnessLevel: SkyBrightnessLevel
+  onSkyBrightnessLevelChange: (level: SkyBrightnessLevel) => void
 }
 
 function PlanetariumScene({
@@ -167,6 +192,8 @@ function PlanetariumScene({
   onAutoDateChange,
   targetComboBodies,
   preferNightTargets = true,
+  skyBrightnessLevel,
+  onSkyBrightnessLevelChange,
 }: Props) {
   const [showMilkyWay, setShowMilkyWay] = useState(true)
   const [showAltAzGrid, setShowAltAzGrid] = useState(true)
@@ -181,6 +208,10 @@ function PlanetariumScene({
   const [viewFovDeg, setViewFovDeg] = useState(60)
   const [showLayerMenu, setShowLayerMenu] = useState(false)
   const layerMenuRef = useRef<HTMLDivElement>(null)
+  const starBrightnessFactor = SKY_STAR_BRIGHTNESS_FACTOR[skyBrightnessLevel]
+  const starVisibilityScale = PLANETARIUM_STAR_VISIBILITY_SCALE[skyBrightnessLevel]
+  const constellationEdgeBrightnessFactor = SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR[skyBrightnessLevel]
+  const constellationEdgeScale = PLANETARIUM_CONSTELLATION_EDGE_SCALE[skyBrightnessLevel]
 
   const diskMaskOpacity = viewFovDeg >= DISK_MASK_ENABLE_FOV ? 1 : 0
 
@@ -241,6 +272,7 @@ function PlanetariumScene({
           twilightWashLocal={skyStateRef.current.twilightWash}
           moonWashLocal={skyStateRef.current.moonWash}
           starVisibilityLocal={skyStateRef.current.starVisibility}
+          starVisibilityScale={starVisibilityScale}
           sunDirectionLocal={skyStateRef.current.sunDirection}
           moonDirectionLocal={skyStateRef.current.moonDirection}
           atmosphereLocal={skyStateRef.current.atmosphere}
@@ -249,7 +281,9 @@ function PlanetariumScene({
           showAltAzGrid={showAltAzGrid}
           showEclipticGrid={showEclipticGrid}
           showStarsLocal={showStars}
+          starBrightnessFactor={starBrightnessFactor}
           showConstellationEdgesLocal={showConstellationEdges}
+          constellationEdgeBrightnessFactor={constellationEdgeBrightnessFactor * constellationEdgeScale}
           showPlanetLabelsLocal={showPlanetLabels}
           showMoonLocal={showMoon}
           showStarLabelsLocal={showStarLabels}
@@ -282,6 +316,23 @@ function PlanetariumScene({
               <input type="checkbox" checked={showStars} onChange={() => setShowStars((v) => !v)} />
               <span>Stars</span>
             </label>
+            <div className="planetarium-grid-toggle planetarium-brightness-control">
+              <span>Brightness</span>
+              <span className="skychart-mw-pills">
+                {SKY_BRIGHTNESS_LEVELS.map((level) => (
+                  <button
+                    key={level}
+                    className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      onSkyBrightnessLevelChange(level)
+                    }}
+                  >
+                    {SKY_BRIGHTNESS_LABELS[level]}
+                  </button>
+                ))}
+              </span>
+            </div>
             <label className="planetarium-grid-toggle">
               <input type="checkbox" checked={showMilkyWay} onChange={() => setShowMilkyWay((v) => !v)} />
               <span>Milky Way</span>
@@ -347,6 +398,8 @@ function arePlanetariumScenePropsEqual(prev: Props, next: Props): boolean {
     && prev.autoViewResetToken === next.autoViewResetToken
     && prev.onAutoDateChange === next.onAutoDateChange
     && prev.preferNightTargets === next.preferNightTargets
+    && prev.skyBrightnessLevel === next.skyBrightnessLevel
+    && prev.onSkyBrightnessLevelChange === next.onSkyBrightnessLevelChange
     && sameTargetBodies(prev.targetComboBodies, next.targetComboBodies)
   )
 }

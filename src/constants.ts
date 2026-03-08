@@ -24,7 +24,30 @@ export const BODY_META: Record<CelestialBodyId, BodyMeta> = {
   Neptune: { id: 'Neptune', color: '#5B5DDF', orbitalPeriodDays: 60182,   orbitSamples: 360 },
 }
 
-export const SPEED_OPTIONS = [1, 5, 10, 30, 100, 365, 1000, 3650]
+export interface SpeedOption {
+  value: number
+  label: string
+}
+
+export const SPEED_OPTIONS: SpeedOption[] = [
+  { label: '1 min/s', value: 1 / 1440 },
+  { label: '5 min/s', value: 5 / 1440 },
+  { label: '15 min/s', value: 15 / 1440 },
+  { label: '1 hr/s', value: 1 / 24 },
+  { label: '6 hr/s', value: 6 / 24 },
+  { label: '1 d/s', value: 1 },
+  { label: '5 d/s', value: 5 },
+  { label: '10 d/s', value: 10 },
+  { label: '30 d/s', value: 30 },
+  { label: '100 d/s', value: 100 },
+  { label: '365 d/s', value: 365 },
+  { label: '1000 d/s', value: 1000 },
+  { label: '3650 d/s', value: 3650 },
+]
+
+export const DEFAULT_TIMELINE_SPEED = 1
+export const DEFAULT_SKY_TIME_SPEED = SPEED_OPTIONS[1].value
+export const DEFAULT_PLAYBACK_SPEED = DEFAULT_TIMELINE_SPEED
 
 export const ANALYZABLE_BODIES: CelestialBodyId[] = [
   'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',

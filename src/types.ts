@@ -115,6 +115,7 @@ export type ChartMetric = 'ppi' | 'span'
 export type NavMode = 'ppi' | 'span'
 export type AnalysisMode = 'visibility' | 'geometry'
 export type RankingMetric = 'ppi' | 'span'
+export type SkyBrightnessLevel = 'low' | 'med' | 'high'
 
 export interface CountDayBest {
   ppi: number

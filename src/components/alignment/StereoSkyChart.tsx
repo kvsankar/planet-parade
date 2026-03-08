@@ -45,6 +45,8 @@ interface StereoSkyChartProps {
   hideTitle?: boolean
   milkyWayStyle?: 'polygons' | 'texture'
   horToEqjMatrix?: number[][]
+  starBrightnessFactor?: number
+  constellationEdgeBrightnessFactor?: number
 }
 
 const MOON_COLOR = '#C8C8C8'
@@ -308,6 +310,8 @@ interface StarfieldCanvasLayerProps {
   skyVisibility: NightSkyVisibility
   sunDirectionHor: [number, number, number] | null
   moonDirectionHor: [number, number, number] | null
+  starBrightnessFactor: number
+  constellationEdgeBrightnessFactor: number
 }
 
 function StarfieldCanvasLayer({
@@ -327,6 +331,8 @@ function StarfieldCanvasLayer({
   skyVisibility,
   sunDirectionHor,
   moonDirectionHor,
+  starBrightnessFactor,
+  constellationEdgeBrightnessFactor,
 }: StarfieldCanvasLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const spriteCacheRef = useRef<Map<string, StarSpriteStamp>>(new Map())
@@ -356,8 +362,10 @@ function StarfieldCanvasLayer({
 
     if (showConstellationEdges) {
       ctx.lineWidth = 0.6
+      const edgeAlpha = clamp(0.25 * constellationEdgeBrightnessFactor, 0, 1)
+      const edgeBelowHorizonAlpha = clamp(0.025 * constellationEdgeBrightnessFactor, 0, 1)
 
-      ctx.strokeStyle = 'rgba(100, 140, 255, 0.25)'
+      ctx.strokeStyle = `rgba(100, 140, 255, ${edgeAlpha})`
       ctx.beginPath()
       for (const c of constellationData) {
         for (const seg of c.segments) {
@@ -368,7 +376,7 @@ function StarfieldCanvasLayer({
       }
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(100, 140, 255, 0.025)'
+      ctx.strokeStyle = `rgba(100, 140, 255, ${edgeBelowHorizonAlpha})`
       ctx.beginPath()
       for (const c of constellationData) {
         for (const seg of c.segments) {
@@ -413,7 +421,7 @@ function StarfieldCanvasLayer({
         })
         const radii = canvasRadiiFromEffectiveMagnitude(photometry.effectiveMagnitude, 1)
         const isAbove = s.altitude >= 0
-        const opacity = (isAbove ? 0.85 : 0.3) * photometry.visibilityFactor
+        const opacity = clamp((isAbove ? 0.85 : 0.3) * photometry.visibilityFactor * starBrightnessFactor, 0, 1)
 
         if (opacity <= 0.001) continue
         const sprite = getStarSpriteStamp(
@@ -462,6 +470,8 @@ function StarfieldCanvasLayer({
     skyVisibility,
     sunDirectionHor,
     moonDirectionHor,
+    starBrightnessFactor,
+    constellationEdgeBrightnessFactor,
   ])
 
   return (
@@ -498,6 +508,8 @@ export default function StereoSkyChart({
   hideTitle = false,
   milkyWayStyle = 'polygons',
   horToEqjMatrix,
+  starBrightnessFactor = 1,
+  constellationEdgeBrightnessFactor = 1,
 }: StereoSkyChartProps) {
   const MARGIN = hideTitle ? 18 : 28
   const TITLE_OFFSET = hideTitle ? 0 : 18
@@ -939,6 +951,8 @@ export default function StereoSkyChart({
         skyVisibility={skyVisibility}
         sunDirectionHor={sunProj ? sunDirectionHor : null}
         moonDirectionHor={moonProj ? moonDirectionHor : null}
+        starBrightnessFactor={starBrightnessFactor}
+        constellationEdgeBrightnessFactor={constellationEdgeBrightnessFactor}
       />
 
       <svg

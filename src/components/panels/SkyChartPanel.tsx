@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef, useState, useEffect, useCallback } from 'react'
-import { ObserverLocation } from '../../types'
+import { ObserverLocation, SkyBrightnessLevel } from '../../types'
 import {
   findSunrise,
   findSunset,
@@ -19,6 +19,12 @@ import {
 import { getTimeZoneDayKey, getTimeZoneDayRange } from '../../lib/timeZoneDay'
 import StereoSkyChart from '../alignment/StereoSkyChart'
 import { simulationStore } from '../../hooks/useSimulationStore'
+import {
+  SKY_BRIGHTNESS_LABELS,
+  SKY_BRIGHTNESS_LEVELS,
+  SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR,
+  SKY_STAR_BRIGHTNESS_FACTOR,
+} from '../../lib/skyBrightness'
 
 interface SkyChartPanelProps {
   currentDate: Date
@@ -28,6 +34,8 @@ interface SkyChartPanelProps {
   isPlaying?: boolean
   isLandscape?: boolean
   onOpenLocationPicker?: () => void
+  skyBrightnessLevel: SkyBrightnessLevel
+  onSkyBrightnessLevelChange: (level: SkyBrightnessLevel) => void
 }
 
 const SKY_CHART_TARGET_FPS = 12
@@ -61,6 +69,8 @@ function SkyChartPanel({
   isPlaying,
   isLandscape,
   onOpenLocationPicker,
+  skyBrightnessLevel,
+  onSkyBrightnessLevelChange,
 }: SkyChartPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
@@ -100,6 +110,8 @@ function SkyChartPanel({
   const [showMoon, setShowMoon] = useState(true)
   const [milkyWayStyle, setMilkyWayStyle] = useState<'polygons' | 'texture'>('texture')
   const [sunReferenceAltitudeDeg, setSunReferenceAltitudeDeg] = useState<SunReferenceAltitude>(0)
+  const starBrightnessFactor = SKY_STAR_BRIGHTNESS_FACTOR[skyBrightnessLevel]
+  const constellationEdgeBrightnessFactor = SKY_CONSTELLATION_EDGE_BRIGHTNESS_FACTOR[skyBrightnessLevel]
   const [renderMs, setRenderMs] = useState(() => currentDate.getTime())
   const renderMsRef = useRef(renderMs)
 
@@ -432,6 +444,8 @@ function SkyChartPanel({
     showPlanets: true, showMoon, isPlaying,
     hideTitle: !!isMobile,
     milkyWayStyle,
+    starBrightnessFactor,
+    constellationEdgeBrightnessFactor,
   }
 
   const morningChart = (
@@ -560,6 +574,23 @@ function SkyChartPanel({
                       ))}
                     </span>
                   </div>
+                  <div className="skychart-reference-controls">
+                    <span className="skychart-reference-title">Brightness</span>
+                    <span className="skychart-mw-pills">
+                      {SKY_BRIGHTNESS_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          className={`skychart-mw-pill${skyBrightnessLevel === level ? ' active' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            onSkyBrightnessLevelChange(level)
+                          }}
+                        >
+                          {SKY_BRIGHTNESS_LABELS[level]}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
                   {onOpenLocationPicker && (
                     <button
                       type="button"
@@ -623,6 +654,8 @@ function arePropsEqual(prev: SkyChartPanelProps, next: SkyChartPanelProps): bool
   if (prev.isLandscape !== next.isLandscape) return false
   if (prev.onOpenLocationPicker !== next.onOpenLocationPicker) return false
   if (prev.isPlaying !== next.isPlaying) return false
+  if (prev.skyBrightnessLevel !== next.skyBrightnessLevel) return false
+  if (prev.onSkyBrightnessLevelChange !== next.onSkyBrightnessLevelChange) return false
 
   // During global playback this panel follows simulationStore directly and
   // intentionally ignores parent date snapshots to avoid duplicate rerenders.

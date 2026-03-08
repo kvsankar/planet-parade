@@ -1,3 +1,5 @@
+import { DEFAULT_PLAYBACK_SPEED } from '../constants'
+
 /**
  * Module-level singleton store for simulation state.
  * Uses plain mutable objects instead of React context so it works
@@ -6,5 +8,5 @@
 export const simulationStore = {
   date: new Date() as Date,
   isPlaying: false,
-  speed: 10,
+  speed: DEFAULT_PLAYBACK_SPEED,
 }

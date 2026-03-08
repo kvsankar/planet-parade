@@ -17,14 +17,14 @@ import MobileTabBar, { MobileTab } from './components/ui/MobileTabBar'
 import LocationPickerModal from './components/ui/LocationPickerModal'
 import { SimulationTimeContext } from './hooks/useSimulationTime'
 import { simulationStore } from './hooks/useSimulationStore'
-import { MS_PER_DAY, BODY_META } from './constants'
+import { MS_PER_DAY, BODY_META, DEFAULT_PLAYBACK_SPEED, DEFAULT_SKY_TIME_SPEED } from './constants'
 import { SelectionContext } from './hooks/useSelection'
 import { DisplaySettingsContext } from './hooks/useDisplaySettings'
 import { usePlanetPositions } from './hooks/usePlanetPositions'
 import { useOrbitPaths } from './hooks/useOrbitPaths'
 import { usePanelManager, PanelId } from './hooks/usePanelManager'
 import { useAlignmentState } from './hooks/useAlignmentState'
-import { CelestialBodyId } from './types'
+import { CelestialBodyId, SkyBrightnessLevel } from './types'
 import { useTour } from './hooks/useTour'
 import { useIsMobile } from './hooks/useIsMobile'
 import { useIsLandscape } from './hooks/useIsLandscape'
@@ -56,14 +56,22 @@ export default function App() {
   // --- Simulation Time ---
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [isPlaying, setIsPlaying] = useState(false)
-  const [speed, setSpeed] = useState(10)
+  const [speed, setSpeed] = useState(DEFAULT_PLAYBACK_SPEED)
+  const [timelineSpeed, setTimelineSpeed] = useState(DEFAULT_PLAYBACK_SPEED)
+  const [skyTimeSpeed, setSkyTimeSpeed] = useState(DEFAULT_SKY_TIME_SPEED)
 
-  const togglePlay = useCallback(() => {
+  const applyActiveSpeed = useCallback((nextSpeed: number) => {
+    simulationStore.speed = nextSpeed
+    setSpeed(nextSpeed)
+  }, [])
+
+  const togglePlay = useCallback((playSpeed: number) => {
+    applyActiveSpeed(playSpeed)
     setIsPlaying((p) => {
       simulationStore.isPlaying = !p
       return !p
     })
-  }, [])
+  }, [applyActiveSpeed])
 
   const handleSetDate = useCallback((d: Date) => {
     const next = new Date(d.getTime())
@@ -71,10 +79,23 @@ export default function App() {
     setCurrentDate(next)
   }, [])
 
-  const handleSetSpeed = useCallback((s: number) => {
-    simulationStore.speed = s
-    setSpeed(s)
-  }, [])
+  const handleSetTimelineSpeed = useCallback((s: number) => {
+    setTimelineSpeed(s)
+    applyActiveSpeed(s)
+  }, [applyActiveSpeed])
+
+  const handleSetSkyTimeSpeed = useCallback((s: number) => {
+    setSkyTimeSpeed(s)
+    applyActiveSpeed(s)
+  }, [applyActiveSpeed])
+
+  const handleToggleTimelinePlay = useCallback(() => {
+    togglePlay(timelineSpeed)
+  }, [togglePlay, timelineSpeed])
+
+  const handleToggleSkyTimePlay = useCallback(() => {
+    togglePlay(skyTimeSpeed)
+  }, [togglePlay, skyTimeSpeed])
 
   // --- rAF loop (no tabs — both views always visible) ---
   const lastFrameRef = useRef<number | null>(null)
@@ -129,6 +150,7 @@ export default function App() {
   const [showConstellationBoundaries, setShowConstellationBoundaries] = useState(false)
   const [showCones, setShowCones] = useState(true)
   const [showPPIOverlay, setShowPPIOverlay] = useState(true)
+  const [skyBrightnessLevel, setSkyBrightnessLevel] = useState<SkyBrightnessLevel>('med')
   const toggleOrbits = useCallback(() => setShowOrbits((o) => !o), [])
   const toggleLabels = useCallback(() => setShowLabels((l) => !l), [])
   const toggleForceInner = useCallback(() => setForceInner((f) => !f), [])
@@ -138,6 +160,7 @@ export default function App() {
   const toggleConstellationBoundaries = useCallback(() => setShowConstellationBoundaries((b) => !b), [])
   const toggleCones = useCallback(() => setShowCones((c) => !c), [])
   const togglePPIOverlay = useCallback(() => setShowPPIOverlay((p) => !p), [])
+  const handleSkyBrightnessLevelChange = useCallback((level: SkyBrightnessLevel) => setSkyBrightnessLevel(level), [])
 
   // --- Computed (throttled React state — for UI only) ---
   const sceneEpochRef = useRef(new Date())
@@ -204,8 +227,8 @@ export default function App() {
 
   const simTimeValue = useMemo(() => ({
     currentDate, isPlaying, speed,
-    setDate: handleSetDate, togglePlay, setSpeed: handleSetSpeed,
-  }), [currentDate, isPlaying, speed, handleSetDate, togglePlay, handleSetSpeed])
+    setDate: handleSetDate, togglePlay: handleToggleTimelinePlay, setSpeed: handleSetTimelineSpeed,
+  }), [currentDate, isPlaying, speed, handleSetDate, handleToggleTimelinePlay, handleSetTimelineSpeed])
 
   const selectionValue = useMemo(() => ({
     selectedBodyId, followMode, selectBody, toggleFollow,
@@ -278,6 +301,8 @@ export default function App() {
                 onAutoDateChange={handleSetDate}
                 targetComboBodies={activeCombo?.planets ?? null}
                 preferNightTargets={alignment.analysisMode !== 'geometry'}
+                skyBrightnessLevel={skyBrightnessLevel}
+                onSkyBrightnessLevelChange={handleSkyBrightnessLevelChange}
               />
             )}
             {sceneView === 'free' && (
@@ -310,6 +335,10 @@ export default function App() {
             {sceneView === 'planetarium' && (
               <PlanetariumTimeControls
                 onDateChange={handleSetDate}
+                isPlaying={isPlaying}
+                speed={skyTimeSpeed}
+                onTogglePlay={handleToggleSkyTimePlay}
+                onSetSpeed={handleSetSkyTimeSpeed}
                 observer={observer}
                 currentDate={currentDate}
                 timeZone={observerState.timeZone}
@@ -354,6 +383,8 @@ export default function App() {
                 isPlaying={isPlaying}
                 isLandscape={effectiveIsLandscape}
                 onOpenLocationPicker={openLocationPicker}
+                skyBrightnessLevel={skyBrightnessLevel}
+                onSkyBrightnessLevelChange={handleSkyBrightnessLevelChange}
               />
             )}
           </div>
@@ -364,9 +395,9 @@ export default function App() {
         <PlaybackBar
           currentDate={currentDate}
           isPlaying={isPlaying}
-          speed={speed}
-          togglePlay={togglePlay}
-          setSpeed={handleSetSpeed}
+          speed={timelineSpeed}
+          togglePlay={handleToggleTimelinePlay}
+          setSpeed={handleSetTimelineSpeed}
           onDateChange={handleSetDate}
           extraActions={emulateLandscapeMobile ? playbackModeToggle : undefined}
         />
@@ -405,6 +436,8 @@ export default function App() {
                   onAutoDateChange={handleSetDate}
                   targetComboBodies={activeCombo?.planets ?? null}
                   preferNightTargets={alignment.analysisMode !== 'geometry'}
+                  skyBrightnessLevel={skyBrightnessLevel}
+                  onSkyBrightnessLevelChange={handleSkyBrightnessLevelChange}
                 />
               )}
             </div>
@@ -431,6 +464,10 @@ export default function App() {
             {sceneView === 'planetarium' && (
               <PlanetariumTimeControls
                 onDateChange={handleSetDate}
+                isPlaying={isPlaying}
+                speed={skyTimeSpeed}
+                onTogglePlay={handleToggleSkyTimePlay}
+                onSetSpeed={handleSetSkyTimeSpeed}
                 observer={observer}
                 currentDate={currentDate}
                 timeZone={observerState.timeZone}
@@ -472,15 +509,17 @@ export default function App() {
             isPlaying={isPlaying}
             isLandscape={effectiveIsLandscape}
             onOpenLocationPicker={openLocationPicker}
+            skyBrightnessLevel={skyBrightnessLevel}
+            onSkyBrightnessLevelChange={handleSkyBrightnessLevelChange}
           />
         </FloatingPanel>
 
         <PlaybackBar
           currentDate={currentDate}
           isPlaying={isPlaying}
-          speed={speed}
-          togglePlay={togglePlay}
-          setSpeed={handleSetSpeed}
+          speed={timelineSpeed}
+          togglePlay={handleToggleTimelinePlay}
+          setSpeed={handleSetTimelineSpeed}
           onDateChange={handleSetDate}
           extraActions={
             <>

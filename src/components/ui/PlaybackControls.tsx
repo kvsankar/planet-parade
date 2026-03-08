@@ -25,7 +25,7 @@ export default memo(function PlaybackControls({
         className="speed-select"
       >
         {SPEED_OPTIONS.map((s) => (
-          <option key={s} value={s}>{s} day{s !== 1 ? 's' : ''}/sec</option>
+          <option key={s.label} value={s.value}>{s.label}</option>
         ))}
       </select>
     </div>
